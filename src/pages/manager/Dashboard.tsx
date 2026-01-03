@@ -33,15 +33,33 @@ const ManagerDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const [statsRes, kpisRes, reviewsRes, notificationsRes, activityRes, employeesRes] = await Promise.all([
-        api.get('/kpis/dashboard/stats'),
-        api.get('/kpis'),
-        api.get('/kpi-review'),
-        api.get('/notifications', { params: { limit: 5, read: 'false' } }),
-        api.get('/notifications/activity'),
-        api.get('/employees'),
+        api.get('/kpis/dashboard/stats').catch(err => {
+          console.error('Error fetching stats:', err);
+          return { data: { stats: {} } };
+        }),
+        api.get('/kpis').catch(err => {
+          console.error('Error fetching KPIs:', err);
+          return { data: { kpis: [] } };
+        }),
+        api.get('/kpi-review').catch(err => {
+          console.error('Error fetching reviews:', err);
+          return { data: { reviews: [] } };
+        }),
+        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
+          console.error('Error fetching notifications:', err);
+          return { data: { notifications: [] } };
+        }),
+        api.get('/notifications/activity').catch(err => {
+          console.error('Error fetching activity:', err);
+          return { data: { activities: [] } };
+        }),
+        api.get('/employees').catch(err => {
+          console.error('Error fetching employees:', err);
+          return { data: { employees: [] } };
+        }),
       ]);
 
-      setStats(statsRes.data.stats);
+      setStats(statsRes.data.stats || {});
       setKpis(kpisRes.data.kpis || []);
       setReviews(reviewsRes.data.reviews || []);
       setNotifications(notificationsRes.data.notifications || []);

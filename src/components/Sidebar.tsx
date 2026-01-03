@@ -11,6 +11,9 @@ import {
   FiBell,
   FiSettings,
   FiLogOut,
+  FiCheckCircle,
+  FiCalendar,
+  FiMail,
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -36,6 +39,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/manager/kpi-management', label: 'KPI Management', icon: FiTarget },
     { path: '/manager/employees', label: 'Employees', icon: FiUsers, badge: '24' },
     { path: '/manager/reviews', label: 'Reviews', icon: FiFileText, badge: '5' },
+    { path: '/manager/schedule-meeting', label: 'Schedule Meeting', icon: FiCalendar },
+    { path: '/manager/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
+    { path: '/manager/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
   ];
 
   const employeeNavItems = [
@@ -47,8 +53,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const hrNavItems = [
     { path: '/hr/dashboard', label: 'Dashboard', icon: FiHome },
-    { path: '/hr/analytics', label: 'Analytics', icon: FiBarChart2 },
-    { path: '/hr/export', label: 'Export Data', icon: FiDownload },
+    { path: '/hr/departments', label: 'Departments', icon: FiUsers },
+    { path: '/hr/kpi-list', label: 'All KPIs', icon: FiTarget },
+    { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
+    { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
+    { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },
+    { path: '/hr/settings', label: 'Settings', icon: FiSettings },
   ];
 
   const commonNavItems = [
@@ -163,30 +173,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
-                SETTINGS
-              </p>
-              {commonNavItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
-                      active
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className={`text-lg ${active ? 'text-purple-600' : ''}`} />
-                    <span className="flex-1 font-medium">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+            {user?.role !== 'hr' && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
+                  SETTINGS
+                </p>
+                {commonNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={onClose}
+                      className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
+                        active
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className={`text-lg ${active ? 'text-purple-600' : ''}`} />
+                      <span className="flex-1 font-medium">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </nav>
 
           {/* User Profile */}

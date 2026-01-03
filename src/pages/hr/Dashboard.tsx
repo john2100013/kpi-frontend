@@ -25,10 +25,22 @@ const HRDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const [kpisRes, reviewsRes, notificationsRes, activityRes] = await Promise.all([
-        api.get('/kpis'),
-        api.get('/kpi-review'),
-        api.get('/notifications', { params: { limit: 5, read: 'false' } }),
-        api.get('/notifications/activity'),
+        api.get('/kpis').catch(err => {
+          console.error('Error fetching KPIs:', err);
+          return { data: { kpis: [] } };
+        }),
+        api.get('/kpi-review').catch(err => {
+          console.error('Error fetching reviews:', err);
+          return { data: { reviews: [] } };
+        }),
+        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
+          console.error('Error fetching notifications:', err);
+          return { data: { notifications: [] } };
+        }),
+        api.get('/notifications/activity').catch(err => {
+          console.error('Error fetching activity:', err);
+          return { data: { activities: [] } };
+        }),
       ]);
 
       setKpis(kpisRes.data.kpis || []);

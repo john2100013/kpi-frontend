@@ -22,7 +22,12 @@ import KPIDetails from './pages/employee/KPIDetails';
 import HRDashboard from './pages/hr/Dashboard';
 import HRKPIList from './pages/hr/KPIList';
 import HRKPIDetails from './pages/hr/KPIDetails';
+import HRSettings from './pages/hr/Settings';
+import DepartmentDashboard from './pages/hr/DepartmentDashboard';
+import EmailTemplates from './pages/hr/EmailTemplates';
+import MeetingScheduler from './pages/manager/MeetingScheduler';
 import AcknowledgedKPIs from './pages/shared/AcknowledgedKPIs';
+import CompletedReviews from './pages/shared/CompletedReviews';
 import Notifications from './pages/shared/Notifications';
 
 // Protected Route Component
@@ -183,6 +188,46 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/manager/completed-reviews"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <CompletedReviews />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/schedule-meeting"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <MeetingScheduler />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/schedule-meeting/kpi/:kpiId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <MeetingScheduler />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/schedule-meeting/review/:reviewId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <MeetingScheduler />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/manager/notifications"
         element={
           <ProtectedRoute allowedRoles={['manager']}>
@@ -297,11 +342,51 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/hr/completed-reviews"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <CompletedReviews />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/hr/notifications"
         element={
           <ProtectedRoute allowedRoles={['hr']}>
             <Layout>
               <Notifications />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/settings"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <HRSettings />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/email-templates"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <EmailTemplates />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/departments"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <DepartmentDashboard />
             </Layout>
           </ProtectedRoute>
         }
