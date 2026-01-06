@@ -149,6 +149,42 @@ const EmployeePerformance: React.FC = () => {
     return sum / validRatings.length;
   };
 
+  // Calculate average rating for Quarterly based on selected year
+  const calculateQuarterlyAverageForYear = (): number => {
+    if (yearFilter === 'all') {
+      return calculateAverageRating(quarterlyData);
+    }
+    const selectedYear = parseInt(yearFilter);
+    const yearData = quarterlyData.filter(p => (p.year || p.review_year) === selectedYear);
+    return calculateAverageRating(yearData);
+  };
+
+  // Calculate average rating for Yearly - selected year or most current year
+  const calculateYearlyAverage = (): number => {
+    if (yearFilter !== 'all') {
+      const selectedYear = parseInt(yearFilter);
+      const yearData = yearlyData.filter(p => (p.year || p.review_year) === selectedYear);
+      return calculateAverageRating(yearData);
+    }
+    // If no year selected, use most current year
+    if (availableYears.length > 0) {
+      const mostCurrentYear = availableYears[0];
+      const yearData = yearlyData.filter(p => (p.year || p.review_year) === mostCurrentYear);
+      return calculateAverageRating(yearData);
+    }
+    return calculateAverageRating(yearlyData);
+  };
+
+  // Get the appropriate average rating based on filter
+  const getFilteredAverageRating = (): number => {
+    if (periodFilter === 'quarterly') {
+      return calculateQuarterlyAverageForYear();
+    } else if (periodFilter === 'yearly') {
+      return calculateYearlyAverage();
+    }
+    return 0;
+  };
+
   // Calculate average manager rating for a period
   const calculateAverageManagerRating = (itemCalculations: Array<{ manager_rating: number }>): number => {
     if (!itemCalculations || itemCalculations.length === 0) return 0;
@@ -156,6 +192,13 @@ const EmployeePerformance: React.FC = () => {
     if (validRatings.length === 0) return 0;
     const sum = validRatings.reduce((acc, c) => acc + (c.manager_rating || 0), 0);
     return sum / validRatings.length;
+  };
+
+  // Convert rating (out of 1.5) to percentage
+  const ratingToPercent = (rating: number): number => {
+    if (!rating || isNaN(rating)) return 0;
+    const pct = (rating / 1.5) * 100;
+    return Math.max(0, Math.min(100, pct));
   };
 
   // Prepare data for line graph (quarterly only, by year)
@@ -190,6 +233,8 @@ const EmployeePerformance: React.FC = () => {
 
   const averageRating = calculateAverageRating(filteredData);
   const avgRatingInfo = getRatingLabel(averageRating);
+  const filteredAverageRating = getFilteredAverageRating();
+  const filteredAvgRatingInfo = getRatingLabel(filteredAverageRating);
 
   return (
     <div className="space-y-6">
@@ -276,7 +321,7 @@ const EmployeePerformance: React.FC = () => {
       </div>
 
       {/* Performance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid gap-6 ${periodFilter === 'all' ? 'grid-cols-1 md:grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -293,33 +338,45 @@ const EmployeePerformance: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <FiTrendingUp className="text-green-600 text-xl" />
+        {(periodFilter === 'quarterly' || periodFilter === 'yearly') && (
+          <>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <FiTrendingUp className="text-green-600 text-xl" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Average Rating</p>
+                  <p className="text-2xl font-bold text-gray-900">{filteredAverageRating.toFixed(2)}</p>
+                  {periodFilter === 'quarterly' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {yearFilter === 'all' ? 'All Years' : `Year ${yearFilter}`}: {filteredAverageRating.toFixed(2)} ({ratingToPercent(filteredAverageRating).toFixed(0)}%)
+                    </p>
+                  )}
+                  {periodFilter === 'yearly' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {yearFilter === 'all' ? `Year ${availableYears[0] || 'N/A'}` : `Year ${yearFilter}`}: {filteredAverageRating.toFixed(2)} ({ratingToPercent(filteredAverageRating).toFixed(0)}%)
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Average Rating</p>
-              <p className="text-2xl font-bold text-gray-900">{averageRating.toFixed(2)}</p>
-              {periodFilter === 'quarterly' && quarterlyData.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Quarterly Avg: {calculateAverageRating(quarterlyData).toFixed(2)}
-                </p>
-              )}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <FiCheckCircle className="text-purple-600 text-xl" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Performance Level</p>
+                  <p className="text-lg font-semibold text-gray-900">{filteredAvgRatingInfo.label}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {ratingToPercent(filteredAverageRating).toFixed(0)}%
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <FiCheckCircle className="text-purple-600 text-xl" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Performance Level</p>
-              <p className="text-lg font-semibold text-gray-900">{avgRatingInfo.label}</p>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Quarterly Totals by Year */}
@@ -350,41 +407,145 @@ const EmployeePerformance: React.FC = () => {
         </div>
       )}
 
-      {/* Line Graph for Quarterly Performance */}
+      {/* Line Graph for Quarterly Performance (with X & Y axes) */}
       {periodFilter !== 'yearly' && quarterlyData.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quarterly Performance Trend</h2>
           {graphData.length > 0 ? (
-            <div className="h-64 flex items-end justify-center space-x-4 overflow-x-auto pb-4">
-              {graphData.map((yearData) => (
-                <div key={`year-${yearData.year}`} className="flex-1 min-w-[120px] flex flex-col items-center">
-                  <div className="w-full flex items-end justify-center space-x-1 h-48 mb-2">
-                    {['Q1', 'Q2', 'Q3', 'Q4'].map(quarter => {
-                      const rating = yearData.quarters[quarter];
-                      if (rating === undefined) {
-                        return (
-                          <div key={`${yearData.year}-${quarter}-empty`} className="flex-1 flex flex-col items-center">
-                            <div className="w-full bg-gray-200 rounded-t" style={{ height: '10px' }} />
-                            <span className="text-xs text-gray-400 mt-1">{quarter}</span>
-                          </div>
-                        );
-                      }
-                      const height = Math.max((rating / 1.5) * 100, 5); // Scale to max 1.50, minimum 5%
-                      return (
-                        <div key={`${yearData.year}-${quarter}`} className="flex-1 flex flex-col items-center">
-                          <div
-                            className="w-full bg-purple-500 rounded-t hover:bg-purple-600 transition-colors cursor-pointer min-h-[20px]"
-                            style={{ height: `${height}%` }}
-                            title={`${quarter} ${yearData.year}: ${rating.toFixed(2)}`}
+            <div className="relative">
+              {graphData.map((yearData) => {
+                const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+                const values = quarters.map(q => yearData.quarters[q] ?? null);
+                const maxValue = Math.max(1.5, ...values.filter(v => v !== null).map(v => v || 0));
+                const minValue = 0;
+                const range = maxValue - minValue;
+                const graphHeight = 300;
+                const graphWidth = 600;
+                const padding = { top: 20, right: 40, bottom: 40, left: 60 };
+                const chartWidth = graphWidth - padding.left - padding.right;
+                const chartHeight = graphHeight - padding.top - padding.bottom;
+                
+                // Calculate points for the line
+                const points = values.map((value, index) => {
+                  if (value === null) return null;
+                  const x = padding.left + (index / (quarters.length - 1)) * chartWidth;
+                  const y = padding.top + chartHeight - ((value - minValue) / range) * chartHeight;
+                  return { x, y, value, quarter: quarters[index] };
+                }).filter(p => p !== null) as Array<{ x: number; y: number; value: number; quarter: string }>;
+                
+                // Create path for line
+                const pathData = points.length > 0 
+                  ? `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
+                  : '';
+                
+                return (
+                  <div key={`year-${yearData.year}`} className="mb-8">
+                    <div className="text-center mb-2">
+                      <span className="text-sm font-semibold text-gray-900">{yearData.year}</span>
+                    </div>
+                    <div className="relative overflow-x-auto">
+                      <svg width={graphWidth} height={graphHeight} className="border-b border-l border-gray-300">
+                        {/* Y-axis grid lines and labels */}
+                        {[0, 0.5, 1.0, 1.5].map((tick) => {
+                          const y = padding.top + chartHeight - ((tick - minValue) / range) * chartHeight;
+                          return (
+                            <g key={`y-grid-${tick}`}>
+                              <line
+                                x1={padding.left}
+                                y1={y}
+                                x2={padding.left + chartWidth}
+                                y2={y}
+                                stroke="#e5e7eb"
+                                strokeWidth="1"
+                                strokeDasharray="2,2"
+                              />
+                              <text
+                                x={padding.left - 10}
+                                y={y + 4}
+                                textAnchor="end"
+                                fontSize="12"
+                                fill="#6b7280"
+                              >
+                                {tick.toFixed(2)}
+                              </text>
+                            </g>
+                          );
+                        })}
+                        
+                        {/* Y-axis label */}
+                        <text
+                          x={15}
+                          y={graphHeight / 2}
+                          textAnchor="middle"
+                          fontSize="11"
+                          fill="#9ca3af"
+                          transform={`rotate(-90, 15, ${graphHeight / 2})`}
+                        >
+                          Rating
+                        </text>
+                        
+                        {/* X-axis labels */}
+                        {quarters.map((quarter, index) => {
+                          const x = padding.left + (index / (quarters.length - 1)) * chartWidth;
+                          const value = values[index];
+                          return (
+                            <g key={`x-label-${quarter}`}>
+                              <text
+                                x={x}
+                                y={graphHeight - padding.bottom + 20}
+                                textAnchor="middle"
+                                fontSize="12"
+                                fill="#374151"
+                                fontWeight="500"
+                              >
+                                {quarter}
+                              </text>
+                              {value !== null && (
+                                <text
+                                  x={x}
+                                  y={graphHeight - padding.bottom + 35}
+                                  textAnchor="middle"
+                                  fontSize="10"
+                                  fill="#6b7280"
+                                >
+                                  {value.toFixed(2)}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                        
+                        {/* Line */}
+                        {pathData && (
+                          <path
+                            d={pathData}
+                            fill="none"
+                            stroke="#8b5cf6"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           />
-                          <span className="text-xs text-gray-600 mt-1">{quarter}</span>
-                        </div>
-                      );
-                    })}
+                        )}
+                        
+                        {/* Data points */}
+                        {points.map((point, index) => (
+                          <g key={`point-${index}`}>
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="6"
+                              fill="#8b5cf6"
+                              stroke="#fff"
+                              strokeWidth="2"
+                            />
+                            <title>{`${point.quarter} ${yearData.year}: ${point.value.toFixed(2)}`}</title>
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900 mt-2">{yearData.year}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center">
@@ -475,7 +636,9 @@ const EmployeePerformance: React.FC = () => {
                               {avgManagerRating > 0 ? avgManagerRating.toFixed(2) : '-'}
                             </td>
                             <td className="py-2 px-3 text-right">{((period.total_weight || 0) * 100).toFixed(0)}%</td>
-                            <td className="py-2 px-3 text-right text-purple-600">{finalRating.toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right text-purple-600">
+                              {finalRating.toFixed(2)} ({ratingToPercent(finalRating).toFixed(0)}%)
+                            </td>
                           </tr>
                         </tfoot>
                       </table>

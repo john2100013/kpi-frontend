@@ -27,13 +27,28 @@ const SelfRating: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log('🔄 [SelfRating] Component mounted/updated, kpiId:', kpiId);
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('🔄 [SelfRating] ===== COMPONENT MOUNTED/UPDATED =====');
+    console.log('🔄 [SelfRating] kpiId:', kpiId);
+    console.log('🔄 [SelfRating] Current ratingOptions state:', ratingOptions);
+    console.log('🔄 [SelfRating] Current ratingOptions length:', ratingOptions.length);
+    console.log('🔄 [SelfRating] User:', user);
     if (kpiId) {
+      console.log('🔄 [SelfRating] Calling fetchKPI and loadDraft');
       fetchKPI();
       loadDraft();
     }
+    console.log('🔄 [SelfRating] Calling fetchRatingOptions NOW...');
     fetchRatingOptions();
+    console.log('🔄 [SelfRating] fetchRatingOptions called');
+    console.log('═══════════════════════════════════════════════════════════');
   }, [kpiId]);
+  
+  // Debug: Log when ratingOptions changes
+  useEffect(() => {
+    console.log('🔄 [SelfRating] ratingOptions state changed:', ratingOptions);
+    console.log('🔄 [SelfRating] ratingOptions length:', ratingOptions.length);
+  }, [ratingOptions]);
 
   // Save draft to localStorage whenever form data changes
   useEffect(() => {
@@ -79,34 +94,62 @@ const SelfRating: React.FC = () => {
   };
 
   const fetchRatingOptions = async () => {
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('🔍 [SelfRating] ===== fetchRatingOptions CALLED =====');
+    console.log('🔍 [SelfRating] Current user:', JSON.stringify(user, null, 2));
+    console.log('🔍 [SelfRating] API baseURL:', api.defaults.baseURL);
+    console.log('🔍 [SelfRating] Full API URL will be:', api.defaults.baseURL + '/rating-options');
+    console.log('🔍 [SelfRating] Token exists?', !!localStorage.getItem('token'));
+    
     try {
-      console.log('🔍 [SelfRating] Fetching rating options from API...');
+      console.log('🔍 [SelfRating] About to make API call...');
       const response = await api.get('/rating-options');
-      console.log('✅ [SelfRating] Rating options response:', response.data);
-      const options = response.data.rating_options || [];
-      console.log('📋 [SelfRating] Setting rating options:', options);
-      setRatingOptions(options);
+      console.log('✅ [SelfRating] API call SUCCESSFUL');
       
-      // If no options returned, use fallback
-      if (options.length === 0) {
-        console.warn('⚠️ [SelfRating] No rating options returned, using fallback');
-        const fallbackOptions = [
-          { rating_value: 1.00, label: 'Below Expectation' },
-          { rating_value: 1.25, label: 'Meets Expectation' },
-          { rating_value: 1.50, label: 'Exceeds Expectation' },
-        ];
-        setRatingOptions(fallbackOptions);
+      console.log('✅ [SelfRating] Full response object:', response);
+      console.log('✅ [SelfRating] Response status:', response.status);
+      console.log('✅ [SelfRating] Response statusText:', response.statusText);
+      console.log('✅ [SelfRating] Response headers:', response.headers);
+      console.log('✅ [SelfRating] Response data:', JSON.stringify(response.data, null, 2));
+      console.log('✅ [SelfRating] Response data type:', typeof response.data);
+      console.log('✅ [SelfRating] response.data.rating_options:', response.data?.rating_options);
+      console.log('✅ [SelfRating] rating_options type:', typeof response.data?.rating_options);
+      console.log('✅ [SelfRating] rating_options is array?', Array.isArray(response.data?.rating_options));
+      console.log('✅ [SelfRating] rating_options length:', response.data?.rating_options?.length);
+      
+      const options = response.data?.rating_options || [];
+      console.log('📋 [SelfRating] Extracted options:', JSON.stringify(options, null, 2));
+      console.log('📋 [SelfRating] Options is array?', Array.isArray(options));
+      console.log('📋 [SelfRating] Options length:', options.length);
+      
+      if (options.length > 0) {
+        console.log('📋 [SelfRating] First option:', JSON.stringify(options[0], null, 2));
+        console.log('📋 [SelfRating] First option rating_value:', options[0].rating_value);
+        console.log('📋 [SelfRating] First option rating_value type:', typeof options[0].rating_value);
+      } else {
+        console.warn('⚠️ [SelfRating] OPTIONS ARRAY IS EMPTY!');
+        console.warn('⚠️ [SelfRating] response.data:', JSON.stringify(response.data, null, 2));
       }
-    } catch (error) {
-      console.error('❌ [SelfRating] Error fetching rating options:', error);
-      // Fallback to default options if API fails
-      const fallbackOptions = [
-        { rating_value: 1.00, label: 'Below Expectation' },
-        { rating_value: 1.25, label: 'Meets Expectation' },
-        { rating_value: 1.50, label: 'Exceeds Expectation' },
-      ];
-      console.log('🔄 [SelfRating] Using fallback rating options:', fallbackOptions);
-      setRatingOptions(fallbackOptions);
+      
+      console.log('📋 [SelfRating] About to set ratingOptions state with:', options.length, 'items');
+      setRatingOptions(options);
+      console.log('📋 [SelfRating] Rating options state set, count:', options.length);
+      console.log('═══════════════════════════════════════════════════════════');
+    } catch (error: any) {
+      console.error('═══════════════════════════════════════════════════════════');
+      console.error('❌ [SelfRating] ===== ERROR IN fetchRatingOptions =====');
+      console.error('❌ [SelfRating] Error object:', error);
+      console.error('❌ [SelfRating] Error message:', error.message);
+      console.error('❌ [SelfRating] Error name:', error.name);
+      console.error('❌ [SelfRating] Error response:', error.response);
+      if (error.response) {
+        console.error('❌ [SelfRating] Error response status:', error.response.status);
+        console.error('❌ [SelfRating] Error response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('❌ [SelfRating] Error response headers:', error.response.headers);
+      }
+      console.error('❌ [SelfRating] Error config:', error.config);
+      console.error('❌ [SelfRating] Error stack:', error.stack);
+      console.error('═══════════════════════════════════════════════════════════');
     }
   };
 
@@ -451,19 +494,33 @@ const SelfRating: React.FC = () => {
                             onChange={(e) => {
                               const selectedValue = parseFloat(e.target.value);
                               console.log('🔄 [SelfRating] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue);
-                              handleRatingChange(item.id, selectedValue);
+                              if (!isNaN(selectedValue)) {
+                                handleRatingChange(item.id, selectedValue);
+                              }
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                           >
                             <option value={0}>Select rating</option>
-                            {ratingOptions.map((opt) => {
-                              const optValue = parseFloat(String(opt.rating_value));
-                              return (
-                                <option key={opt.rating_value} value={optValue}>
-                                  {opt.rating_value} - {opt.label}
-                                </option>
-                              );
-                            })}
+                            {(() => {
+                              console.log('🔍 [SelfRating] Rendering select options, ratingOptions:', ratingOptions);
+                              console.log('🔍 [SelfRating] ratingOptions.length:', ratingOptions.length);
+                              if (ratingOptions.length > 0) {
+                                return ratingOptions.map((opt, idx) => {
+                                  const optValue = typeof opt.rating_value === 'number' 
+                                    ? opt.rating_value 
+                                    : parseFloat(String(opt.rating_value || '0'));
+                                  console.log(`🔍 [SelfRating] Option ${idx}:`, { opt, optValue, type: typeof optValue });
+                                  return (
+                                    <option key={`${opt.rating_value}-${opt.label}-${idx}`} value={optValue}>
+                                      {opt.rating_value} - {opt.label}
+                                    </option>
+                                  );
+                                });
+                              } else {
+                                console.warn('⚠️ [SelfRating] No rating options available, showing empty select');
+                                return null;
+                              }
+                            })()}
                           </select>
                           {itemRating > 0 && (
                             <div className="mt-1">
@@ -548,19 +605,31 @@ const SelfRating: React.FC = () => {
                         onChange={(e) => {
                           const selectedValue = parseFloat(e.target.value);
                           console.log('🔄 [SelfRating] Legacy select changed - Raw value:', e.target.value, 'Parsed:', selectedValue);
-                          handleRatingChange(0, selectedValue);
+                          if (!isNaN(selectedValue)) {
+                            handleRatingChange(0, selectedValue);
+                          }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       >
                         <option value={0}>Select rating</option>
-                        {ratingOptions.map((opt) => {
-                          const optValue = parseFloat(String(opt.rating_value));
-                          return (
-                            <option key={opt.rating_value} value={optValue}>
-                              {opt.rating_value} - {opt.label}
-                            </option>
-                          );
-                        })}
+                        {ratingOptions.length > 0 ? (
+                          ratingOptions.map((opt) => {
+                            const optValue = typeof opt.rating_value === 'number' 
+                              ? opt.rating_value 
+                              : parseFloat(String(opt.rating_value || '0'));
+                            return (
+                              <option key={`${opt.rating_value}-${opt.label}`} value={optValue}>
+                                {opt.rating_value} - {opt.label}
+                              </option>
+                            );
+                          })
+                        ) : (
+                          <>
+                            <option value={1.00}>1.00 - Below Expectation</option>
+                            <option value={1.25}>1.25 - Meets Expectation</option>
+                            <option value={1.50}>1.50 - Exceeds Expectation</option>
+                          </>
+                        )}
                       </select>
                       {ratings[0] > 0 && (
                         <div className="mt-1">

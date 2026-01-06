@@ -119,14 +119,34 @@ const KPIList: React.FC = () => {
           ) : (
             kpis.map((kpi) => {
               const stageInfo = getKPIStage(kpi);
+              const review = reviews.find(r => r.kpi_id === kpi.id);
+
+              let primaryActionLabel: string | null = null;
+              let primaryActionOnClick: (() => void) | null = null;
+
+              if (kpi.status === 'pending') {
+                // Keep existing acknowledge behavior unchanged
+                primaryActionLabel = 'Acknowledge KPI';
+                primaryActionOnClick = () => navigate(`/employee/kpi-acknowledgement/${kpi.id}`);
+              } else if (
+                kpi.status === 'acknowledged' &&
+                (!review || review.review_status === 'pending')
+              ) {
+                // Show review button whenever employee has not yet reviewed this KPI
+                primaryActionLabel = 'Review KPI';
+                primaryActionOnClick = () => navigate(`/employee/self-rating/${kpi.id}`);
+              }
+
               return (
-                <button
+                <div
                   key={kpi.id}
-                  onClick={() => navigate(`/employee/kpi-details/${kpi.id}`)}
-                  className="w-full p-6 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full p-6 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => navigate(`/employee/kpi-details/${kpi.id}`)}
+                    >
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="font-semibold text-gray-900 text-lg">{kpi.title}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${stageInfo.color}`}>
@@ -143,11 +163,25 @@ const KPIList: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="ml-4">
-                      <FiEye className="text-gray-400 text-xl" />
+                    <div className="ml-4 flex flex-col items-end space-y-2">
+                      <button
+                        onClick={() => navigate(`/employee/kpi-details/${kpi.id}`)}
+                        className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm"
+                      >
+                        <FiEye className="text-lg" />
+                        <span>View</span>
+                      </button>
+                      {primaryActionLabel && primaryActionOnClick && (
+                        <button
+                          onClick={primaryActionOnClick}
+                          className="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-medium hover:bg-purple-700"
+                        >
+                          {primaryActionLabel}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })
           )}

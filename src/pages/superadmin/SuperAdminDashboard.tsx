@@ -122,13 +122,22 @@ const SuperAdminDashboard: React.FC = () => {
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">All Companies</h2>
-          <button
-            onClick={() => navigate('/onboard')}
-            className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-          >
-            <FiPlus />
-            <span>Onboard New Company</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => navigate('/super-admin/assign-hr')}
+              className="flex items-center space-x-2 bg-white border border-purple-600 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 transition text-sm"
+            >
+              <FiUser />
+              <span>Assign HR to Company</span>
+            </button>
+            <button
+              onClick={() => navigate('/onboard')}
+              className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            >
+              <FiPlus />
+              <span>Onboard New Company</span>
+            </button>
+          </div>
         </div>
 
         {companies.length === 0 ? (

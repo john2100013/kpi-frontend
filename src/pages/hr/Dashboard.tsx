@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { KPI, KPIReview, Notification } from '../../types';
 import NotificationItem from '../../components/NotificationItem';
-import { FiDownload, FiFilter, FiEye, FiCheckCircle, FiClock, FiFileText, FiBell } from 'react-icons/fi';
+import { FiFilter, FiEye, FiCheckCircle, FiClock, FiFileText, FiBell } from 'react-icons/fi';
 
 const HRDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -154,10 +154,6 @@ const HRDashboard: React.FC = () => {
           >
             <FiCheckCircle className="text-lg" />
             <span>Acknowledged KPIs</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-            <FiDownload className="text-lg" />
-            <span>Export Data</span>
           </button>
         </div>
       </div>

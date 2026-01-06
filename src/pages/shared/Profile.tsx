@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import SignatureCanvas from 'react-signature-canvas';
-import { FiArrowLeft, FiSave, FiUpload, FiX, FiCheckCircle, FiEye, FiEyeOff, FiLock } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiUpload, FiX, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiEdit } from 'react-icons/fi';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -222,7 +222,18 @@ const Profile: React.FC = () => {
 
       {/* User Information */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">User Information</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">User Information</h2>
+          {(user?.role === 'hr' || user?.role === 'manager') && (
+            <button
+              onClick={() => navigate('/profile/edit')}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <FiEdit className="text-lg" />
+              <span>Edit Profile</span>
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600 mb-1">Name</p>

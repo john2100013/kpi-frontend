@@ -29,10 +29,18 @@ import DepartmentDashboard from './pages/hr/DepartmentDashboard';
 import EmailTemplates from './pages/hr/EmailTemplates';
 import MeetingScheduler from './pages/manager/MeetingScheduler';
 import AcknowledgedKPIs from './pages/shared/AcknowledgedKPIs';
+import KPISettingCompleted from './pages/shared/KPISettingCompleted';
 import CompletedReviews from './pages/shared/CompletedReviews';
 import Notifications from './pages/shared/Notifications';
 import EmployeePerformance from './pages/hr/EmployeePerformance';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
+import AssignHrToCompany from './pages/superadmin/AssignHrToCompany';
+import CompanyManagement from './pages/superadmin/CompanyManagement';
+import UserManagement from './pages/superadmin/UserManagement';
+import EditProfile from './pages/shared/EditProfile';
+import CompanyManagement from './pages/superadmin/CompanyManagement';
+import UserManagement from './pages/superadmin/UserManagement';
+import EditProfile from './pages/shared/EditProfile';
 import Employees from './pages/shared/Employees';
 import Profile from './pages/shared/Profile';
 
@@ -90,6 +98,36 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['super_admin']}>
             <Layout>
               <SuperAdminDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/assign-hr"
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <Layout>
+              <AssignHrToCompany />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/company-management"
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <Layout>
+              <CompanyManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/user-management"
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <Layout>
+              <UserManagement />
             </Layout>
           </ProtectedRoute>
         }
@@ -212,6 +250,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['manager']}>
             <Layout>
               <AcknowledgedKPIs />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/kpi-setting-completed"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPISettingCompleted />
             </Layout>
           </ProtectedRoute>
         }
@@ -371,6 +419,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/hr/kpi-setting-completed"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <KPISettingCompleted />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/hr/completed-reviews"
         element={
           <ProtectedRoute allowedRoles={['hr']}>
@@ -478,6 +536,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Profile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/edit"
+        element={
+          <ProtectedRoute allowedRoles={['hr', 'manager']}>
+            <Layout>
+              <EditProfile />
             </Layout>
           </ProtectedRoute>
         }

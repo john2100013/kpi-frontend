@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiTarget } from 'react-icons/fi';
 
 const Login: React.FC = () => {
   const [loginMethod, setLoginMethod] = useState<'payroll' | 'email'>('payroll');
@@ -71,8 +70,8 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-2xl mb-4">
-            <FiTarget className="text-white text-3xl" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-2xl mb-4 overflow-hidden">
+            <img src="/ICTA.jpeg" alt="ICTA Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">KPI Manager</h1>
           <p className="text-gray-600">Performance Management System</p>

@@ -5,7 +5,7 @@ import { User } from '../../types';
 import SignatureField from '../../components/SignatureField';
 import DatePicker from '../../components/DatePicker';
 import TextModal from '../../components/TextModal';
-import { FiArrowLeft, FiSave, FiSend, FiEye, FiExternalLink } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiSend, FiEye, FiExternalLink, FiPlus, FiTrash2 } from 'react-icons/fi';
 
 const KPISetting: React.FC = () => {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -13,11 +13,13 @@ const KPISetting: React.FC = () => {
   const [employee, setEmployee] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [kpiRows, setKpiRows] = useState([
-    { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-    { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-    { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-  ]);
+  const getInitialRows = (periodType: 'quarterly' | 'yearly') => {
+    const defaultRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' };
+    const rowCount = periodType === 'yearly' ? 5 : 3;
+    return Array(rowCount).fill(null).map(() => ({ ...defaultRow }));
+  };
+
+  const [kpiRows, setKpiRows] = useState(getInitialRows('quarterly'));
   const [period, setPeriod] = useState<'quarterly' | 'yearly'>('quarterly');
   const [quarter, setQuarter] = useState('Q1');
   const [year, setYear] = useState(new Date().getFullYear());
@@ -66,6 +68,11 @@ const KPISetting: React.FC = () => {
         const draftData = JSON.parse(savedDraft);
         console.log('Loading draft for employee:', employeeId, draftData);
         
+        // Load period settings from draft first
+        if (draftData.period) {
+          setPeriod(draftData.period);
+        }
+        
         // Always load draft data if it exists (don't check hasData - draft should override empty state)
         if (draftData.kpiRows && Array.isArray(draftData.kpiRows) && draftData.kpiRows.length > 0) {
           // Check if draft has any actual data (not just empty strings)
@@ -75,13 +82,17 @@ const KPISetting: React.FC = () => {
           if (hasDraftData) {
             setKpiRows(draftData.kpiRows);
             console.log('Loaded KPI rows from draft:', draftData.kpiRows);
+          } else {
+            // If no draft data but period exists, set default rows for that period
+            setKpiRows(getInitialRows(draftData.period || 'quarterly'));
+          }
+        } else {
+          // If no draft rows but period exists, set default rows for that period
+          if (draftData.period) {
+            setKpiRows(getInitialRows(draftData.period));
           }
         }
         
-        // Load period settings from draft
-        if (draftData.period) {
-          setPeriod(draftData.period);
-        }
         if (draftData.quarter) {
           setQuarter(draftData.quarter);
         }
@@ -154,6 +165,22 @@ const KPISetting: React.FC = () => {
     setKpiRows(updated);
   };
 
+  const handleAddRow = () => {
+    const newRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' };
+    setKpiRows([...kpiRows, newRow]);
+  };
+
+  const handleRemoveRow = (index: number) => {
+    // Don't allow removing rows if we're at minimum (3 for quarterly, 5 for yearly)
+    const minRows = period === 'yearly' ? 5 : 3;
+    if (kpiRows.length <= minRows) {
+      alert(`You must have at least ${minRows} KPI items for ${period} KPIs`);
+      return;
+    }
+    const updated = kpiRows.filter((_, i) => i !== index);
+    setKpiRows(updated);
+  };
+
   const handleSaveDraft = () => {
     if (!employeeId) return;
     const draftKey = `kpi-setting-draft-${employeeId}`;
@@ -181,8 +208,42 @@ const KPISetting: React.FC = () => {
       kpi => kpi.title && kpi.title.trim() !== '' && kpi.description && kpi.description.trim() !== ''
     );
 
+    // Validate minimum rows based on period type
+    const minRows = period === 'yearly' ? 5 : 3;
+    if (validKpiRows.length < minRows) {
+      alert(`Please fill in at least ${minRows} KPI items for ${period} KPIs`);
+      return;
+    }
+
     if (validKpiRows.length === 0) {
       alert('Please fill in at least one KPI row');
+      return;
+    }
+
+    // Validate that total goal weight equals 100% (dynamic based on number of questions)
+    const rawWeights = validKpiRows
+      .map(row => {
+        const value = (row.goal_weight || '').toString().trim();
+        if (!value) return NaN;
+        const numeric = parseFloat(value.replace('%', ''));
+        return isNaN(numeric) ? NaN : numeric;
+      })
+      .filter(w => !isNaN(w));
+
+    if (rawWeights.length !== validKpiRows.length) {
+      alert('Please enter a valid goal weight (e.g., 30 or 30%) for each KPI item.');
+      return;
+    }
+
+    let totalWeight = rawWeights.reduce((sum, w) => sum + w, 0);
+    // Support fractional weights (e.g., 0.3 instead of 30)
+    if (rawWeights.every(w => w > 0 && w <= 1)) {
+      totalWeight = totalWeight * 100;
+    }
+
+    const roundedTotal = Math.round(totalWeight * 100) / 100;
+    if (roundedTotal !== 100) {
+      alert(`Total Goal Weight must be exactly 100%. Current total is ${roundedTotal.toFixed(2)}%.`);
       return;
     }
 
@@ -346,19 +407,9 @@ const KPISetting: React.FC = () => {
                     const firstPeriod = periodsOfType[0];
                     if (newPeriod === 'quarterly') {
                       setQuarter(firstPeriod.quarter || 'Q1');
-                      setKpiRows([
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                      ]);
+                      setKpiRows(getInitialRows('quarterly'));
                     } else {
-                      setKpiRows([
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                        { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' },
-                      ]);
+                      setKpiRows(getInitialRows('yearly'));
                     }
                     setYear(firstPeriod.year);
                     if (firstPeriod.start_date) {
@@ -479,9 +530,25 @@ const KPISetting: React.FC = () => {
 
           {/* KPI Table */}
           <div className="overflow-x-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-gray-700">
+                KPI Items ({kpiRows.length} {kpiRows.length === 1 ? 'item' : 'items'})
+              </h3>
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                <FiPlus className="text-lg" />
+                <span>Add Row</span>
+              </button>
+            </div>
             <table className="w-full border-collapse" style={{ minWidth: '1600px' }}>
               <thead>
                 <tr className="bg-gray-50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '50px' }}>
+                    #
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '200px' }}>
                     KPI Title / Name *
                   </th>
@@ -503,11 +570,20 @@ const KPISetting: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>
                     Goal Weight *
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '80px' }}>
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {kpiRows.map((kpi, index) => (
+                {kpiRows.map((kpi, index) => {
+                  const minRows = period === 'yearly' ? 5 : 3;
+                  const canRemove = kpiRows.length > minRows;
+                  return (
                   <tr key={index}>
+                    <td className="border border-gray-200 p-2 text-center">
+                      <span className="font-semibold text-gray-700">{index + 1}</span>
+                    </td>
                     <td className="border border-gray-200 p-2">
                       <input
                         type="text"
@@ -625,8 +701,21 @@ const KPISetting: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
                       />
                     </td>
+                    <td className="border border-gray-200 p-2 text-center">
+                      {canRemove && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(index)}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          title="Remove this row"
+                        >
+                          <FiTrash2 className="text-lg" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>

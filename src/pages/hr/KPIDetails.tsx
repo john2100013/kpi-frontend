@@ -539,18 +539,27 @@ const HRKPIDetails: React.FC = () => {
             return 'Below Expectation';
           };
 
+          // Calculate total manager rating (average of all item ratings)
+          const totalManagerRating = itemCalculations.length > 0
+            ? itemCalculations.reduce((sum, calc) => sum + calc.manager_rating, 0) / itemCalculations.length
+            : 0;
+
           return (
             <div className="mt-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Performance Rating</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-600 mb-1">Final Score</p>
                   <p className="text-3xl font-bold text-purple-600">{finalRating.toFixed(2)}</p>
                   <p className="text-xs text-gray-500 mt-1">{getRatingLabel(finalRating)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-600 mb-1">Total Weight</p>
-                  <p className="text-2xl font-semibold text-gray-900">{(totalWeight * 100).toFixed(0)}%</p>
+                  <p className="text-sm text-gray-600 mb-1">Manager Rating Total</p>
+                  <p className="text-2xl font-semibold text-gray-900">{totalManagerRating.toFixed(2)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-1">Total Contribution</p>
+                  <p className="text-2xl font-semibold text-gray-900">{finalRating.toFixed(2)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-600 mb-1">KPI Items</p>

@@ -28,8 +28,17 @@ interface DailyReminderSetting {
   cc_emails?: string;
 }
 
+interface RatingOption {
+  id?: number;
+  rating_value: number | null;
+  label: string;
+  description?: string;
+  is_active: boolean;
+  display_order: number;
+}
+
 const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'periods' | 'reminders' | 'daily' | 'email-notifications'>('periods');
+  const [activeTab, setActiveTab] = useState<'periods' | 'reminders' | 'daily' | 'email-notifications' | 'rating-options'>('periods');
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>([]);
   const [reminderSettings, setReminderSettings] = useState<ReminderSetting[]>([]);
   const [dailyReminderSetting, setDailyReminderSetting] = useState<DailyReminderSetting>({
@@ -38,6 +47,7 @@ const Settings: React.FC = () => {
     cc_emails: '',
   });
   const [hrEmailNotifications, setHrEmailNotifications] = useState<boolean>(true);
+  const [ratingOptions, setRatingOptions] = useState<RatingOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -47,11 +57,12 @@ const Settings: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      const [periodsRes, remindersRes, dailyRes, emailNotifRes] = await Promise.all([
+      const [periodsRes, remindersRes, dailyRes, emailNotifRes, ratingOptionsRes] = await Promise.all([
         api.get('/settings/period-settings'),
         api.get('/settings/reminder-settings'),
         api.get('/settings/daily-reminder-settings'),
         api.get('/settings/hr-email-notifications').catch(() => ({ data: { setting: { receive_email_notifications: true } } })),
+        api.get('/rating-options/manage').catch(() => ({ data: { rating_options: [] } })),
       ]);
 
       // Backend now returns dates in YYYY-MM-DD format using PostgreSQL to_char
@@ -87,6 +98,7 @@ const Settings: React.FC = () => {
       setReminderSettings(remindersRes.data.settings || []);
       setDailyReminderSetting(dailyRes.data.setting || { send_daily_reminders: false, days_before_meeting: 3, cc_emails: '' });
       setHrEmailNotifications(emailNotifRes.data.setting?.receive_email_notifications !== false);
+      setRatingOptions(ratingOptionsRes.data.rating_options || []);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
@@ -160,7 +172,8 @@ const Settings: React.FC = () => {
     
     try {
       await api.delete(`/settings/period-settings/${id}`);
-      setPeriodSettings(periodSettings.filter(s => s.id !== id));
+      // Fix: Filter by id to ensure only the specific item is removed
+      setPeriodSettings(prev => prev.filter(s => s.id !== id));
     } catch (error) {
       console.error('Error deleting period setting:', error);
       alert('Error deleting period setting');
@@ -236,6 +249,84 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Rating Options handlers
+  const handleSaveRatingOption = async (option: RatingOption, index: number) => {
+    // Allow 0 as a valid rating value, so check for null/undefined specifically
+    // Also check if rating_value is NaN
+    const ratingValue = option.rating_value;
+    const isValidRating = ratingValue !== null && ratingValue !== undefined && !isNaN(ratingValue);
+    
+    if (!isValidRating || !option.label || option.label.trim() === '') {
+      alert('Rating value and label are required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Ensure rating_value is a number (not string or null)
+      const optionToSave = {
+        ...option,
+        rating_value: typeof ratingValue === 'string' ? parseFloat(ratingValue) : (ratingValue as number),
+      };
+      
+      console.log('🔍 [Settings] Saving rating option:', optionToSave);
+      let response;
+      if (option.id) {
+        // Update existing
+        console.log('🔍 [Settings] Updating existing rating option:', option.id);
+        response = await api.put(`/rating-options/${option.id}`, optionToSave);
+      } else {
+        // Create new
+        console.log('🔍 [Settings] Creating new rating option');
+        response = await api.post('/rating-options', optionToSave);
+      }
+
+      console.log('✅ [Settings] Rating option saved:', response.data);
+      const updated = [...ratingOptions];
+      updated[index] = response.data.rating_option;
+      setRatingOptions(updated);
+      alert('Rating option saved successfully!');
+    } catch (error: any) {
+      console.error('❌ [Settings] Error saving rating option:', error);
+      console.error('❌ [Settings] Error response:', error.response);
+      console.error('❌ [Settings] Error data:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || 'Error saving rating option';
+      alert(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRatingOption = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this rating option?')) return;
+    
+    try {
+      await api.delete(`/rating-options/${id}`);
+      setRatingOptions(prev => prev.filter(opt => opt.id !== id));
+      alert('Rating option deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting rating option:', error);
+      alert('Error deleting rating option');
+    }
+  };
+
+  const handleAddRatingOption = () => {
+    const maxDisplayOrder = ratingOptions.length > 0 
+      ? Math.max(...ratingOptions.map(opt => opt.display_order || 0))
+      : 0;
+    
+    setRatingOptions([
+      ...ratingOptions,
+      {
+        rating_value: null,
+        label: '',
+        description: '',
+        is_active: true,
+        display_order: maxDisplayOrder + 1,
+      },
+    ]);
+  };
+
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
@@ -288,6 +379,16 @@ const Settings: React.FC = () => {
             }`}
           >
             Email Notifications
+          </button>
+          <button
+            onClick={() => setActiveTab('rating-options')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'rating-options'
+                ? 'border-purple-500 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Rating Options
           </button>
         </nav>
       </div>
@@ -710,6 +811,155 @@ const Settings: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Rating Options Tab */}
+      {activeTab === 'rating-options' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Rating Options</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Manage rating scale options for employee and manager reviews. These options will be available in KPI self-rating and review forms.
+              </p>
+            </div>
+            <button
+              onClick={handleAddRatingOption}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              <FiPlus />
+              <span>Add Rating Option</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating Value</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Display Order</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {ratingOptions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No rating options found. Click "Add Rating Option" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  ratingOptions.map((option, index) => (
+                    <tr key={option.id || `new-${index}`}>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={option.rating_value !== undefined && option.rating_value !== null ? option.rating_value : ''}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            const inputVal = e.target.value;
+                            if (inputVal === '') {
+                              updated[index].rating_value = null;
+                            } else {
+                              const parsed = parseFloat(inputVal);
+                              updated[index].rating_value = !isNaN(parsed) ? parsed : null;
+                            }
+                            setRatingOptions(updated);
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 w-24"
+                          placeholder="1.00"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="text"
+                          value={option.label || ''}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            updated[index].label = e.target.value;
+                            setRatingOptions(updated);
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 w-full"
+                          placeholder="e.g., Below Expectation"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="text"
+                          value={option.description || ''}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            updated[index].description = e.target.value;
+                            setRatingOptions(updated);
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 w-full"
+                          placeholder="Optional description"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          value={option.display_order || ''}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            updated[index].display_order = parseInt(e.target.value) || 1;
+                            setRatingOptions(updated);
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 w-20"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={option.is_active !== false}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            updated[index].is_active = e.target.checked;
+                            setRatingOptions(updated);
+                          }}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleSaveRatingOption(option, index)}
+                            disabled={saving}
+                            className="text-green-600 hover:text-green-700"
+                            title="Save"
+                          >
+                            <FiSave />
+                          </button>
+                          {option.id && (
+                            <button
+                              onClick={() => handleDeleteRatingOption(option.id!)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Delete"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {ratingOptions.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Only active rating options will be available in KPI self-rating and review forms. 
+                The display order determines the order in which options appear in dropdowns.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

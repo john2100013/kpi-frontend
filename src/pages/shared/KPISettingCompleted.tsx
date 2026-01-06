@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { KPI } from '../../types';
-import { FiArrowLeft, FiEye, FiUser, FiSearch, FiFilter, FiDownload, FiFileText } from 'react-icons/fi';
+import { FiArrowLeft, FiEye, FiUser, FiSearch, FiFilter, FiDownload, FiCheckCircle, FiFileText } from 'react-icons/fi';
 
 interface PeriodSetting {
   id: number;
@@ -13,11 +13,10 @@ interface PeriodSetting {
   is_active: boolean;
 }
 
-const AcknowledgedKPIs: React.FC = () => {
+const KPISettingCompleted: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [kpis, setKpis] = useState<KPI[]>([]);
-  // const [reviews, setReviews] = useState<KPIReview[]>([]); // Unused - keeping for potential future use
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [kpiType, setKpiType] = useState<'quarterly' | 'yearly'>('quarterly');
@@ -47,14 +46,12 @@ const AcknowledgedKPIs: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Use the dedicated endpoint for acknowledged-review-pending KPIs
-      const kpisRes = await api.get('/kpis/acknowledged-review-pending').catch(err => {
-        console.error('Error fetching acknowledged-review-pending KPIs:', err);
+      const kpisRes = await api.get('/kpis/setting-completed').catch(err => {
+        console.error('Error fetching setting-completed KPIs:', err);
         return { data: { kpis: [] } };
       });
 
       setKpis(kpisRes.data.kpis || []);
-      // Reviews not needed since we're only showing KPIs without reviews
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -62,8 +59,7 @@ const AcknowledgedKPIs: React.FC = () => {
     }
   };
 
-  // Filter KPIs by type and search (they're already filtered to acknowledged-review-pending by the API)
-  const acknowledgedKPIs = kpis.filter((kpi) => {
+  const settingCompletedKPIs = kpis.filter((kpi) => {
     const matchesType = kpi.period === kpiType;
     // If quarterly and a specific period is selected, match by quarter and year
     const matchesPeriod = kpiType === 'quarterly' && selectedPeriodId
@@ -78,10 +74,9 @@ const AcknowledgedKPIs: React.FC = () => {
     return matchesType && matchesPeriod && matchesSearch;
   });
 
-  const getKPIStatus = (_kpi: KPI): { status: string; color: string } => {
-    // All KPIs on this page are acknowledged and review pending
+  const getStatus = (): { status: string; color: string } => {
     return {
-      status: 'KPI Acknowledged - Review Pending',
+      status: 'KPI Setting Completed',
       color: 'bg-blue-100 text-blue-700'
     };
   };
@@ -100,7 +95,6 @@ const AcknowledgedKPIs: React.FC = () => {
         responseType: 'blob',
       });
 
-      // Create a blob URL and trigger download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -118,7 +112,7 @@ const AcknowledgedKPIs: React.FC = () => {
   };
 
   const handleExportToCSV = () => {
-    if (acknowledgedKPIs.length === 0) {
+    if (settingCompletedKPIs.length === 0) {
       alert('No data to export');
       return;
     }
@@ -136,13 +130,14 @@ const AcknowledgedKPIs: React.FC = () => {
       'KPI Items Count',
       'Status',
       'Employee Signed Date',
+      'Manager Signed Date',
       'Manager Name',
       'Created Date',
       'Updated Date'
     ];
 
-    const rows = acknowledgedKPIs.map((kpi) => {
-      const statusInfo = getKPIStatus(kpi);
+    const rows = settingCompletedKPIs.map((kpi) => {
+      const statusInfo = getStatus();
       return [
         kpi.employee_name || '',
         kpi.employee_payroll_number || '',
@@ -155,6 +150,7 @@ const AcknowledgedKPIs: React.FC = () => {
         (kpi.items?.length || kpi.item_count || 1).toString(),
         statusInfo.status,
         kpi.employee_signed_at ? new Date(kpi.employee_signed_at).toLocaleDateString() : '',
+        kpi.manager_signed_at ? new Date(kpi.manager_signed_at).toLocaleDateString() : '',
         kpi.manager_name || '',
         kpi.created_at ? new Date(kpi.created_at).toLocaleDateString() : '',
         kpi.updated_at ? new Date(kpi.updated_at).toLocaleDateString() : ''
@@ -182,7 +178,7 @@ const AcknowledgedKPIs: React.FC = () => {
     const periodLabel = kpiType === 'quarterly' && selectedPeriodId
       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''}_${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
       : kpiType;
-    link.setAttribute('download', `Acknowledged_KPIs_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `KPI_Setting_Completed_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -204,9 +200,9 @@ const AcknowledgedKPIs: React.FC = () => {
           <FiArrowLeft className="text-xl" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">KPI Acknowledged - Review Pending</h1>
+          <h1 className="text-2xl font-bold text-gray-900">KPI Setting Completed</h1>
           <p className="text-sm text-gray-600 mt-1">
-            View all acknowledged KPIs that are waiting for review to be initiated
+            View all KPIs where the setting phase has been fully completed and signed
           </p>
         </div>
         {(user?.role === 'hr' || user?.role === 'manager') && (
@@ -272,12 +268,12 @@ const AcknowledgedKPIs: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            Acknowledged KPIs - Review Pending ({acknowledgedKPIs.length})
+            KPI Setting Completed ({settingCompletedKPIs.length})
           </h2>
           <p className="text-sm text-gray-600 mt-1">
             {kpiType === 'quarterly' && selectedPeriodId
               ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
-              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that have been acknowledged by employees and are waiting for review to be initiated
+              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that were acknowledged and fully signed off
           </p>
         </div>
 
@@ -295,23 +291,23 @@ const AcknowledgedKPIs: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {acknowledgedKPIs.length === 0 ? (
+              {settingCompletedKPIs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No acknowledged KPIs found for {kpiType === 'quarterly' && selectedPeriodId
+                    No KPI setting records found for {kpiType === 'quarterly' && selectedPeriodId
                       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
                       : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} period
                   </td>
                 </tr>
               ) : (
-                acknowledgedKPIs.map((kpi) => {
-                  const statusInfo = getKPIStatus(kpi);
+                settingCompletedKPIs.map((kpi) => {
+                  const statusInfo = getStatus();
                   return (
                     <tr key={kpi.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <FiUser className="text-purple-600" />
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <FiUser className="text-blue-600" />
                           </div>
                           <div>
                             <p className="font-semibold text-gray-900">{kpi.employee_name}</p>
@@ -342,15 +338,15 @@ const AcknowledgedKPIs: React.FC = () => {
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                          {statusInfo.status}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 w-fit ${statusInfo.color}`}>
+                          <FiCheckCircle className="text-sm" />
+                          <span>{statusInfo.status}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => {
-                              // Navigate based on user role
                               const path = user?.role === 'hr' 
                                 ? `/hr/kpi-details/${kpi.id}`
                                 : `/manager/kpi-details/${kpi.id}`;
@@ -384,5 +380,7 @@ const AcknowledgedKPIs: React.FC = () => {
   );
 };
 
-export default AcknowledgedKPIs;
+export default KPISettingCompleted;
+
+
 

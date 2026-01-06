@@ -74,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       badge: pendingReviewsCount > 0 ? pendingReviewsCount : undefined 
     },
     { path: '/manager/schedule-meeting', label: 'Schedule Meeting', icon: FiCalendar },
+    { path: '/manager/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
     { path: '/manager/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
     { path: '/manager/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
   ];
@@ -90,6 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/hr/employees', label: 'Employees', icon: FiUsers },
     { path: '/hr/departments', label: 'Departments', icon: FiUsers },
     { path: '/hr/kpi-list', label: 'All KPIs', icon: FiTarget },
+     { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
     { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
     { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
     { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },
@@ -98,6 +100,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const superAdminNavItems: NavItem[] = [
     { path: '/super-admin/dashboard', label: 'Dashboard', icon: FiHome },
+    { path: '/super-admin/company-management', label: 'Company Management', icon: FiHome },
+    { path: '/super-admin/user-management', label: 'User Management', icon: FiUsers },
     { path: '/onboard', label: 'Onboard Company', icon: FiUsers },
   ];
 
@@ -129,8 +133,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {/* Logo */}
           <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <FiTarget className="text-purple-600 text-xl" />
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden">
+                <img src="/ICTA.jpeg" alt="ICTA Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-white font-bold text-lg">KPI Manager</h1>
@@ -179,20 +183,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           </nav>
 
-          {/* User Profile - Only for HR and Super Admin */}
+          {/* Logout - Only for HR and Super Admin */}
           {(user?.role === 'hr' || user?.role === 'super_admin') && (
             <div className="p-4 border-t border-gray-200">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {user?.name || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role || 'User'}</p>
-                </div>
-              </div>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
