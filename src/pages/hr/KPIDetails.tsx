@@ -11,6 +11,7 @@ const HRKPIDetails: React.FC = () => {
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [review, setReview] = useState<KPIReview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolveNote, setResolveNote] = useState('');
   const [textModal, setTextModal] = useState<{ isOpen: boolean; title: string; value: string }>({
     isOpen: false,
     title: '',
@@ -263,16 +264,22 @@ const HRKPIDetails: React.FC = () => {
                             </button>
                           </td>
                           <td className="px-4 py-4">
-                            <button
-                              onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A' })}
-                              className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
-                            >
-                              <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
-                            </button>
+                            {item.is_qualitative ? (
+                              <span className="text-sm text-purple-600 font-medium">Qualitative</span>
+                            ) : (
+                              <button
+                                onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A' })}
+                                className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
+                              >
+                                <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-4">
-                            <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-sm whitespace-nowrap">
-                              {item.measure_unit || 'N/A'}
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-sm whitespace-nowrap ${
+                              item.is_qualitative ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {item.is_qualitative ? 'Qualitative' : (item.measure_unit || 'N/A')}
                             </span>
                           </td>
                           <td className="px-4 py-4">
@@ -286,7 +293,9 @@ const HRKPIDetails: React.FC = () => {
                             <p className="text-sm text-gray-700 whitespace-nowrap">{item.goal_weight || item.measure_criteria || 'N/A'}</p>
                           </td>
                           <td className="px-4 py-4">
-                            {review && review.employee_rating ? (
+                            {item.is_qualitative ? (
+                              <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                            ) : review && review.employee_rating ? (
                               <div className="space-y-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-semibold text-gray-900">
@@ -333,7 +342,26 @@ const HRKPIDetails: React.FC = () => {
                             )}
                           </td>
                           <td className="px-4 py-4">
-                            {review && review.manager_rating ? (
+                            {item.is_qualitative ? (
+                              item.qualitative_rating ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-semibold text-purple-700">
+                                      {item.qualitative_rating === 'exceeds' ? '⭐ Exceeds Expectations' :
+                                       item.qualitative_rating === 'meets' ? '✓ Meets Expectations' :
+                                       item.qualitative_rating === 'needs_improvement' ? '⚠ Needs Improvement' : 'N/A'}
+                                    </span>
+                                  </div>
+                                  {review && review.manager_review_signed_at && (
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(review.manager_review_signed_at).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-500">Not reviewed</span>
+                              )
+                            ) : review && review.manager_rating ? (
                               <div className="space-y-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-semibold text-gray-900">
@@ -366,7 +394,16 @@ const HRKPIDetails: React.FC = () => {
                             )}
                           </td>
                           <td className="px-4 py-4">
-                            {mgrComment ? (
+                            {item.is_qualitative && item.qualitative_comment ? (
+                              <button
+                                onClick={() => setTextModal({ isOpen: true, title: 'Qualitative Assessment', value: item.qualitative_comment || '' })}
+                                className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
+                              >
+                                <p className="truncate max-w-[200px]" title={item.qualitative_comment}>
+                                  {item.qualitative_comment.length > 50 ? item.qualitative_comment.substring(0, 50) + '...' : item.qualitative_comment}
+                                </p>
+                              </button>
+                            ) : mgrComment ? (
                               <button
                                 onClick={() => setTextModal({ isOpen: true, title: 'Manager Comment', value: mgrComment })}
                                 className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
@@ -603,6 +640,49 @@ const HRKPIDetails: React.FC = () => {
           );
         })()}
 
+        {/* Employee Accomplishments & Disappointments */}
+        {review && (review.major_accomplishments || review.disappointments) && (
+          <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <h3 className="text-sm font-bold text-gray-900 mb-4">Employee Performance Reflection</h3>
+            
+            {/* Major Accomplishments */}
+            {review.major_accomplishments && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-900 mb-2">Major Accomplishments:</p>
+                <div className="bg-white p-3 rounded border border-gray-200 mb-2">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
+                </div>
+                {review.major_accomplishments_manager_comment && (
+                  <>
+                    <p className="text-xs font-semibold text-gray-900 mb-2">Manager's Feedback:</p>
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments_manager_comment}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Disappointments */}
+            {review.disappointments && (
+              <div>
+                <p className="text-xs font-semibold text-gray-900 mb-2">Challenges & Disappointments:</p>
+                <div className="bg-white p-3 rounded border border-gray-200 mb-2">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+                </div>
+                {review.disappointments_manager_comment && (
+                  <>
+                    <p className="text-xs font-semibold text-gray-900 mb-2">Manager's Guidance:</p>
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments_manager_comment}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Overall Manager Comments */}
         {review && review.overall_manager_comment && (
           <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -612,6 +692,86 @@ const HRKPIDetails: React.FC = () => {
               <p className="text-xs text-gray-500 mt-2">
                 Reviewed on {new Date(review.manager_signed_at).toLocaleDateString()}
               </p>
+            )}
+          </div>
+        )}
+
+        {/* Employee Rejection Note */}
+        {review && review.review_status === 'rejected' && review.employee_rejection_note && (
+          <div className="mt-6 p-4 bg-red-50 rounded-lg border-2 border-red-300">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-red-900">⚠️ Employee Rejection Reason:</p>
+              {review.employee_confirmation_status === 'rejected' && (
+                <span className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-full font-semibold">
+                  REJECTED
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-red-700 font-medium bg-white p-3 rounded border border-red-200">
+              {review.employee_rejection_note}
+            </p>
+            {review.employee_confirmation_signed_at && (
+              <p className="text-xs text-red-600 mt-2">
+                Rejected on {new Date(review.employee_confirmation_signed_at).toLocaleDateString()}
+              </p>
+            )}
+            
+            {/* Mark as Resolved Button for HR */}
+            {review.rejection_resolved_status !== 'resolved' && (
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Resolution Note (Optional)
+                </label>
+                <textarea
+                  value={resolveNote}
+                  onChange={(e) => setResolveNote(e.target.value)}
+                  placeholder="Enter a note about how this issue was resolved..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
+                  rows={3}
+                />
+                <button
+                  onClick={async () => {
+                    if (confirm('Mark this rejection as resolved? This will move it to the Resolved Issues section.')) {
+                      try {
+                        await api.post(`/kpi-review/${review.id}/resolve-rejection`, {
+                          note: resolveNote
+                        });
+                        alert('Rejection marked as resolved successfully!');
+                        setResolveNote('');
+                        fetchKPI(); // Refresh data
+                      } catch (error) {
+                        console.error('Error resolving rejection:', error);
+                        alert('Failed to mark as resolved');
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                >
+                  ✓ Mark as Resolved
+                </button>
+              </div>
+            )}
+
+            {/* Resolved Status */}
+            {review.rejection_resolved_status === 'resolved' && (
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <div className="flex items-center space-x-2 text-green-700 mb-2">
+                  <FiCheckCircle className="text-lg" />
+                  <span className="font-semibold">Issue Resolved</span>
+                </div>
+                {review.rejection_resolved_note && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Resolution Note:</p>
+                    <p className="text-sm text-gray-900">{review.rejection_resolved_note}</p>
+                  </div>
+                )}
+                {review.rejection_resolved_at && (
+                  <p className="text-xs text-gray-600">
+                    Resolved on {new Date(review.rejection_resolved_at).toLocaleDateString()}
+                    {review.rejection_resolved_by_name && ` by ${review.rejection_resolved_by_name}`}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}

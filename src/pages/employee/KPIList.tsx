@@ -51,6 +51,14 @@ const KPIList: React.FC = () => {
     }
 
     if (review) {
+      if (review.review_status === 'awaiting_employee_confirmation') {
+        return {
+          stage: 'Awaiting Your Confirmation',
+          color: 'bg-indigo-100 text-indigo-700',
+          icon: <FiClock className="inline" />
+        };
+      }
+
       if (review.review_status === 'employee_submitted') {
         return {
           stage: 'Self-Rating Submitted - Awaiting Manager Review',
@@ -59,11 +67,19 @@ const KPIList: React.FC = () => {
         };
       }
 
-      if (review.review_status === 'manager_submitted' || review.review_status === 'completed') {
+      if (review.review_status === 'completed') {
         return {
           stage: 'KPI Review Completed',
           color: 'bg-green-100 text-green-700',
           icon: <FiCheckCircle className="inline" />
+        };
+      }
+
+      if (review.review_status === 'rejected') {
+        return {
+          stage: 'Review Rejected',
+          color: 'bg-red-100 text-red-700',
+          icon: <FiFileText className="inline" />
         };
       }
 
@@ -139,6 +155,9 @@ const KPIList: React.FC = () => {
                   if (kpi.status === 'pending') {
                     primaryActionLabel = 'Acknowledge KPI';
                     primaryActionOnClick = () => navigate(`/employee/kpi-acknowledgement/${kpi.id}`);
+                  } else if (review && review.review_status === 'awaiting_employee_confirmation') {
+                    primaryActionLabel = 'Confirm';
+                    primaryActionOnClick = () => navigate(`/employee/kpi-confirmation/${review.id}`);
                   } else if (
                     kpi.status === 'acknowledged' &&
                     (!review || review.review_status === 'pending')
@@ -154,7 +173,7 @@ const KPIList: React.FC = () => {
                           <p className="font-semibold text-gray-900">{kpi.title}</p>
                           {kpi.items && kpi.items.length > 0 && (
                             <p className="text-xs text-gray-500 mt-1">
-                              KPI Form with {kpi.items.length} item{kpi.items.length > 1 ? 's' : ''}
+                              KPI Form with {kpi.items.length} item{kpi.items.length !== 1 ? 's' : ''}
                             </p>
                           )}
                         </div>

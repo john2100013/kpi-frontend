@@ -85,6 +85,11 @@ const Employees: React.FC = () => {
       if (search) params.search = search;
       if (companyId) params.companyId = companyId;
       
+      // If manager, filter by manager_id
+      if (user?.role === 'manager' && user?.id) {
+        params.managerId = user.id;
+      }
+      
       const response = await api.get('/employees', { params });
       setEmployees(response.data.employees || []);
       setTotalPages(response.data.pagination?.totalPages || 1);
@@ -322,64 +327,68 @@ const Employees: React.FC = () => {
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payroll Number</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manager</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employment Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {employees.map((employee) => (
-                  <tr key={employee.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                      {employee.email && (
-                        <div className="text-sm text-gray-500">{employee.email}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.payroll_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.department_name || employee.department || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.position || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.manager_name || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.employment_date ? new Date(employee.employment_date).toLocaleDateString() : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => openEditModal(employee)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <FiEdit />
-                        </button>
-                        {user?.role === 'hr' && (
-                          <button
-                            onClick={() => openDeleteModal(employee)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px]">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payroll Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manager</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employment Date</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase sticky right-0 bg-gray-50">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {employees.map((employee) => (
+                    <tr key={employee.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                        {employee.email && (
+                          <div className="text-sm text-gray-500">{employee.email}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {employee.payroll_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {employee.department_name || employee.department || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {employee.position || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {employee.manager_name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {employee.employment_date ? new Date(employee.employment_date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white">
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => openEditModal(employee)}
+                            className="text-blue-600 hover:text-blue-900 p-2"
+                            title="Edit"
+                          >
+                            <FiEdit />
+                          </button>
+                          {user?.role === 'hr' && (
+                            <button
+                              onClick={() => openDeleteModal(employee)}
+                              className="text-red-600 hover:text-red-900 p-2"
+                              title="Delete"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Pagination */}

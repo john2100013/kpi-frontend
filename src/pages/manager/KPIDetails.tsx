@@ -263,15 +263,21 @@ const ManagerKPIDetails: React.FC = () => {
                             </button>
                           </td>
                           <td className="px-6 py-4">
-                            <button
-                              onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A', field: 'target_value', itemId: item.id })}
-                              className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
-                            >
-                              <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
-                            </button>
+                            {item.is_qualitative ? (
+                              <span className="text-sm text-purple-600 font-medium">Qualitative</span>
+                            ) : (
+                              <button
+                                onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A', field: 'target_value', itemId: item.id })}
+                                className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
+                              >
+                                <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
+                              </button>
+                            )}
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-sm text-gray-700 whitespace-nowrap">{item.measure_unit || 'N/A'}</p>
+                            <span className={`text-sm whitespace-nowrap ${item.is_qualitative ? 'text-purple-600 font-medium' : 'text-gray-700'}`}>
+                              {item.is_qualitative ? 'Qualitative' : (item.measure_unit || 'N/A')}
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <p className="text-sm text-gray-700 whitespace-nowrap">
@@ -284,7 +290,9 @@ const ManagerKPIDetails: React.FC = () => {
                             <p className="text-sm text-gray-700 whitespace-nowrap">{item.goal_weight || item.measure_criteria || 'N/A'}</p>
                           </td>
                           <td className="px-6 py-4">
-                            {review && review.employee_rating ? (
+                            {item.is_qualitative ? (
+                              <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                            ) : review && review.employee_rating ? (
                               <div>
                                 <span className="text-sm font-semibold text-gray-900">
                                   {(() => {
@@ -320,7 +328,19 @@ const ManagerKPIDetails: React.FC = () => {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            {review && review.manager_rating ? (
+                            {item.is_qualitative ? (
+                              item.qualitative_rating ? (
+                                <div>
+                                  <span className="text-sm font-semibold text-purple-700">
+                                    {item.qualitative_rating === 'exceeds' ? '⭐ Exceeds Expectations' :
+                                     item.qualitative_rating === 'meets' ? '✓ Meets Expectations' :
+                                     item.qualitative_rating === 'needs_improvement' ? '⚠ Needs Improvement' : 'N/A'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-500">Not reviewed</span>
+                              )
+                            ) : review && review.manager_rating ? (
                               <div>
                                 <span className="text-sm font-semibold text-gray-900">
                                   {(() => {
@@ -342,7 +362,16 @@ const ManagerKPIDetails: React.FC = () => {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            {mgrComment ? (
+                            {item.is_qualitative && item.qualitative_comment ? (
+                              <button
+                                onClick={() => setTextModal({ isOpen: true, title: 'Qualitative Assessment', value: item.qualitative_comment || '' })}
+                                className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
+                              >
+                                <p className="truncate max-w-[200px]" title={item.qualitative_comment}>
+                                  {item.qualitative_comment.length > 50 ? item.qualitative_comment.substring(0, 50) + '...' : item.qualitative_comment}
+                                </p>
+                              </button>
+                            ) : mgrComment ? (
                               <button
                                 onClick={() => setTextModal({ isOpen: true, title: 'Manager Comment', value: mgrComment })}
                                 className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
@@ -513,6 +542,53 @@ const ManagerKPIDetails: React.FC = () => {
         </div>
       </div>
 
+      {/* Employee Accomplishments & Disappointments */}
+      {review && (review.major_accomplishments || review.disappointments) && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
+          
+          <div className="space-y-6">
+            {/* Major Accomplishments */}
+            {review.major_accomplishments && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Major Accomplishments</h3>
+                <div className="bg-green-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
+                </div>
+                
+                {review.major_accomplishments_manager_comment && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Feedback</h3>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments_manager_comment}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Disappointments */}
+            {review.disappointments && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Challenges & Disappointments</h3>
+                <div className="bg-orange-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+                </div>
+                
+                {review.disappointments_manager_comment && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Guidance</h3>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments_manager_comment}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Overall Manager Comments */}
       {review && review.overall_manager_comment && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -528,6 +604,50 @@ const ManagerKPIDetails: React.FC = () => {
               <p className="text-xs text-gray-500 mt-2">
                 Reviewed on {new Date(review.manager_signed_at).toLocaleDateString()}
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Employee Rejection Note */}
+      {review && review.review_status === 'rejected' && review.employee_rejection_note && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="p-4 bg-red-50 rounded-lg border-2 border-red-300">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-red-900">⚠️ Employee Rejection Reason:</p>
+              {review.employee_confirmation_status === 'rejected' && (
+                <span className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-full font-semibold">
+                  REJECTED
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-red-700 font-medium bg-white p-3 rounded border border-red-200">
+              {review.employee_rejection_note}
+            </p>
+            {review.employee_confirmation_signed_at && (
+              <p className="text-xs text-red-600 mt-2">
+                Rejected on {new Date(review.employee_confirmation_signed_at).toLocaleDateString()}
+              </p>
+            )}
+            {review.rejection_resolved_status === 'resolved' && (
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <div className="flex items-center space-x-2 text-green-700 mb-2">
+                  <FiCheckCircle className="text-lg" />
+                  <span className="font-semibold">Issue Resolved</span>
+                </div>
+                {review.rejection_resolved_note && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Resolution Note:</p>
+                    <p className="text-sm text-gray-900">{review.rejection_resolved_note}</p>
+                  </div>
+                )}
+                {review.rejection_resolved_at && (
+                  <p className="text-xs text-gray-600">
+                    Resolved on {new Date(review.rejection_resolved_at).toLocaleDateString()}
+                    {review.rejection_resolved_by_name && ` by ${review.rejection_resolved_by_name}`}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

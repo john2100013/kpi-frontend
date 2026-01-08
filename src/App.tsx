@@ -16,8 +16,12 @@ import ReviewsList from './pages/manager/ReviewsList';
 import ManagerKPIList from './pages/manager/KPIList';
 import ManagerKPIDetails from './pages/manager/KPIDetails';
 import EmployeeKPIs from './pages/manager/EmployeeKPIs';
+import KPITemplates from './pages/manager/KPITemplates';
+import KPITemplateForm from './pages/manager/KPITemplateForm';
+import ApplyKPITemplate from './pages/manager/ApplyKPITemplate';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import KPIAcknowledgement from './pages/employee/KPIAcknowledgement';
+import KPIConfirmation from './pages/employee/KPIConfirmation';
 import SelfRating from './pages/employee/SelfRating';
 import KPIList from './pages/employee/KPIList';
 import KPIDetails from './pages/employee/KPIDetails';
@@ -29,6 +33,7 @@ import HRKPIDetails from './pages/hr/KPIDetails';
 import HRSettings from './pages/hr/Settings';
 import DepartmentDashboard from './pages/hr/DepartmentDashboard';
 import EmailTemplates from './pages/hr/EmailTemplates';
+import RejectedKPIManagement from './pages/hr/RejectedKPIManagement';
 import MeetingScheduler from './pages/manager/MeetingScheduler';
 import AcknowledgedKPIs from './pages/shared/AcknowledgedKPIs';
 import KPISettingCompleted from './pages/shared/KPISettingCompleted';
@@ -234,6 +239,46 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/manager/kpi-templates"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPITemplates />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/kpi-templates/create"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPITemplateForm />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/kpi-templates/:id/edit"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPITemplateForm />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/kpi-templates/:id/apply"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <ApplyKPITemplate />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/manager/employee-kpis/:employeeId"
         element={
           <ProtectedRoute allowedRoles={['manager']}>
@@ -341,6 +386,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['employee']}>
             <Layout>
               <KPIAcknowledgement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/employee/kpi-confirmation/:reviewId"
+        element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <Layout>
+              <KPIConfirmation />
             </Layout>
           </ProtectedRoute>
         }
@@ -503,6 +558,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['hr']}>
             <Layout>
               <EmailTemplates />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/rejected-kpis"
+        element={
+          <ProtectedRoute allowedRoles={['hr']}>
+            <Layout>
+              <RejectedKPIManagement />
             </Layout>
           </ProtectedRoute>
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { KPI, KPIReview } from '../../types';
 import { FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiEye, FiSearch, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
@@ -16,6 +16,7 @@ interface PeriodSetting {
 
 const HRKPIList: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [reviews, setReviews] = useState<KPIReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,7 @@ const HRKPIList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [employeeIdFilter, setEmployeeIdFilter] = useState<string>('');
   const [filters, setFilters] = useState({
     department: '',
     status: '',
@@ -36,6 +38,17 @@ const HRKPIList: React.FC = () => {
   const itemsPerPage = 25;
 
   useEffect(() => {
+    // Initialize filters from URL params
+    const statusParam = searchParams.get('status');
+    const employeeIdParam = searchParams.get('employeeId');
+    
+    if (statusParam === 'rejected') {
+      setFilters(prev => ({ ...prev, status: 'rejected' }));
+    }
+    if (employeeIdParam) {
+      setEmployeeIdFilter(employeeIdParam);
+    }
+    
     fetchPeriodSettings();
     fetchManagers();
     fetchDepartments();
@@ -43,7 +56,7 @@ const HRKPIList: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, filters, searchQuery]);
+  }, [currentPage, filters, searchQuery, employeeIdFilter]);
 
   // Close export menu when clicking outside
   useEffect(() => {
@@ -71,6 +84,7 @@ const HRKPIList: React.FC = () => {
       if (filters.period) params.period = filters.period;
       if (filters.manager) params.manager = filters.manager;
       if (searchQuery) params.search = searchQuery;
+      if (employeeIdFilter) params.employee_id = employeeIdFilter;
 
       const [kpisRes, reviewsRes] = await Promise.all([
         api.get('/kpis/paginated', { params }),
@@ -137,6 +151,14 @@ const HRKPIList: React.FC = () => {
     }
 
     if (review) {
+      if (review.review_status === 'rejected') {
+        return {
+          stage: 'Review Rejected by Employee',
+          color: 'bg-red-100 text-red-700',
+          icon: <FiEye className="inline" />
+        };
+      }
+
       if (review.review_status === 'employee_submitted') {
         return {
           stage: 'Self-Rating Submitted - Awaiting Manager Review',
@@ -280,6 +302,25 @@ const HRKPIList: React.FC = () => {
     return <div className="p-6">Loading...</div>;
   }
 
+  // Get title based on filter context
+  const getPageTitle = () => {
+    if (filters.status === 'rejected' && employeeIdFilter) {
+      const kpi = kpis[0];
+      return kpi ? `Rejected KPI - ${kpi.employee_name}` : 'Rejected KPIs';
+    }
+    if (filters.status === 'rejected') {
+      return 'Rejected KPIs';
+    }
+    return 'KPI Overview';
+  };
+
+  const getPageSubtitle = () => {
+    if (filters.status === 'rejected' && employeeIdFilter) {
+      return `View rejected KPIs for this employee (${totalCount} total)`;
+    }
+    return `View all KPIs across the organization (${totalCount} total)`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -292,8 +333,8 @@ const HRKPIList: React.FC = () => {
             <FiArrowLeft className="text-xl" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">KPI Overview</h1>
-            <p className="text-sm text-gray-600 mt-1">View all KPIs across the organization ({totalCount} total)</p>
+            <h1 className="text-2xl font-bold text-gray-900">{getPageTitle()}</h1>
+            <p className="text-sm text-gray-600 mt-1">{getPageSubtitle()}</p>
           </div>
         </div>
         <div className="relative export-menu-container">
@@ -379,6 +420,7 @@ const HRKPIList: React.FC = () => {
               <option value="acknowledged">KPI Acknowledged - Review Pending</option>
               <option value="employee_submitted">Self-Rating Submitted</option>
               <option value="completed">KPI Review Completed</option>
+              <option value="rejected">Review Rejected by Employee</option>
             </select>
           </div>
           <div>

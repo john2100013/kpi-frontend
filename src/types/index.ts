@@ -29,6 +29,9 @@ export interface KPIItem {
   item_order: number;
   created_at: string;
   updated_at: string;
+  is_qualitative?: boolean;
+  qualitative_rating?: 'exceeds' | 'meets' | 'needs_improvement';
+  qualitative_comment?: string;
 }
 
 export interface KPI {
@@ -80,7 +83,11 @@ export interface KPIReview {
   manager_signed_at?: string;
   manager_review_signature?: string;
   manager_review_signed_at?: string;
-  review_status: 'pending' | 'employee_submitted' | 'manager_submitted' | 'hr_reviewed' | 'completed';
+  major_accomplishments?: string;
+  major_accomplishments_manager_comment?: string;
+  disappointments?: string;
+  disappointments_manager_comment?: string;
+  review_status: 'pending' | 'employee_submitted' | 'manager_submitted' | 'hr_reviewed' | 'completed' | 'awaiting_employee_confirmation' | 'rejected';
   pdf_generated?: boolean;
   pdf_path?: string;
   created_at: string;
@@ -95,6 +102,14 @@ export interface KPIReview {
   employee_payroll?: string;
   manager_name?: string;
   manager_position?: string;
+  employee_rejection_note?: string;
+  employee_confirmation_status?: string;
+  employee_confirmation_signed_at?: string;
+  rejection_resolved_status?: string;
+  rejection_resolved_at?: string;
+  rejection_resolved_by?: number;
+  rejection_resolved_by_name?: string;
+  rejection_resolved_note?: string;
 }
 
 export interface Notification {

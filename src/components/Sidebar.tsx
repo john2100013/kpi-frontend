@@ -12,6 +12,7 @@ import {
   FiCalendar,
   FiMail,
   FiSettings,
+  FiAlertTriangle,
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -103,6 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const managerNavItems: NavItem[] = [
     { path: '/manager/dashboard', label: 'Dashboard', icon: FiHome },
     { path: '/manager/kpi-management', label: 'KPI Management', icon: FiTarget },
+    { path: '/manager/kpi-templates', label: 'KPI Templates', icon: FiFileText },
     { path: '/manager/employees', label: 'Employees', icon: FiUsers },
     { 
       path: '/manager/reviews', 
@@ -139,7 +141,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/hr/employees', label: 'Employees', icon: FiUsers },
     { path: '/hr/departments', label: 'Departments', icon: FiUsers },
     { path: '/hr/kpi-list', label: 'KPI Overview', icon: FiTarget },
-     { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
+    { path: '/hr/rejected-kpis', label: 'Rejected KPIs', icon: FiAlertTriangle },
+    { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
     { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
     { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
     { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },

@@ -22,6 +22,8 @@ interface User {
   manager_id?: number;
   manager_name?: string;
   company_id: number;
+  company_name?: string;
+  assigned_departments?: Array<{ id: number; name: string }>;
 }
 
 interface UserCounts {
@@ -63,7 +65,7 @@ const UserManagement: React.FC = () => {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'employee' | 'manager' | 'hr' | 'add-hr-to-company'>('employee');
+  const [activeTab, setActiveTab] = useState<'employee' | 'manager' | 'hr' | 'add-hr-to-company' | 'assign-manager-to-dept'>('employee');
   const [users, setUsers] = useState<User[]>([]);
   const [userCounts, setUserCounts] = useState<UserCounts>({ employee: 0, manager: 0, hr: 0 });
   const [loading, setLoading] = useState(false);
@@ -111,6 +113,13 @@ const UserManagement: React.FC = () => {
     hr_id: '',
     company_ids: [],
   });
+
+  // Assign Manager to Departments Modal State
+  const [showAssignManagerModal, setShowAssignManagerModal] = useState(false);
+  const [allManagers, setAllManagers] = useState<User[]>([]);
+  const [selectedManagerForDept, setSelectedManagerForDept] = useState<string>('');
+  const [managerDepartments, setManagerDepartments] = useState<number[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<Array<{ id: number; name: string; company_name: string }>>([]);
 
   const LIMIT = 25;
 
@@ -168,10 +177,14 @@ const UserManagement: React.FC = () => {
   };
 
   const fetchUsers = async () => {
+    // Skip fetching for special tabs
+    if (activeTab === 'add-hr-to-company' || activeTab === 'assign-manager-to-dept') return;
+    
     if (!selectedCompanyId || selectedCompanyId === 'all') return;
     
     try {
       setLoading(true);
+      console.log('Fetching users with params:', { companyId: selectedCompanyId, role: activeTab, page, limit: LIMIT });
       const response = await api.get('/users', {
         params: {
           companyId: selectedCompanyId,
@@ -185,6 +198,7 @@ const UserManagement: React.FC = () => {
       setTotalPages(response.data.pagination?.totalPages || 1);
       setTotal(response.data.pagination?.total || 0);
     } catch (err: any) {
+      console.error('Error fetching users:', err);
       setError(err.response?.data?.error || 'Failed to fetch users');
     } finally {
       setLoading(false);
@@ -221,7 +235,8 @@ const UserManagement: React.FC = () => {
     setError('');
   };
 
-  const handleTabChange = (tab: 'employee' | 'manager' | 'hr' | 'add-hr-to-company') => {
+  const handleTabChange = (tab: 'employee' | 'manager' | 'hr' | 'add-hr-to-company' | 'assign-manager-to-dept') => {
+    console.log('Tab changed to:', tab);
     setActiveTab(tab);
     setPage(1);
     if (tab === 'add-hr-to-company') {
@@ -229,14 +244,87 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const fetchAllManagers = async () => {
+    try {
+      console.log('Fetching all managers across all companies...');
+      const response = await api.get('/users', {
+        params: { role: 'manager', limit: 1000 }
+      });
+      console.log('Managers fetched:', response.data.users?.length || 0);
+      setAllManagers(response.data.users || []);
+    } catch (err: any) {
+      console.error('Failed to fetch managers:', err);
+      console.error('Error response:', err.response?.data);
+    }
+  };
+
+  const fetchManagerDepartments = async (managerId: string) => {
+    try {
+      const manager = allManagers.find(m => m.id === parseInt(managerId));
+      if (!manager) return;
+
+      // Fetch all departments for the manager's company
+      const response = await api.get(`/companies/${manager.company_id}/departments`);
+      setAvailableDepartments(response.data.departments?.map((d: any) => ({
+        ...d,
+        company_name: companies.find(c => c.id === manager.company_id)?.name || ''
+      })) || []);
+
+      // Fetch manager's current department assignments
+      const assignmentResponse = await api.get(`/users/${managerId}/departments`);
+      setManagerDepartments(assignmentResponse.data.department_ids || []);
+    } catch (err) {
+      console.error('Failed to fetch manager departments:', err);
+    }
+  };
+
+  const handleAssignManagerToDepartments = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedManagerForDept) {
+      setError('Please select a manager');
+      return;
+    }
+    if (managerDepartments.length === 0) {
+      setError('Please select at least one department');
+      return;
+    }
+
+    try {
+      await api.post('/users/assign-manager-departments', {
+        manager_id: parseInt(selectedManagerForDept),
+        department_ids: managerDepartments,
+      });
+      
+      setShowAssignManagerModal(false);
+      setSelectedManagerForDept('');
+      setManagerDepartments([]);
+      setAvailableDepartments([]);
+      setError('');
+      alert('Manager successfully assigned to selected departments');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to assign manager to departments');
+    }
+  };
+
+  const toggleDepartmentSelection = (deptId: number) => {
+    setManagerDepartments(prev =>
+      prev.includes(deptId)
+        ? prev.filter(id => id !== deptId)
+        : [...prev, deptId]
+    );
+  };
+
   const fetchAllHRUsers = async () => {
     try {
+      console.log('Fetching all HR users across all companies...');
       const response = await api.get('/users', {
         params: { role: 'hr', limit: 1000 }
       });
+      console.log('HR users fetched:', response.data.users?.length || 0);
       setAllHRUsers(response.data.users || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch HR users:', err);
+      console.error('Error response:', err.response?.data);
     }
   };
 
@@ -504,15 +592,24 @@ const UserManagement: React.FC = () => {
                 >
                   Add HR to Companies
                 </button>
+                <button
+                  onClick={() => {
+                    fetchAllManagers();
+                    setShowAssignManagerModal(true);
+                  }}
+                  className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm transition-colors"
+                >
+                  Assign Managers to Departments
+                </button>
               </nav>
             </div>
           </div>
 
           {/* Add User Button */}
-          {selectedCompanyId !== 'all' && activeTab !== 'add-hr-to-company' && (
+          {selectedCompanyId !== 'all' && activeTab !== 'add-hr-to-company' && activeTab !== 'assign-manager-to-dept' && (
             <div className="mb-4">
               <button
-                onClick={() => openCreateModal(activeTab)}
+                onClick={() => openCreateModal(activeTab as 'employee' | 'manager' | 'hr')}
                 className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
                 <FiPlus />
@@ -596,7 +693,9 @@ const UserManagement: React.FC = () => {
                       )}
                       {(activeTab === 'manager' || activeTab === 'hr') && (
                         <>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Department</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                            {activeTab === 'manager' ? 'Assigned Departments' : 'Department'}
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Position</th>
                         </>
                       )}
@@ -630,8 +729,23 @@ const UserManagement: React.FC = () => {
                         )}
                         {(activeTab === 'manager' || activeTab === 'hr') && (
                           <>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {user.department_name || user.department || '-'}
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {activeTab === 'manager' && user.assigned_departments && user.assigned_departments.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {user.assigned_departments.map((dept, idx) => (
+                                    <span 
+                                      key={dept.id}
+                                      className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800"
+                                    >
+                                      {dept.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : activeTab === 'manager' ? (
+                                <span className="text-gray-400 italic">No departments assigned</span>
+                              ) : (
+                                <span>{user.department_name || user.department || '-'}</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {user.position || '-'}
@@ -1009,6 +1123,99 @@ const UserManagement: React.FC = () => {
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
                   Update User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Assign Manager to Departments Modal */}
+      {showAssignManagerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-bold">Assign Manager to Departments</h2>
+              <button onClick={() => { setShowAssignManagerModal(false); setSelectedManagerForDept(''); setManagerDepartments([]); }}>
+                <FiX className="text-xl" />
+              </button>
+            </div>
+            <form onSubmit={handleAssignManagerToDepartments} className="flex flex-col flex-1 min-h-0">
+              <div className="overflow-y-auto px-6 py-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Manager *
+                  </label>
+                  <select
+                    value={selectedManagerForDept}
+                    onChange={(e) => {
+                      setSelectedManagerForDept(e.target.value);
+                      if (e.target.value) {
+                        fetchManagerDepartments(e.target.value);
+                      } else {
+                        setAvailableDepartments([]);
+                        setManagerDepartments([]);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    required
+                  >
+                    <option value="">Select a manager...</option>
+                    {allManagers.map(manager => (
+                      <option key={manager.id} value={manager.id}>
+                        {manager.name} ({manager.email}) - {manager.company_name || 'N/A'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedManagerForDept && availableDepartments.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Departments * (Manager will see employees from these departments)
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-4 max-h-64 overflow-y-auto">
+                      {availableDepartments.map(dept => (
+                        <label
+                          key={dept.id}
+                          className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={managerDepartments.includes(dept.id)}
+                            onChange={() => toggleDepartmentSelection(dept.id)}
+                            className="mr-3 h-4 w-4 text-purple-600"
+                          />
+                          <span className="text-sm">{dept.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {managerDepartments.length} department(s) selected
+                    </p>
+                  </div>
+                )}
+
+                {selectedManagerForDept && availableDepartments.length === 0 && (
+                  <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
+                    No departments found for this manager's company
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end space-x-3 p-6 border-t bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => { setShowAssignManagerModal(false); setSelectedManagerForDept(''); setManagerDepartments([]); }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedManagerForDept || managerDepartments.length === 0}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300"
+                >
+                  Assign Manager
                 </button>
               </div>
             </form>

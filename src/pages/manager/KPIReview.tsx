@@ -16,12 +16,16 @@ const ManagerKPIReview: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [managerRatings, setManagerRatings] = useState<{ [key: number]: number }>({});
   const [managerComments, setManagerComments] = useState<{ [key: number]: string }>({});
+  const [qualitativeRatings, setQualitativeRatings] = useState<{ [key: number]: string }>({});
+  const [qualitativeComments, setQualitativeComments] = useState<{ [key: number]: string }>({});
   const [overallComment, setOverallComment] = useState('');
   const [managerSignature, setManagerSignature] = useState('');
   const [reviewDate, setReviewDate] = useState<Date | null>(new Date());
   const [employeeRatings, setEmployeeRatings] = useState<{ [key: number]: number }>({});
   const [employeeComments, setEmployeeComments] = useState<{ [key: number]: string }>({});
   const [ratingOptions, setRatingOptions] = useState<Array<{ rating_value: number; label: string; description?: string }>>([]);
+  const [majorAccomplishmentsManagerComment, setMajorAccomplishmentsManagerComment] = useState('');
+  const [disappointmentsManagerComment, setDisappointmentsManagerComment] = useState('');
   const [textModal, setTextModal] = useState<{ isOpen: boolean; title: string; value: string; field?: string; itemId?: number; onChange?: (value: string) => void }>({
     isOpen: false,
     title: '',
@@ -34,8 +38,14 @@ const ManagerKPIReview: React.FC = () => {
       fetchReview();
       loadDraft();
     }
-    fetchRatingOptions();
   }, [reviewId]);
+
+  // Fetch rating options based on KPI period
+  useEffect(() => {
+    if (kpi && kpi.period) {
+      fetchRatingOptions(kpi.period);
+    }
+  }, [kpi]);
 
   // Save draft to localStorage whenever form data changes
   useEffect(() => {
@@ -44,13 +54,17 @@ const ManagerKPIReview: React.FC = () => {
       const draftData = {
         managerRatings,
         managerComments,
+        qualitativeRatings,
+        qualitativeComments,
         overallComment,
         managerSignature,
         reviewDate: reviewDate?.toISOString(),
+        majorAccomplishmentsManagerComment,
+        disappointmentsManagerComment,
       };
       localStorage.setItem(draftKey, JSON.stringify(draftData));
     }
-  }, [managerRatings, managerComments, overallComment, managerSignature, reviewDate, reviewId]);
+  }, [managerRatings, managerComments, qualitativeRatings, qualitativeComments, overallComment, managerSignature, reviewDate, reviewId, majorAccomplishmentsManagerComment, disappointmentsManagerComment]);
 
   const loadDraft = () => {
     if (!reviewId) return;
@@ -68,6 +82,12 @@ const ManagerKPIReview: React.FC = () => {
           if (Object.keys(managerComments).length === 0 && draftData.managerComments) {
             setManagerComments(draftData.managerComments);
           }
+          if (Object.keys(qualitativeRatings).length === 0 && draftData.qualitativeRatings) {
+            setQualitativeRatings(draftData.qualitativeRatings);
+          }
+          if (Object.keys(qualitativeComments).length === 0 && draftData.qualitativeComments) {
+            setQualitativeComments(draftData.qualitativeComments);
+          }
           if (!overallComment && draftData.overallComment) {
             setOverallComment(draftData.overallComment);
           }
@@ -77,6 +97,12 @@ const ManagerKPIReview: React.FC = () => {
           if (!reviewDate && draftData.reviewDate) {
             setReviewDate(new Date(draftData.reviewDate));
           }
+          if (!majorAccomplishmentsManagerComment && draftData.majorAccomplishmentsManagerComment) {
+            setMajorAccomplishmentsManagerComment(draftData.majorAccomplishmentsManagerComment);
+          }
+          if (!disappointmentsManagerComment && draftData.disappointmentsManagerComment) {
+            setDisappointmentsManagerComment(draftData.disappointmentsManagerComment);
+          }
         }
       } catch (error) {
         console.error('Error loading draft:', error);
@@ -84,10 +110,11 @@ const ManagerKPIReview: React.FC = () => {
     }, 500);
   };
 
-  const fetchRatingOptions = async () => {
+  const fetchRatingOptions = async (period?: string) => {
     try {
-      console.log('🔍 [KPIReview] Fetching rating options from API...');
-      const response = await api.get('/rating-options');
+      console.log('🔍 [KPIReview] Fetching rating options from API for period:', period);
+      const params = period ? { period } : {};
+      const response = await api.get('/rating-options', { params });
       console.log('✅ [KPIReview] Rating options response:', response.data);
       const options = response.data.rating_options || [];
       console.log('📋 [KPIReview] Setting rating options:', options);
@@ -251,6 +278,8 @@ const ManagerKPIReview: React.FC = () => {
       overallComment,
       managerSignature,
       reviewDate: reviewDate?.toISOString(),
+      majorAccomplishmentsManagerComment,
+      disappointmentsManagerComment,
     };
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     alert('Draft saved successfully! Your progress has been saved.');
@@ -274,14 +303,20 @@ const ManagerKPIReview: React.FC = () => {
       return;
     }
 
-    // Validate all items have ratings
+    // Validate all KPI items are rated (quantitative items only)
     const allRated = kpi.items.every((item) => {
+      // Skip validation for qualitative items
+      if (item.is_qualitative) {
+        const qualRating = qualitativeRatings[item.id];
+        return qualRating && (qualRating === 'exceeds' || qualRating === 'meets' || qualRating === 'needs_improvement');
+      }
+      // Validate quantitative items
       const rating = managerRatings[item.id];
-      return rating && (rating === 1.00 || rating === 1.25 || rating === 1.50);
+      return rating !== undefined && rating !== null && (rating === 0.00 || rating === 1.00 || rating === 1.25 || rating === 1.50);
     });
 
     if (!allRated) {
-      alert('Please provide a rating (1.00, 1.25, or 1.50) for all KPI items');
+      alert('Please provide a rating for all KPI items (1.00, 1.25, or 1.50 for quantitative; Exceeds/Meets/Needs Improvement for qualitative)');
       return;
     }
 
@@ -314,11 +349,23 @@ const ManagerKPIReview: React.FC = () => {
 
     setSaving(true);
     try {
+      // Prepare qualitative ratings array for backend
+      const qualitativeRatingsArray = kpi.items
+        .filter(item => item.is_qualitative)
+        .map(item => ({
+          item_id: item.id,
+          rating: qualitativeRatings[item.id] || '',
+          comment: qualitativeComments[item.id] || ''
+        }));
+
       await api.post(`/kpi-review/${reviewId}/manager-review`, {
         manager_rating: roundedRating, // Use rounded value that matches constraint (1.00, 1.25, or 1.50)
         manager_comment: JSON.stringify(itemData),
         overall_manager_comment: overallComment,
         manager_signature: managerSignature,
+        qualitative_ratings: qualitativeRatingsArray,
+        major_accomplishments_manager_comment: majorAccomplishmentsManagerComment,
+        disappointments_manager_comment: disappointmentsManagerComment,
       });
 
       // Clear draft after successful submission
@@ -558,12 +605,14 @@ const ManagerKPIReview: React.FC = () => {
                           onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A' })}
                           className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors"
                         >
-                          <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
+                          <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>
+                            {item.is_qualitative ? <span className="text-purple-600 font-medium">Qualitative</span> : (item.target_value || 'N/A')}
+                          </p>
                         </button>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-sm whitespace-nowrap">
-                          {item.measure_unit || 'N/A'}
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-sm whitespace-nowrap ${item.is_qualitative ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {item.is_qualitative ? 'Qualitative' : (item.measure_unit || 'N/A')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -577,7 +626,9 @@ const ManagerKPIReview: React.FC = () => {
                         <p className="text-sm text-gray-700 whitespace-nowrap">{item.goal_weight || item.measure_criteria || 'N/A'}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {empRating > 0 ? (
+                        {item.is_qualitative ? (
+                          <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                        ) : empRating > 0 ? (
                           <div>
                             <span className="text-sm font-semibold text-gray-900">
                               {(() => {
@@ -611,57 +662,89 @@ const ManagerKPIReview: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={mgrRating || 0}
-                          onChange={(e) => {
-                            const selectedValue = parseFloat(e.target.value);
-                            console.log('🔄 [KPIReview] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue, 'Item ID:', item.id);
-                            handleRatingChange(item.id, selectedValue);
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value={0}>Select rating</option>
-                          {ratingOptions.map((opt) => {
-                            const optValue = parseFloat(String(opt.rating_value));
-                            return (
-                              <option key={opt.rating_value} value={optValue}>
-                                {opt.rating_value} - {opt.label}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        {mgrRating > 0 && (
-                          <div className="mt-1">
-                            <span className="text-xs text-gray-500">
-                              {(() => {
-                                const ratingValue = parseFloat(String(mgrRating));
-                                if (Math.abs(ratingValue - 1.00) < 0.01) return 'Below Expectation';
-                                if (Math.abs(ratingValue - 1.25) < 0.01) return 'Meets Expectation';
-                                if (Math.abs(ratingValue - 1.50) < 0.01) return 'Exceeds Expectation';
-                                return '';
-                              })()}
-                            </span>
+                        {item.is_qualitative ? (
+                          <div>
+                            <select
+                              value={qualitativeRatings[item.id] || ''}
+                              onChange={(e) => {
+                                setQualitativeRatings(prev => ({ ...prev, [item.id]: e.target.value }));
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">Select rating</option>
+                              <option value="exceeds">⭐ Exceeds Expectations</option>
+                              <option value="meets">✓ Meets Expectations</option>
+                              <option value="needs_improvement">⚠ Needs Improvement</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div>
+                            <select
+                              value={mgrRating || 0}
+                              onChange={(e) => {
+                                const selectedValue = parseFloat(e.target.value);
+                                console.log('🔄 [KPIReview] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue, 'Item ID:', item.id);
+                                handleRatingChange(item.id, selectedValue);
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value={0}>Select rating</option>
+                              {ratingOptions.map((opt) => {
+                                const optValue = parseFloat(String(opt.rating_value));
+                                return (
+                                  <option key={opt.rating_value} value={optValue}>
+                                    {opt.rating_value} - {opt.label}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            {mgrRating > 0 && (
+                              <div className="mt-1">
+                                <span className="text-xs text-gray-500">
+                                  {(() => {
+                                    const ratingValue = parseFloat(String(mgrRating));
+                                    if (Math.abs(ratingValue - 1.00) < 0.01) return 'Below Expectation';
+                                    if (Math.abs(ratingValue - 1.25) < 0.01) return 'Meets Expectation';
+                                    if (Math.abs(ratingValue - 1.50) < 0.01) return 'Exceeds Expectation';
+                                    return '';
+                                  })()}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-start space-x-2">
                           <textarea
-                            value={mgrComment}
-                            onChange={(e) => handleCommentChange(item.id, e.target.value)}
-                            placeholder="Enter your comment..."
+                            value={item.is_qualitative ? (qualitativeComments[item.id] || '') : mgrComment}
+                            onChange={(e) => {
+                              if (item.is_qualitative) {
+                                setQualitativeComments(prev => ({ ...prev, [item.id]: e.target.value }));
+                              } else {
+                                handleCommentChange(item.id, e.target.value);
+                              }
+                            }}
+                            placeholder={item.is_qualitative ? "Enter qualitative assessment..." : "Enter your comment..."}
                             rows={2}
                             className="flex-1 min-w-[150px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                           />
-                          {mgrComment && mgrComment.length > 30 && (
+                          {((item.is_qualitative && qualitativeComments[item.id] && qualitativeComments[item.id].length > 30) || 
+                            (!item.is_qualitative && mgrComment && mgrComment.length > 30)) && (
                             <button
                               onClick={() => setTextModal({ 
                                 isOpen: true, 
-                                title: 'Manager Comment', 
-                                value: mgrComment,
-                                field: 'manager_comment',
+                                title: item.is_qualitative ? 'Qualitative Assessment' : 'Manager Comment', 
+                                value: item.is_qualitative ? qualitativeComments[item.id] : mgrComment,
+                                field: item.is_qualitative ? 'qualitative_comment' : 'manager_comment',
                                 itemId: item.id,
-                                onChange: (value) => handleCommentChange(item.id, value)
+                                onChange: (value) => {
+                                  if (item.is_qualitative) {
+                                    setQualitativeComments(prev => ({ ...prev, [item.id]: value }));
+                                  } else {
+                                    handleCommentChange(item.id, value);
+                                  }
+                                }
                               })}
                               className="px-2 py-1 text-xs text-purple-600 hover:text-purple-700 border border-purple-300 rounded"
                               title="View/Edit full comment"
@@ -816,6 +899,56 @@ const ManagerKPIReview: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Employee Accomplishments & Disappointments */}
+      {review && (review.major_accomplishments || review.disappointments) && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Review the employee's self-reported accomplishments and challenges, and provide your feedback.
+          </p>
+
+          <div className="space-y-6">
+            {/* Major Accomplishments */}
+            {review.major_accomplishments && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Major Accomplishments</h3>
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
+                </div>
+                
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Manager's Comments on Accomplishments</h3>
+                <textarea
+                  value={majorAccomplishmentsManagerComment}
+                  onChange={(e) => setMajorAccomplishmentsManagerComment(e.target.value)}
+                  placeholder="Provide your feedback on the employee's accomplishments. Acknowledge their achievements and provide additional context if needed..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+            )}
+
+            {/* Disappointments / Challenges */}
+            {review.disappointments && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Challenges & Disappointments</h3>
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+                </div>
+                
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Manager's Comments on Challenges</h3>
+                <textarea
+                  value={disappointmentsManagerComment}
+                  onChange={(e) => setDisappointmentsManagerComment(e.target.value)}
+                  placeholder="Acknowledge the challenges faced and provide guidance, support, or context. Discuss how to overcome these obstacles..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Overall Manager Comments */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

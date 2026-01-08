@@ -7,7 +7,6 @@ import {
   FiUsers,
   FiFileText,
   FiCheckCircle,
-  FiStar,
   FiArrowRight,
   FiEye,
   FiEdit,
@@ -26,7 +25,9 @@ interface DepartmentStatistic {
     pending: number;
     acknowledged_review_pending: number;
     self_rating_submitted: number;
+    awaiting_employee_confirmation: number;
     review_completed: number;
+    review_rejected: number;
     review_pending: number;
     no_kpi: number;
   };
@@ -63,32 +64,36 @@ const ManagerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     period: '',
+    department: '',
   });
   const [statistics, setStatistics] = useState<DepartmentStatistic[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [categoryEmployees, setCategoryEmployees] = useState<Employee[]>([]);
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>([]);
   const [defaultPeriod, setDefaultPeriod] = useState<string>('');
   const [savingDefault, setSavingDefault] = useState(false);
+  const [managerDepartments, setManagerDepartments] = useState<Array<{ id: number; name: string }>>([]);
 
   useEffect(() => {
     fetchData();
     fetchDepartmentStatistics();
     fetchPeriodSettings();
+    fetchManagerDepartments();
     loadDefaultPeriod();
   }, []);
 
   useEffect(() => {
-    if (selectedCategory) {
-      fetchCategoryEmployees(selectedCategory);
+    if (selectedCategory && selectedDepartment) {
+      fetchCategoryEmployees(selectedDepartment, selectedCategory);
     } else {
       setCategoryEmployees([]);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedDepartment]);
 
   useEffect(() => {
     fetchDepartmentStatistics();
-  }, [filters.period]);
+  }, [filters.period, filters.department]);
 
   const fetchData = async () => {
     try {
@@ -136,6 +141,7 @@ const ManagerDashboard: React.FC = () => {
     try {
       const params: any = {};
       if (filters.period) params.period = filters.period;
+      if (filters.department) params.department = filters.department;
 
       const response = await api.get('/departments/statistics', { params });
       const stats = response.data.statistics || [];
@@ -146,14 +152,19 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  const fetchCategoryEmployees = async (category: string) => {
+  const fetchManagerDepartments = async () => {
     try {
-      // Get manager's department from first statistic (since they only see their department)
-      if (statistics.length > 0) {
-        const department = statistics[0].department;
-        const response = await api.get(`/departments/statistics/${department}/${category}`);
-        setCategoryEmployees(response.data.employees || []);
-      }
+      const response = await api.get('/departments/manager-departments');
+      setManagerDepartments(response.data.departments || []);
+    } catch (error) {
+      console.error('Error fetching manager departments:', error);
+    }
+  };
+
+  const fetchCategoryEmployees = async (department: string, category: string) => {
+    try {
+      const response = await api.get(`/departments/statistics/${department}/${category}`);
+      setCategoryEmployees(response.data.employees || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
       setCategoryEmployees([]);
@@ -191,8 +202,9 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  const handleCategoryClick = (category: string, count: number) => {
+  const handleCategoryClick = (department: string, category: string, count: number) => {
     if (count === 0) return;
+    setSelectedDepartment(department);
     setSelectedCategory(category);
   };
 
@@ -259,7 +271,9 @@ const ManagerDashboard: React.FC = () => {
       pending: 'KPI Setting - Awaiting Acknowledgement',
       acknowledged_review_pending: 'KPI Acknowledged - Review Pending',
       self_rating_submitted: 'Self-Rating Submitted - Awaiting Manager Review',
+      awaiting_employee_confirmation: 'Awaiting Employee Confirmation',
       review_completed: 'KPI Review Completed',
+      review_rejected: 'Review Rejected by Employee',
       review_pending: 'KPI Review - Self-Rating Required',
       no_kpi: 'No KPI Assigned',
     };
@@ -271,7 +285,9 @@ const ManagerDashboard: React.FC = () => {
       pending: 'bg-orange-100 text-orange-700 hover:bg-orange-200',
       acknowledged_review_pending: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
       self_rating_submitted: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+      awaiting_employee_confirmation: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200',
       review_completed: 'bg-green-100 text-green-700 hover:bg-green-200',
+      review_rejected: 'bg-red-100 text-red-700 hover:bg-red-200',
       review_pending: 'bg-purple-100 text-purple-700 hover:bg-purple-200',
       no_kpi: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
     };
@@ -286,8 +302,12 @@ const ManagerDashboard: React.FC = () => {
       case 'acknowledged_review_pending':
       case 'self_rating_submitted':
         return <FiFileText className="inline mr-2" />;
+      case 'awaiting_employee_confirmation':
+        return <FiBell className="inline mr-2" />;
       case 'review_completed':
         return <FiCheckCircle className="inline mr-2" />;
+      case 'review_rejected':
+        return <FiEdit className="inline mr-2" />;
       case 'no_kpi':
         return <FiUsers className="inline mr-2" />;
       default:
@@ -357,18 +377,33 @@ const ManagerDashboard: React.FC = () => {
           <FiFilter className="text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">KPI Period</label>
             <select
               value={filters.period}
               onChange={(e) => setFilters({ ...filters, period: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">All Periods</option>
               {periodSettings.map(setting => (
                 <option key={setting.id} value={getPeriodValue(setting)}>
                   {getPeriodLabel(setting)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+            <select
+              value={filters.department}
+              onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">All Departments</option>
+              {managerDepartments.map(dept => (
+                <option key={dept.id} value={dept.name}>
+                  {dept.name}
                 </option>
               ))}
             </select>
@@ -419,7 +454,8 @@ const ManagerDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900">
                 {statistics.reduce((sum, stat) => 
                   sum + stat.categories.pending + stat.categories.acknowledged_review_pending + 
-                  stat.categories.self_rating_submitted + stat.categories.review_completed + 
+                  stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
+                  stat.categories.review_completed + stat.categories.review_rejected +
                   stat.categories.review_pending, 0)}
               </p>
             </div>
@@ -449,7 +485,9 @@ const ManagerDashboard: React.FC = () => {
                 {statistics.reduce((sum, stat) => 
                   sum + stat.categories.acknowledged_review_pending + 
                   stat.categories.self_rating_submitted + 
+                  stat.categories.awaiting_employee_confirmation +
                   stat.categories.review_completed + 
+                  stat.categories.review_rejected +
                   stat.categories.review_pending, 0)}
               </p>
             </div>
@@ -478,11 +516,14 @@ const ManagerDashboard: React.FC = () => {
           </div>
           {statistics.map((stat) => {
             const totalKPIs = stat.categories.pending + stat.categories.acknowledged_review_pending + 
-                             stat.categories.self_rating_submitted + stat.categories.review_completed + 
+                             stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
+                             stat.categories.review_completed + stat.categories.review_rejected +
                              stat.categories.review_pending;
             const kpiSettingCompleted = stat.categories.acknowledged_review_pending + 
                                        stat.categories.self_rating_submitted + 
+                                       stat.categories.awaiting_employee_confirmation +
                                        stat.categories.review_completed + 
+                                       stat.categories.review_rejected +
                                        stat.categories.review_pending;
             
             return (
@@ -519,7 +560,7 @@ const ManagerDashboard: React.FC = () => {
                 {Object.entries(stat.categories).map(([category, count]) => (
                   <button
                     key={category}
-                    onClick={() => handleCategoryClick(category, count)}
+                    onClick={() => handleCategoryClick(stat.department, category, count)}
                     disabled={count === 0}
                     className={`p-4 rounded-lg border-2 transition-all text-left ${getCategoryColor(category)} border-current ${
                       count === 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
@@ -554,7 +595,7 @@ const ManagerDashboard: React.FC = () => {
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {statistics[0]?.department} - {getCategoryLabel(selectedCategory)}
+                {selectedDepartment} - {getCategoryLabel(selectedCategory)}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 {categoryEmployees.length} employee{categoryEmployees.length !== 1 ? 's' : ''}
@@ -563,6 +604,7 @@ const ManagerDashboard: React.FC = () => {
             <button
               onClick={() => {
                 setSelectedCategory(null);
+                setSelectedDepartment(null);
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
             >
@@ -601,12 +643,28 @@ const ManagerDashboard: React.FC = () => {
                         {employee.position}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => navigate(`/manager/employee-kpis/${employee.id}`)}
-                          className="text-purple-600 hover:text-purple-900"
-                        >
-                          View KPIs
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => navigate(`/manager/employee-kpis/${employee.id}`)}
+                            className="text-purple-600 hover:text-purple-900 hover:underline"
+                          >
+                            View KPIs
+                          </button>
+                          {selectedCategory === 'review_rejected' && (
+                            <button
+                              onClick={() => navigate(`/manager/employee-kpis/${employee.id}?status=rejected`)}
+                              className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              View Rejected KPI
+                            </button>
+                          )}
+                          <button
+                            onClick={() => navigate(`/manager/kpi-setting/${employee.id}`)}
+                            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            Set KPI
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -639,6 +697,7 @@ const ManagerDashboard: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">EMPLOYEE</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">DEPARTMENT</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">KPIS</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STATUS</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PROGRESS</th>
@@ -648,7 +707,7 @@ const ManagerDashboard: React.FC = () => {
                 <tbody className="divide-y divide-gray-200">
                   {employeeStatusList.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                         No employees found
                       </td>
                     </tr>
@@ -666,9 +725,12 @@ const ManagerDashboard: React.FC = () => {
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900">{emp.name}</p>
-                                <p className="text-sm text-gray-500">{emp.position || emp.department}</p>
+                                <p className="text-sm text-gray-500">{emp.position || 'Employee'}</p>
                               </div>
                             </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-900">{emp.department || 'N/A'}</span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-900">
@@ -775,6 +837,21 @@ const ManagerDashboard: React.FC = () => {
                   <div>
                     <p className="font-semibold text-gray-900">Set New KPI</p>
                     <p className="text-sm text-gray-500">Create KPI for employee</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate('/manager/kpi-templates')}
+                className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <FiFileText className="text-indigo-600 text-xl" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">KPI Templates</p>
+                    <p className="text-sm text-gray-500">Create & use templates</p>
                   </div>
                 </div>
               </button>

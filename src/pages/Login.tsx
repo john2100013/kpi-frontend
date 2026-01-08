@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const Login: React.FC = () => {
   const [loginMethod, setLoginMethod] = useState<'payroll' | 'email'>('payroll');

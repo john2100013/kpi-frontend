@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { KPI, KPIReview, Notification } from '../../types';
 import NotificationItem from '../../components/NotificationItem';
-import { FiFilter, FiEye, FiCheckCircle, FiClock, FiFileText, FiBell, FiUsers, FiSave } from 'react-icons/fi';
+import { FiFilter, FiEye, FiCheckCircle, FiClock, FiFileText, FiBell, FiUsers, FiSave, FiEdit } from 'react-icons/fi';
 
 interface DepartmentStatistic {
   department: string;
@@ -12,7 +12,9 @@ interface DepartmentStatistic {
     pending: number;
     acknowledged_review_pending: number;
     self_rating_submitted: number;
+    awaiting_employee_confirmation: number;
     review_completed: number;
+    review_rejected: number;
     review_pending: number;
     no_kpi: number;
   };
@@ -270,9 +272,12 @@ const HRDashboard: React.FC = () => {
       pending: 'KPI Setting - Awaiting Acknowledgement',
       acknowledged_review_pending: 'KPI Acknowledged - Review Pending',
       self_rating_submitted: 'Self-Rating Submitted - Awaiting Manager Review',
+      awaiting_employee_confirmation: 'Awaiting Employee Confirmation',
       review_completed: 'KPI Review Completed',
+      review_rejected: 'Review Rejected by Employee',
       review_pending: 'KPI Review - Self-Rating Required',
       no_kpi: 'No KPI Assigned',
+      rejection_resolved: 'Resolved Issues',
     };
     return labels[category] || category;
   };
@@ -282,9 +287,12 @@ const HRDashboard: React.FC = () => {
       pending: 'bg-orange-100 text-orange-700 hover:bg-orange-200',
       acknowledged_review_pending: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
       self_rating_submitted: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+      awaiting_employee_confirmation: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200',
       review_completed: 'bg-green-100 text-green-700 hover:bg-green-200',
+      review_rejected: 'bg-red-100 text-red-700 hover:bg-red-200',
       review_pending: 'bg-purple-100 text-purple-700 hover:bg-purple-200',
       no_kpi: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+      rejection_resolved: 'bg-teal-100 text-teal-700 hover:bg-teal-200',
     };
     return colors[category] || 'bg-gray-100 text-gray-700';
   };
@@ -297,10 +305,16 @@ const HRDashboard: React.FC = () => {
       case 'acknowledged_review_pending':
       case 'self_rating_submitted':
         return <FiFileText className="inline mr-2" />;
+      case 'awaiting_employee_confirmation':
+        return <FiBell className="inline mr-2" />;
       case 'review_completed':
         return <FiCheckCircle className="inline mr-2" />;
+      case 'review_rejected':
+        return <FiEye className="inline mr-2" />;
       case 'no_kpi':
         return <FiUsers className="inline mr-2" />;
+      case 'rejection_resolved':
+        return <FiCheckCircle className="inline mr-2" />;
       default:
         return null;
     }
@@ -446,10 +460,13 @@ const HRDashboard: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">Total KPIs</p>
               <p className="text-3xl font-bold text-gray-900">
-                {statistics.reduce((sum, stat) => 
-                  sum + stat.categories.pending + stat.categories.acknowledged_review_pending + 
-                  stat.categories.self_rating_submitted + stat.categories.review_completed + 
-                  stat.categories.review_pending, 0)}
+                {statistics.reduce((sum, stat) => {
+                  if (!stat.categories) return sum;
+                  return sum + stat.categories.pending + stat.categories.acknowledged_review_pending + 
+                    stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
+                    stat.categories.review_completed + stat.categories.review_rejected +
+                    stat.categories.review_pending;
+                }, 0)}
               </p>
             </div>
           </div>
@@ -462,7 +479,10 @@ const HRDashboard: React.FC = () => {
             <div>
               <p className="text-sm text-green-600 mb-1 font-medium">KPI Review Completed</p>
               <p className="text-3xl font-bold text-green-600">
-                {statistics.reduce((sum, stat) => sum + stat.categories.review_completed, 0)}
+                {statistics.reduce((sum, stat) => {
+                  if (!stat.categories) return sum;
+                  return sum + stat.categories.review_completed;
+                }, 0)}
               </p>
             </div>
           </div>
@@ -475,11 +495,15 @@ const HRDashboard: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">KPI Setting Completed</p>
               <p className="text-3xl font-bold text-gray-900">
-                {statistics.reduce((sum, stat) => 
-                  sum + stat.categories.acknowledged_review_pending + 
-                  stat.categories.self_rating_submitted + 
-                  stat.categories.review_completed + 
-                  stat.categories.review_pending, 0)}
+                {statistics.reduce((sum, stat) => {
+                  if (!stat.categories) return sum;
+                  return sum + stat.categories.acknowledged_review_pending + 
+                    stat.categories.self_rating_submitted + 
+                    stat.categories.awaiting_employee_confirmation +
+                    stat.categories.review_completed + 
+                    stat.categories.review_rejected +
+                    stat.categories.review_pending;
+                }, 0)}
               </p>
             </div>
           </div>
@@ -492,7 +516,10 @@ const HRDashboard: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">No KPI Assigned</p>
               <p className="text-3xl font-bold text-gray-900">
-                {statistics.reduce((sum, stat) => sum + stat.categories.no_kpi, 0)}
+                {statistics.reduce((sum, stat) => {
+                  if (!stat.categories) return sum;
+                  return sum + stat.categories.no_kpi;
+                }, 0)}
               </p>
             </div>
           </div>
@@ -507,11 +534,14 @@ const HRDashboard: React.FC = () => {
           </div>
           {statistics.map((stat) => {
             const totalKPIs = stat.categories.pending + stat.categories.acknowledged_review_pending + 
-                             stat.categories.self_rating_submitted + stat.categories.review_completed + 
+                             stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
+                             stat.categories.review_completed + stat.categories.review_rejected +
                              stat.categories.review_pending;
             const kpiSettingCompleted = stat.categories.acknowledged_review_pending + 
                                        stat.categories.self_rating_submitted + 
+                                       stat.categories.awaiting_employee_confirmation +
                                        stat.categories.review_completed + 
+                                       stat.categories.review_rejected +
                                        stat.categories.review_pending;
             
             return (
@@ -635,12 +665,22 @@ const HRDashboard: React.FC = () => {
                         {employee.manager_name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => navigate(`/hr/kpi-list?employeeId=${employee.id}`)}
-                          className="text-purple-600 hover:text-purple-900"
-                        >
-                          View KPIs
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => navigate(`/hr/kpi-list?employeeId=${employee.id}`)}
+                            className="text-purple-600 hover:text-purple-900 hover:underline"
+                          >
+                            View KPIs
+                          </button>
+                          {selectedCategory === 'review_rejected' && (
+                            <button
+                              onClick={() => navigate(`/hr/kpi-list?employeeId=${employee.id}&status=rejected`)}
+                              className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              View Rejected KPI
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

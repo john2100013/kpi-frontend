@@ -35,6 +35,7 @@ interface RatingOption {
   description?: string;
   is_active: boolean;
   display_order: number;
+  rating_type: 'yearly' | 'quarterly' | 'qualitative';
 }
 
 const Settings: React.FC = () => {
@@ -48,6 +49,7 @@ const Settings: React.FC = () => {
   });
   const [hrEmailNotifications, setHrEmailNotifications] = useState<boolean>(true);
   const [ratingOptions, setRatingOptions] = useState<RatingOption[]>([]);
+  const [ratingTypeFilter, setRatingTypeFilter] = useState<'yearly' | 'quarterly' | 'qualitative'>('quarterly');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -60,7 +62,7 @@ const Settings: React.FC = () => {
       const [periodsRes, remindersRes, dailyRes, emailNotifRes, ratingOptionsRes] = await Promise.all([
         api.get('/settings/period-settings'),
         api.get('/settings/reminder-settings'),
-        api.get('/settings/daily-reminder-settings'),
+        api.get('/settings/daily-reminders'),
         api.get('/settings/hr-email-notifications').catch(() => ({ data: { setting: { receive_email_notifications: true } } })),
         api.get('/rating-options/manage').catch(() => ({ data: { rating_options: [] } })),
       ]);
@@ -239,7 +241,7 @@ const Settings: React.FC = () => {
   const handleSaveDailyReminder = async () => {
     setSaving(true);
     try {
-      await api.post('/settings/daily-reminder-settings', dailyReminderSetting);
+      await api.post('/settings/daily-reminders', dailyReminderSetting);
       alert('Daily reminder settings saved successfully!');
     } catch (error) {
       console.error('Error saving daily reminder settings:', error);
@@ -251,22 +253,23 @@ const Settings: React.FC = () => {
 
   // Rating Options handlers
   const handleSaveRatingOption = async (option: RatingOption, index: number) => {
-    // Allow 0 as a valid rating value, so check for null/undefined specifically
-    // Also check if rating_value is NaN
+    // For qualitative ratings, rating_value is optional (can be null for text-based ratings)
+    // For yearly/quarterly ratings, rating_value is required
     const ratingValue = option.rating_value;
-    const isValidRating = ratingValue !== null && ratingValue !== undefined && !isNaN(ratingValue);
+    const isQualitative = option.rating_type === 'qualitative';
+    const isValidRating = isQualitative || (ratingValue !== null && ratingValue !== undefined && !isNaN(ratingValue));
     
     if (!isValidRating || !option.label || option.label.trim() === '') {
-      alert('Rating value and label are required');
+      alert(isQualitative ? 'Label is required' : 'Rating value and label are required');
       return;
     }
 
     setSaving(true);
     try {
-      // Ensure rating_value is a number (not string or null)
+      // Ensure rating_value is a number (not string) or null for qualitative
       const optionToSave = {
         ...option,
-        rating_value: typeof ratingValue === 'string' ? parseFloat(ratingValue) : (ratingValue as number),
+        rating_value: isQualitative && !ratingValue ? null : (typeof ratingValue === 'string' ? parseFloat(ratingValue) : (ratingValue as number)),
       };
       
       console.log('🔍 [Settings] Saving rating option:', optionToSave);
@@ -323,6 +326,7 @@ const Settings: React.FC = () => {
         description: '',
         is_active: true,
         display_order: maxDisplayOrder + 1,
+        rating_type: ratingTypeFilter, // Use current filter as default
       },
     ]);
   };
@@ -833,10 +837,50 @@ const Settings: React.FC = () => {
             </button>
           </div>
 
+          {/* Rating Type Filter */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filter by Rating Type
+            </label>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setRatingTypeFilter('quarterly')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  ratingTypeFilter === 'quarterly'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Quarterly Ratings
+              </button>
+              <button
+                onClick={() => setRatingTypeFilter('yearly')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  ratingTypeFilter === 'yearly'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Yearly Ratings
+              </button>
+              <button
+                onClick={() => setRatingTypeFilter('qualitative')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  ratingTypeFilter === 'qualitative'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Qualitative Ratings
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating Type</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating Value</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
@@ -846,15 +890,31 @@ const Settings: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {ratingOptions.length === 0 ? (
+                {ratingOptions.filter(opt => opt.rating_type === ratingTypeFilter).length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      No rating options found. Click "Add Rating Option" to create one.
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      No {ratingTypeFilter} rating options found. Click "Add Rating Option" to create one.
                     </td>
                   </tr>
                 ) : (
-                  ratingOptions.map((option, index) => (
+                  ratingOptions.filter(opt => opt.rating_type === ratingTypeFilter).map((option, index) => (
                     <tr key={option.id || `new-${index}`}>
+                      <td className="px-6 py-4">
+                        <select
+                          value={option.rating_type}
+                          onChange={(e) => {
+                            const updated = [...ratingOptions];
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
+                            updated[actualIndex].rating_type = e.target.value as 'yearly' | 'quarterly' | 'qualitative';
+                            setRatingOptions(updated);
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1"
+                        >
+                          <option value="quarterly">Quarterly</option>
+                          <option value="yearly">Yearly</option>
+                          <option value="qualitative">Qualitative</option>
+                        </select>
+                      </td>
                       <td className="px-6 py-4">
                         <input
                           type="number"
@@ -862,18 +922,23 @@ const Settings: React.FC = () => {
                           value={option.rating_value !== undefined && option.rating_value !== null ? option.rating_value : ''}
                           onChange={(e) => {
                             const updated = [...ratingOptions];
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
                             const inputVal = e.target.value;
                             if (inputVal === '') {
-                              updated[index].rating_value = null;
+                              updated[actualIndex].rating_value = null;
                             } else {
                               const parsed = parseFloat(inputVal);
-                              updated[index].rating_value = !isNaN(parsed) ? parsed : null;
+                              updated[actualIndex].rating_value = !isNaN(parsed) ? parsed : null;
                             }
                             setRatingOptions(updated);
                           }}
                           className="border border-gray-300 rounded px-2 py-1 w-24"
-                          placeholder="1.00"
+                          placeholder={option.rating_type === 'qualitative' ? 'Optional' : '1.00'}
+                          disabled={option.rating_type === 'qualitative'}
                         />
+                        {option.rating_type === 'qualitative' && (
+                          <span className="text-xs text-gray-500 ml-2">N/A for qualitative</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <input
@@ -881,7 +946,8 @@ const Settings: React.FC = () => {
                           value={option.label || ''}
                           onChange={(e) => {
                             const updated = [...ratingOptions];
-                            updated[index].label = e.target.value;
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
+                            updated[actualIndex].label = e.target.value;
                             setRatingOptions(updated);
                           }}
                           className="border border-gray-300 rounded px-2 py-1 w-full"
@@ -894,7 +960,8 @@ const Settings: React.FC = () => {
                           value={option.description || ''}
                           onChange={(e) => {
                             const updated = [...ratingOptions];
-                            updated[index].description = e.target.value;
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
+                            updated[actualIndex].description = e.target.value;
                             setRatingOptions(updated);
                           }}
                           className="border border-gray-300 rounded px-2 py-1 w-full"
@@ -907,7 +974,8 @@ const Settings: React.FC = () => {
                           value={option.display_order || ''}
                           onChange={(e) => {
                             const updated = [...ratingOptions];
-                            updated[index].display_order = parseInt(e.target.value) || 1;
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
+                            updated[actualIndex].display_order = parseInt(e.target.value) || 1;
                             setRatingOptions(updated);
                           }}
                           className="border border-gray-300 rounded px-2 py-1 w-20"
@@ -919,7 +987,8 @@ const Settings: React.FC = () => {
                           checked={option.is_active !== false}
                           onChange={(e) => {
                             const updated = [...ratingOptions];
-                            updated[index].is_active = e.target.checked;
+                            const actualIndex = ratingOptions.findIndex(o => o === option);
+                            updated[actualIndex].is_active = e.target.checked;
                             setRatingOptions(updated);
                           }}
                         />
@@ -927,7 +996,10 @@ const Settings: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleSaveRatingOption(option, index)}
+                            onClick={() => {
+                              const actualIndex = ratingOptions.findIndex(o => o === option);
+                              handleSaveRatingOption(option, actualIndex);
+                            }}
                             disabled={saving}
                             className="text-green-600 hover:text-green-700"
                             title="Save"

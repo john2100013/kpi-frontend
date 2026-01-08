@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { KPI, KPIReview } from '../../types';
-import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch } from 'react-icons/fi';
+import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit } from 'react-icons/fi';
 import PasswordChangeModal from '../../components/PasswordChangeModal';
 
 const EmployeeDashboard: React.FC = () => {
@@ -67,6 +67,14 @@ const EmployeeDashboard: React.FC = () => {
     }
 
     if (review) {
+      if (review.review_status === 'awaiting_employee_confirmation') {
+        return {
+          stage: 'Awaiting Your Confirmation',
+          color: 'bg-indigo-100 text-indigo-700',
+          icon: <FiBell className="inline" />
+        };
+      }
+
       if (review.review_status === 'employee_submitted') {
         return {
           stage: 'Self-Rating Submitted - Awaiting Manager Review',
@@ -75,11 +83,19 @@ const EmployeeDashboard: React.FC = () => {
         };
       }
 
-      if (review.review_status === 'manager_submitted' || review.review_status === 'completed') {
+      if (review.review_status === 'completed') {
         return {
           stage: 'KPI Review Completed',
           color: 'bg-green-100 text-green-700',
           icon: <FiCheckCircle className="inline" />
+        };
+      }
+
+      if (review.review_status === 'rejected') {
+        return {
+          stage: 'Review Rejected',
+          color: 'bg-red-100 text-red-700',
+          icon: <FiEdit className="inline" />
         };
       }
 
@@ -182,7 +198,7 @@ const EmployeeDashboard: React.FC = () => {
       {/* KPI Status Overview */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">KPI Status Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Awaiting Acknowledgement */}
           <button
             onClick={() => {
@@ -261,6 +277,26 @@ const EmployeeDashboard: React.FC = () => {
             </p>
           </button>
 
+          {/* Awaiting Your Confirmation */}
+          <button
+            onClick={() => {
+              setSelectedStatus('awaiting your confirmation');
+              document.querySelector('.overflow-x-auto')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 hover:shadow-md transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <FiBell className="text-indigo-600" />
+              <p className="text-xs font-medium text-indigo-800">Awaiting Your Confirmation</p>
+            </div>
+            <p className="text-2xl font-bold text-indigo-900">
+              {kpis.filter(k => {
+                const review = reviews.find(r => r.kpi_id === k.id);
+                return review && review.review_status === 'awaiting_employee_confirmation';
+              }).length}
+            </p>
+          </button>
+
           {/* Review Completed */}
           <button
             onClick={() => {
@@ -276,7 +312,27 @@ const EmployeeDashboard: React.FC = () => {
             <p className="text-2xl font-bold text-green-900">
               {kpis.filter(k => {
                 const review = reviews.find(r => r.kpi_id === k.id);
-                return review && (review.review_status === 'manager_submitted' || review.review_status === 'completed');
+                return review && review.review_status === 'completed';
+              }).length}
+            </p>
+          </button>
+
+          {/* Review Rejected */}
+          <button
+            onClick={() => {
+              setSelectedStatus('rejected');
+              document.querySelector('.overflow-x-auto')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="bg-red-50 border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <FiEdit className="text-red-600" />
+              <p className="text-xs font-medium text-red-800">Review Rejected</p>
+            </div>
+            <p className="text-2xl font-bold text-red-900">
+              {kpis.filter(k => {
+                const review = reviews.find(r => r.kpi_id === k.id);
+                return review && review.review_status === 'rejected';
               }).length}
             </p>
           </button>
@@ -329,7 +385,9 @@ const EmployeeDashboard: React.FC = () => {
                 <option value="review pending">Review Pending</option>
                 <option value="self-rating required">Self-Rating Required</option>
                 <option value="submitted">Self-Rating Submitted</option>
+                <option value="awaiting your confirmation">Awaiting Your Confirmation</option>
                 <option value="completed">Review Completed</option>
+                <option value="rejected">Review Rejected</option>
               </select>
             </div>
           </div>
@@ -411,8 +469,21 @@ const EmployeeDashboard: React.FC = () => {
                                 </>
                               )}
 
-                              {/* Show Edit button only after review is submitted */}
-                              {review && (review.review_status === 'employee_submitted' || review.review_status === 'manager_submitted' || review.review_status === 'completed') && (
+                              {/* Show Confirm button if review is awaiting employee confirmation */}
+                              {review && review.review_status === 'awaiting_employee_confirmation' && (
+                                <>
+                                  <span className="text-gray-300">|</span>
+                                  <button
+                                    onClick={() => navigate(`/employee/kpi-confirmation/${review.id}`)}
+                                    className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
+                                  >
+                                    Confirm
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Show Edit button only after review is submitted (but not when awaiting confirmation) */}
+                              {review && (review.review_status === 'employee_submitted') && (
                                 <>
                                   <span className="text-gray-300">|</span>
                                   <button

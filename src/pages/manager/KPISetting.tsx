@@ -14,7 +14,7 @@ const KPISetting: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const getInitialRows = (periodType: 'quarterly' | 'yearly') => {
-    const defaultRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' };
+    const defaultRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '', is_qualitative: false };
     const rowCount = periodType === 'yearly' ? 5 : 3;
     return Array(rowCount).fill(null).map(() => ({ ...defaultRow }));
   };
@@ -165,8 +165,14 @@ const KPISetting: React.FC = () => {
     setKpiRows(updated);
   };
 
+  const handleQualitativeToggle = (index: number, checked: boolean) => {
+    const updated = [...kpiRows];
+    updated[index] = { ...updated[index], is_qualitative: checked };
+    setKpiRows(updated);
+  };
+
   const handleAddRow = () => {
-    const newRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '' };
+    const newRow = { title: '', description: '', current_performance_status: '', target_value: '', expected_completion_date: '', measure_unit: '', goal_weight: '', is_qualitative: false };
     setKpiRows([...kpiRows, newRow]);
   };
 
@@ -220,31 +226,52 @@ const KPISetting: React.FC = () => {
       return;
     }
 
-    // Validate that total goal weight equals 100% (dynamic based on number of questions)
-    const rawWeights = validKpiRows
-      .map(row => {
-        const value = (row.goal_weight || '').toString().trim();
-        if (!value) return NaN;
-        const numeric = parseFloat(value.replace('%', ''));
-        return isNaN(numeric) ? NaN : numeric;
-      })
-      .filter(w => !isNaN(w));
+    // Validate goal weights for quantitative items (optional for qualitative)
+    const quantitativeRows = validKpiRows.filter(row => !row.is_qualitative);
+    
+    if (quantitativeRows.length > 0) {
+      const rawWeights = quantitativeRows
+        .map(row => {
+          const value = (row.goal_weight || '').toString().trim();
+          if (!value) return NaN;
+          const numeric = parseFloat(value.replace('%', ''));
+          return isNaN(numeric) ? NaN : numeric;
+        })
+        .filter(w => !isNaN(w));
 
-    if (rawWeights.length !== validKpiRows.length) {
-      alert('Please enter a valid goal weight (e.g., 30 or 30%) for each KPI item.');
-      return;
-    }
+      // Check if any quantitative items have goal weights
+      const hasAnyWeights = rawWeights.length > 0;
+      const allHaveWeights = rawWeights.length === quantitativeRows.length;
+      const someHaveWeights = hasAnyWeights && !allHaveWeights;
 
-    let totalWeight = rawWeights.reduce((sum, w) => sum + w, 0);
-    // Support fractional weights (e.g., 0.3 instead of 30)
-    if (rawWeights.every(w => w > 0 && w <= 1)) {
-      totalWeight = totalWeight * 100;
-    }
+      // If some items have weights but not all, show warning
+      if (someHaveWeights) {
+        alert('Some quantitative KPI items have goal weights while others do not. Please either fill in all goal weights or leave all blank.');
+        return;
+      }
 
-    const roundedTotal = Math.round(totalWeight * 100) / 100;
-    if (roundedTotal !== 100) {
-      alert(`Total Goal Weight must be exactly 100%. Current total is ${roundedTotal.toFixed(2)}%.`);
-      return;
+      // If no goal weights are entered, ask for confirmation
+      if (!hasAnyWeights) {
+        const confirmProceed = window.confirm('Do you want to continue without entering goal weight?');
+        if (!confirmProceed) {
+          return;
+        }
+      }
+
+      // If all quantitative items have goal weights, validate they total 100%
+      if (allHaveWeights) {
+        let totalWeight = rawWeights.reduce((sum, w) => sum + w, 0);
+        // Support fractional weights (e.g., 0.3 instead of 30)
+        if (rawWeights.every(w => w > 0 && w <= 1)) {
+          totalWeight = totalWeight * 100;
+        }
+
+        const roundedTotal = Math.round(totalWeight * 100) / 100;
+        if (roundedTotal !== 100) {
+          alert(`Total Goal Weight for quantitative items must be exactly 100%. Current total is ${roundedTotal.toFixed(2)}%.`);
+          return;
+        }
+      }
     }
 
     setSaving(true);
@@ -265,6 +292,7 @@ const KPISetting: React.FC = () => {
           expected_completion_date: kpi.expected_completion_date || null,
           measure_unit: kpi.measure_unit,
           goal_weight: kpi.goal_weight,
+          is_qualitative: kpi.is_qualitative || false,
         })),
       });
 
@@ -550,6 +578,9 @@ const KPISetting: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '50px' }}>
                     #
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>
+                    Type
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '200px' }}>
                     KPI Title / Name *
                   </th>
@@ -560,10 +591,10 @@ const KPISetting: React.FC = () => {
                     Current Performance Status *
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '150px' }}>
-                    Target Value *
+                    Target Value
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>
-                    Measure Unit *
+                    Measure Unit
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-200 whitespace-nowrap" style={{ minWidth: '150px' }}>
                     Expected Completion Date
@@ -584,6 +615,22 @@ const KPISetting: React.FC = () => {
                   <tr key={index}>
                     <td className="border border-gray-200 p-2 text-center">
                       <span className="font-semibold text-gray-700">{index + 1}</span>
+                    </td>
+                    <td className="border border-gray-200 p-2">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={kpi.is_qualitative || false}
+                          onChange={(e) => handleQualitativeToggle(index, e.target.checked)}
+                          className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-xs text-gray-700">
+                          {kpi.is_qualitative ? 'Qualitative' : 'Quantitative'}
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {kpi.is_qualitative ? 'Manager only' : 'Employee + Manager'}
+                      </p>
                     </td>
                     <td className="border border-gray-200 p-2">
                       <input
@@ -652,33 +699,37 @@ const KPISetting: React.FC = () => {
                           type="text"
                           value={kpi.target_value}
                           onChange={(e) => handleKpiChange(index, 'target_value', e.target.value)}
-                          placeholder="e.g., 150,000 or 95%"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+                          placeholder={kpi.is_qualitative ? "N/A (Qualitative)" : "e.g., 150,000 or 95%"}
+                          disabled={kpi.is_qualitative}
+                          className={`flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setTextModal({ 
-                            isOpen: true, 
-                            title: 'Target Value', 
-                            value: kpi.target_value,
-                            field: 'target_value',
-                            rowIndex: index,
-                            onChange: (value) => handleKpiChange(index, 'target_value', value)
-                          })}
-                          className="px-2 py-1 text-xs text-purple-600 hover:text-purple-700 border border-purple-300 rounded"
-                          title="Edit in modal"
-                        >
-                          <FiExternalLink />
-                        </button>
+                        {!kpi.is_qualitative && (
+                          <button
+                            type="button"
+                            onClick={() => setTextModal({ 
+                              isOpen: true, 
+                              title: 'Target Value', 
+                              value: kpi.target_value,
+                              field: 'target_value',
+                              rowIndex: index,
+                              onChange: (value) => handleKpiChange(index, 'target_value', value)
+                            })}
+                            className="px-2 py-1 text-xs text-purple-600 hover:text-purple-700 border border-purple-300 rounded"
+                            title="Edit in modal"
+                          >
+                            <FiExternalLink />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="border border-gray-200 p-2">
                       <select
                         value={kpi.measure_unit}
                         onChange={(e) => handleKpiChange(index, 'measure_unit', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+                        disabled={kpi.is_qualitative}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       >
-                        <option value="">Select unit</option>
+                        <option value="">{kpi.is_qualitative ? 'N/A' : 'Select unit'}</option>
                         <option value="Percentage">Percentage</option>
                         <option value="Number">Number</option>
                         <option value="Currency">Currency</option>
@@ -690,7 +741,9 @@ const KPISetting: React.FC = () => {
                         type="date"
                         value={kpi.expected_completion_date}
                         onChange={(e) => handleKpiChange(index, 'expected_completion_date', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+                        disabled={kpi.is_qualitative}
+                        placeholder={kpi.is_qualitative ? "N/A" : ""}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       />
                     </td>
                     <td className="border border-gray-200 p-2">

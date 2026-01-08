@@ -20,6 +20,8 @@ const SelfRating: React.FC = () => {
   const [employeeSignature, setEmployeeSignature] = useState('');
   const [reviewDate, setReviewDate] = useState<Date | null>(new Date());
   const [ratingOptions, setRatingOptions] = useState<Array<{ rating_value: number; label: string; description?: string }>>([]);
+  const [majorAccomplishments, setMajorAccomplishments] = useState('');
+  const [disappointments, setDisappointments] = useState('');
   const [textModal, setTextModal] = useState<{ isOpen: boolean; title: string; value: string; field?: string; itemId?: number; onChange?: (value: string) => void }>({
     isOpen: false,
     title: '',
@@ -38,11 +40,17 @@ const SelfRating: React.FC = () => {
       fetchKPI();
       loadDraft();
     }
-    console.log('🔄 [SelfRating] Calling fetchRatingOptions NOW...');
-    fetchRatingOptions();
-    console.log('🔄 [SelfRating] fetchRatingOptions called');
     console.log('═══════════════════════════════════════════════════════════');
   }, [kpiId]);
+  
+  // Fetch rating options based on KPI period
+  useEffect(() => {
+    if (kpi && kpi.period) {
+      console.log('🔄 [SelfRating] Calling fetchRatingOptions for period:', kpi.period);
+      fetchRatingOptions(kpi.period);
+      console.log('🔄 [SelfRating] fetchRatingOptions called');
+    }
+  }, [kpi]);
   
   // Debug: Log when ratingOptions changes
   useEffect(() => {
@@ -59,10 +67,12 @@ const SelfRating: React.FC = () => {
         comments,
         employeeSignature,
         reviewDate: reviewDate?.toISOString(),
+        majorAccomplishments,
+        disappointments,
       };
       localStorage.setItem(draftKey, JSON.stringify(draftData));
     }
-  }, [ratings, comments, employeeSignature, reviewDate, kpiId]);
+  }, [ratings, comments, employeeSignature, reviewDate, kpiId, majorAccomplishments, disappointments]);
 
   const loadDraft = () => {
     if (!kpiId) return;
@@ -86,6 +96,12 @@ const SelfRating: React.FC = () => {
           if (!reviewDate && draftData.reviewDate) {
             setReviewDate(new Date(draftData.reviewDate));
           }
+          if (!majorAccomplishments && draftData.majorAccomplishments) {
+            setMajorAccomplishments(draftData.majorAccomplishments);
+          }
+          if (!disappointments && draftData.disappointments) {
+            setDisappointments(draftData.disappointments);
+          }
         }
       } catch (error) {
         console.error('Error loading draft:', error);
@@ -93,9 +109,10 @@ const SelfRating: React.FC = () => {
     }, 500);
   };
 
-  const fetchRatingOptions = async () => {
+  const fetchRatingOptions = async (period?: string) => {
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🔍 [SelfRating] ===== fetchRatingOptions CALLED =====');
+    console.log('🔍 [SelfRating] Period:', period);
     console.log('🔍 [SelfRating] Current user:', JSON.stringify(user, null, 2));
     console.log('🔍 [SelfRating] API baseURL:', api.defaults.baseURL);
     console.log('🔍 [SelfRating] Full API URL will be:', api.defaults.baseURL + '/rating-options');
@@ -103,7 +120,8 @@ const SelfRating: React.FC = () => {
     
     try {
       console.log('🔍 [SelfRating] About to make API call...');
-      const response = await api.get('/rating-options');
+      const params = period ? { period } : {};
+      const response = await api.get('/rating-options', { params });
       console.log('✅ [SelfRating] API call SUCCESSFUL');
       
       console.log('✅ [SelfRating] Full response object:', response);
@@ -252,25 +270,35 @@ const SelfRating: React.FC = () => {
       comments,
       employeeSignature,
       reviewDate: reviewDate?.toISOString(),
+      majorAccomplishments,
+      disappointments,
     };
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     alert('Draft saved successfully! Your progress has been saved.');
   };
 
   const handleSubmit = async () => {
-    // Validate all items have ratings
+    // Validate all items have ratings (exclude qualitative items - employee doesn't rate those)
     if (!kpi?.items || kpi.items.length === 0) {
       alert('No KPI items found');
       return;
     }
 
-    const allRated = kpi.items.every((item) => {
+    // Filter out qualitative items - employees only rate quantitative items
+    const quantitativeItems = kpi.items.filter((item) => !item.is_qualitative);
+    
+    if (quantitativeItems.length === 0) {
+      alert('No quantitative KPI items to rate');
+      return;
+    }
+
+    const allRated = quantitativeItems.every((item) => {
       const rating = ratings[item.id];
-      return rating && (rating === 1.00 || rating === 1.25 || rating === 1.50);
+      return rating !== undefined && rating !== null && (rating === 0.00 || rating === 1.00 || rating === 1.25 || rating === 1.50);
     });
 
     if (!allRated) {
-      alert('Please provide a rating (1.00, 1.25, or 1.50) for all KPI items');
+      alert('Please provide a rating (1.00, 1.25, or 1.50) for all quantitative KPI items');
       return;
     }
 
@@ -279,8 +307,8 @@ const SelfRating: React.FC = () => {
       return;
     }
 
-    // Calculate average rating
-    const itemRatings = kpi.items.map((item) => ratings[item.id] || 0);
+    // Calculate average rating (only for quantitative items)
+    const itemRatings = quantitativeItems.map((item) => ratings[item.id] || 0);
     const averageRating = itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
 
     // Round average to nearest allowed rating value (1.00, 1.25, or 1.50)
@@ -290,9 +318,9 @@ const SelfRating: React.FC = () => {
       Math.abs(curr - averageRating) < Math.abs(prev - averageRating) ? curr : prev
     );
 
-    // Store item-level data as JSON in comment field
+    // Store item-level data as JSON in comment field (only quantitative items)
     const itemData = {
-      items: kpi.items.map((item) => ({
+      items: quantitativeItems.map((item) => ({
         item_id: item.id,
         rating: ratings[item.id] || 0,
         comment: comments[item.id] || '',
@@ -310,6 +338,8 @@ const SelfRating: React.FC = () => {
         review_period: kpi?.period || 'quarterly',
         review_quarter: kpi?.quarter,
         review_year: kpi?.year,
+        major_accomplishments: majorAccomplishments,
+        disappointments: disappointments,
       });
 
       // Clear draft after successful submission
@@ -332,21 +362,24 @@ const SelfRating: React.FC = () => {
 
   // Rating options are now fetched from database
 
-  // Calculate average rating and completion
+  // Calculate average rating and completion (only for quantitative items)
   const calculateAverageRating = () => {
     if (!kpi?.items || kpi.items.length === 0) return 0;
-    const itemRatings = kpi.items.map((item) => ratings[item.id] || 0).filter(r => r > 0);
+    const quantitativeItems = kpi.items.filter((item) => !item.is_qualitative);
+    const itemRatings = quantitativeItems.map((item) => ratings[item.id] || 0).filter(r => r > 0);
     if (itemRatings.length === 0) return 0;
     return itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
   };
 
   const calculateCompletion = () => {
     if (!kpi?.items || kpi.items.length === 0) return 0;
-    const ratedCount = kpi.items.filter((item) => {
+    const quantitativeItems = kpi.items.filter((item) => !item.is_qualitative);
+    if (quantitativeItems.length === 0) return 0;
+    const ratedCount = quantitativeItems.filter((item) => {
       const rating = ratings[item.id];
       return rating && (rating === 1.00 || rating === 1.25 || rating === 1.50);
     }).length;
-    return Math.round((ratedCount / kpi.items.length) * 100);
+    return Math.round((ratedCount / quantitativeItems.length) * 100);
   };
 
   const averageRating = calculateAverageRating();
@@ -434,8 +467,9 @@ const SelfRating: React.FC = () => {
                 kpi.items.map((item, index) => {
                   const itemRating = ratings[item.id] || 0;
                   const itemComment = comments[item.id] || '';
+                  const isQualitative = item.is_qualitative;
                   return (
-                    <tr key={item.id}>
+                    <tr key={item.id} className={isQualitative ? 'bg-purple-50' : ''}>
                       <td className="px-6 py-4">
                         <div>
                           <button
@@ -445,6 +479,9 @@ const SelfRating: React.FC = () => {
                             <p className="truncate max-w-[200px]" title={item.title}>{item.title}</p>
                           </button>
                           <p className="text-xs text-gray-500">KPI-{kpi.quarter}-{String(index + 1).padStart(3, '0')}</p>
+                          {isQualitative && (
+                            <span className="inline-block mt-1 px-2 py-1 text-xs bg-purple-200 text-purple-800 rounded">Qualitative - Manager Rates</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -488,52 +525,60 @@ const SelfRating: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-2">
-                          <select
-                            value={itemRating || 0}
-                            onChange={(e) => {
-                              const selectedValue = parseFloat(e.target.value);
-                              console.log('🔄 [SelfRating] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue);
-                              if (!isNaN(selectedValue)) {
-                                handleRatingChange(item.id, selectedValue);
-                              }
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                          >
-                            <option value={0}>Select rating</option>
-                            {(() => {
-                              console.log('🔍 [SelfRating] Rendering select options, ratingOptions:', ratingOptions);
-                              console.log('🔍 [SelfRating] ratingOptions.length:', ratingOptions.length);
-                              if (ratingOptions.length > 0) {
-                                return ratingOptions.map((opt, idx) => {
-                                  const optValue = typeof opt.rating_value === 'number' 
-                                    ? opt.rating_value 
-                                    : parseFloat(String(opt.rating_value || '0'));
-                                  console.log(`🔍 [SelfRating] Option ${idx}:`, { opt, optValue, type: typeof optValue });
-                                  return (
-                                    <option key={`${opt.rating_value}-${opt.label}-${idx}`} value={optValue}>
-                                      {opt.rating_value} - {opt.label}
-                                    </option>
-                                  );
-                                });
-                              } else {
-                                console.warn('⚠️ [SelfRating] No rating options available, showing empty select');
-                                return null;
-                              }
-                            })()}
-                          </select>
-                          {itemRating > 0 && (
-                            <div className="mt-1">
-                              <span className="text-sm font-semibold text-gray-900">
-                                {(() => {
-                                  const ratingValue = parseFloat(String(itemRating));
-                                  console.log('📊 [SelfRating] Displaying rating label for value:', ratingValue);
-                                  if (Math.abs(ratingValue - 1.00) < 0.01) return 'Below Expectation';
-                                  if (Math.abs(ratingValue - 1.25) < 0.01) return 'Meets Expectation';
-                                  if (Math.abs(ratingValue - 1.50) < 0.01) return 'Exceeds Expectation';
-                                  return `${itemRating}`;
-                                })()}
-                              </span>
+                          {isQualitative ? (
+                            <div className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm">
+                              Manager will rate this item
                             </div>
+                          ) : (
+                            <>
+                              <select
+                                value={itemRating || 0}
+                                onChange={(e) => {
+                                  const selectedValue = parseFloat(e.target.value);
+                                  console.log('🔄 [SelfRating] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue);
+                                  if (!isNaN(selectedValue)) {
+                                    handleRatingChange(item.id, selectedValue);
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value={0}>Select rating</option>
+                                {(() => {
+                                  console.log('🔍 [SelfRating] Rendering select options, ratingOptions:', ratingOptions);
+                                  console.log('🔍 [SelfRating] ratingOptions.length:', ratingOptions.length);
+                                  if (ratingOptions.length > 0) {
+                                    return ratingOptions.map((opt, idx) => {
+                                      const optValue = typeof opt.rating_value === 'number' 
+                                        ? opt.rating_value 
+                                        : parseFloat(String(opt.rating_value || '0'));
+                                      console.log(`🔍 [SelfRating] Option ${idx}:`, { opt, optValue, type: typeof optValue });
+                                      return (
+                                        <option key={`${opt.rating_value}-${opt.label}-${idx}`} value={optValue}>
+                                          {opt.rating_value} - {opt.label}
+                                        </option>
+                                      );
+                                    });
+                                  } else {
+                                    console.warn('⚠️ [SelfRating] No rating options available, showing empty select');
+                                    return null;
+                                  }
+                                })()}
+                              </select>
+                              {itemRating > 0 && (
+                                <div className="mt-1">
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {(() => {
+                                      const ratingValue = parseFloat(String(itemRating));
+                                      console.log('📊 [SelfRating] Displaying rating label for value:', ratingValue);
+                                      if (Math.abs(ratingValue - 1.00) < 0.01) return 'Below Expectation';
+                                      if (Math.abs(ratingValue - 1.25) < 0.01) return 'Meets Expectation';
+                                      if (Math.abs(ratingValue - 1.50) < 0.01) return 'Exceeds Expectation';
+                                      return `${itemRating}`;
+                                    })()}
+                                  </span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -692,6 +737,50 @@ const SelfRating: React.FC = () => {
               </div>
             </div>
             <p className="text-xs text-gray-500">*All ratings are required before submission</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Major Accomplishments & Disappointments */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance Reflection</h2>
+        <p className="text-sm text-gray-600 mb-6">
+          Please share your major accomplishments and any challenges or disappointments during this review period.
+        </p>
+
+        <div className="space-y-6">
+          {/* Major Accomplishments */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Major Accomplishments
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              List your key achievements, successes, and contributions during this period.
+            </p>
+            <textarea
+              value={majorAccomplishments}
+              onChange={(e) => setMajorAccomplishments(e.target.value)}
+              placeholder="Example: Successfully led the Q1 project launch, resulting in 25% increase in customer satisfaction. Mentored 3 junior team members..."
+              rows={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+
+          {/* Disappointments / Challenges */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Challenges & Disappointments
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Share any obstacles, setbacks, or areas where you faced difficulties.
+            </p>
+            <textarea
+              value={disappointments}
+              onChange={(e) => setDisappointments(e.target.value)}
+              placeholder="Example: Faced delays in project X due to resource constraints. Needed more training on the new system..."
+              rows={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
           </div>
         </div>
       </div>
