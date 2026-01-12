@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import TextModal from '../../../components/TextModal';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 import { Button } from '../../../components/common';
 import { FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { KPI, KPIReview } from '../../../types';
@@ -126,8 +127,12 @@ const ConfirmReview: React.FC = () => {
 
     const avgEmployeeRating = itemCount > 0 ? totalEmployeeRating / itemCount : 0;
     const avgManagerRating = itemCount > 0 ? totalManagerRating / itemCount : 0;
+    
+    // Use backend final ratings if available
+    const finalEmployeeRating = review?.employee_final_rating || avgEmployeeRating;
+    const finalManagerRating = review?.manager_final_rating || avgManagerRating;
 
-    return { avgEmployeeRating, avgManagerRating };
+    return { avgEmployeeRating, avgManagerRating, finalEmployeeRating, finalManagerRating };
   };
 
   const handleActionChange = (newAction: 'approve' | 'reject') => {
@@ -220,7 +225,7 @@ const ConfirmReview: React.FC = () => {
     managerItemComments,
   } = parseRatingsAndComments();
 
-  const { avgEmployeeRating, avgManagerRating } = calculateTotalRatings();
+  const { avgEmployeeRating, avgManagerRating, finalEmployeeRating, finalManagerRating } = calculateTotalRatings();
 
   return (
     <div className="space-y-6">
@@ -299,6 +304,8 @@ const ConfirmReview: React.FC = () => {
           <RatingSummaryCard
             employeeRating={avgEmployeeRating}
             managerRating={avgManagerRating}
+            employeeFinalRating={finalEmployeeRating}
+            managerFinalRating={finalManagerRating}
           />
         </div>
 
@@ -307,6 +314,25 @@ const ConfirmReview: React.FC = () => {
           <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
             <p className="text-sm font-medium text-yellow-900 mb-2">Overall Manager Comments:</p>
             <p className="text-sm text-yellow-700">{review.overall_manager_comment}</p>
+          </div>
+        )}
+
+        {/* Accomplishments */}
+        {review.accomplishments && review.accomplishments.length > 0 && (
+          <div className="mt-6">
+            <AccomplishmentsTable
+              accomplishments={review.accomplishments}
+              mode="view"
+              readonly={true}
+            />
+          </div>
+        )}
+
+        {/* Future Plan */}
+        {review.future_plan && (
+          <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-sm font-medium text-purple-900 mb-2">Your Future Plans & Goals:</p>
+            <p className="text-sm text-purple-700 whitespace-pre-wrap">{review.future_plan}</p>
           </div>
         )}
       </div>

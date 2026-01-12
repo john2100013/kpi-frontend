@@ -3,6 +3,7 @@ import { FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiUser, FiEdit } from 
 import TextModal from '../../../components/TextModal';
 import { Button } from '../../../components/common';
 import { useManagerKPIDetails, formatRating, getRatingLabel, extractCommentText } from '../hooks';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 
 const ManagerKPIDetails: React.FC = () => {
   const {
@@ -90,6 +91,7 @@ const ManagerKPIDetails: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '250px' }}>DESCRIPTION</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>TARGET VALUE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>GOAL WEIGHT</th>
@@ -146,6 +148,13 @@ const ManagerKPIDetails: React.FC = () => {
                           >
                             <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
                           </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {item.is_qualitative ? (
+                          <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                        ) : (
+                          <p className="text-sm text-gray-700">{item.actual_value || 'N/A'}</p>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -391,15 +400,27 @@ const ManagerKPIDetails: React.FC = () => {
       </div>
 
       {/* Employee Accomplishments & Disappointments */}
-      {review && (review.major_accomplishments || review.disappointments) && (
+      {review && (review.accomplishments || review.major_accomplishments || review.disappointments || review.future_plan) && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
           
           <div className="space-y-6">
-            {/* Major Accomplishments */}
-            {review.major_accomplishments && (
+            {/* Structured Accomplishments Table */}
+            {review.accomplishments && review.accomplishments.length > 0 && (
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Major Accomplishments</h3>
+                <AccomplishmentsTable
+                  accomplishments={review.accomplishments}
+                  mode="view"
+                  readonly={true}
+                />
+              </div>
+            )}
+
+            {/* Legacy Major Accomplishments */}
+            {review.major_accomplishments && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Major Accomplishments (Legacy)</h3>
                 <div className="bg-green-50 p-4 rounded-lg mb-4">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
                 </div>
@@ -412,6 +433,16 @@ const ManagerKPIDetails: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Future Plan */}
+            {review.future_plan && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Future Plans & Goals</h3>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
+                </div>
               </div>
             )}
 

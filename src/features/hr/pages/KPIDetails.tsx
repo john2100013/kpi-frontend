@@ -21,6 +21,7 @@ import {
   parseGoalWeight,
 } from '../hooks/kpiDetailsUtils';
 import { KPIInformationCard, KPIRejectionCard } from '../components';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 
 const HRKPIDetails: React.FC = () => {
   const {
@@ -97,6 +98,9 @@ const HRKPIDetails: React.FC = () => {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
                   TARGET VALUE
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
+                  ACTUAL VALUE ACHIEVED
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>
                   MEASURE UNIT
@@ -187,6 +191,13 @@ const HRKPIDetails: React.FC = () => {
                               {item.target_value || 'N/A'}
                             </p>
                           </Button>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        {item.is_qualitative ? (
+                          <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                        ) : (
+                          <p className="text-sm text-gray-700">{item.actual_value || 'N/A'}</p>
                         )}
                       </td>
                       <td className="px-4 py-4">
@@ -348,12 +359,19 @@ const HRKPIDetails: React.FC = () => {
                   </td>
                   <td className="px-4 py-4">
                     {review && review.employee_rating ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-semibold text-gray-900">{formatRating(review.employee_rating)}</span>
-                        {review.employee_rating > 0 && (
-                          <span className="text-xs text-gray-500 ml-1">
-                            ({getRatingLabel(review.employee_rating)} Expectation)
-                          </span>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">Avg:</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatRating(review.employee_rating)}</span>
+                        </div>
+                        {review.employee_final_rating && (
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs text-gray-500">Final:</span>
+                            <span className="text-sm font-bold text-blue-700">{formatRating(review.employee_final_rating)}</span>
+                            <span className="text-xs text-gray-500">
+                              ({getRatingLabel(review.employee_final_rating)})
+                            </span>
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -369,12 +387,19 @@ const HRKPIDetails: React.FC = () => {
                   </td>
                   <td className="px-4 py-4">
                     {review && review.manager_rating ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-semibold text-gray-900">{formatRating(review.manager_rating)}</span>
-                        {review.manager_rating > 0 && (
-                          <span className="text-xs text-gray-500 ml-1">
-                            ({getRatingLabel(review.manager_rating)} Expectation)
-                          </span>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">Avg:</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatRating(review.manager_rating)}</span>
+                        </div>
+                        {review.manager_final_rating && (
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs text-gray-500">Final:</span>
+                            <span className="text-sm font-bold text-purple-700">{formatRating(review.manager_final_rating)}</span>
+                            <span className="text-xs text-gray-500">
+                              ({getRatingLabel(review.manager_final_rating)})
+                            </span>
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -400,13 +425,18 @@ const HRKPIDetails: React.FC = () => {
           kpi.items &&
           kpi.items.length > 0 &&
           (() => {
-            let finalRating = 0;
+            // Use backend-calculated ratings if available
+            const averageRating = review.manager_rating || 0;
+            const finalRating = review.manager_final_rating || averageRating;
+            
+            // Calculate for display breakdown
+            let calculatedRating = 0;
             let totalWeight = 0;
             const itemCalculations = kpi.items.map((item: any) => {
               const mgrRating = managerItemRatings[item.id] || 0;
               const weight = parseGoalWeight(item.goal_weight);
               const contribution = mgrRating * weight;
-              finalRating += contribution;
+              calculatedRating += contribution;
               totalWeight += weight;
               return {
                 item_id: item.id,
@@ -428,7 +458,9 @@ const HRKPIDetails: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Performance Rating</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <p className="text-sm text-gray-600 mb-1">Final Score</p>
+                    <p className="text-sm text-gray-600 mb-1">Average Rating</p>
+                    <p className="text-2xl font-semibold text-gray-700">{averageRating.toFixed(2)}</p>
+                    <p className="text-sm text-gray-600 mt-2 mb-1">Final Rating</p>
                     <p className="text-3xl font-bold text-purple-600">{finalRating.toFixed(2)}</p>
                     <p className="text-xs text-gray-500 mt-1">{getOverallRatingLabel(finalRating)}</p>
                   </div>
@@ -438,7 +470,7 @@ const HRKPIDetails: React.FC = () => {
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-gray-200">
                     <p className="text-sm text-gray-600 mb-1">Total Contribution</p>
-                    <p className="text-2xl font-semibold text-gray-900">{finalRating.toFixed(2)}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{averageRating.toFixed(2)}</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-gray-200">
                     <p className="text-sm text-gray-600 mb-1">KPI Items</p>
@@ -474,7 +506,10 @@ const HRKPIDetails: React.FC = () => {
                           <td className="py-2 px-2">Total</td>
                           <td className="py-2 px-2 text-right">-</td>
                           <td className="py-2 px-2 text-right">{(totalWeight * 100).toFixed(0)}%</td>
-                          <td className="py-2 px-2 text-right text-purple-600">{finalRating.toFixed(2)}</td>
+                          <td className="py-2 px-2 text-right">
+                            <div className="text-gray-600 text-xs">Avg: {averageRating.toFixed(2)}</div>
+                            <div className="text-purple-600 font-bold">Final: {finalRating.toFixed(2)}</div>
+                          </td>
                         </tr>
                       </tfoot>
                     </table>
@@ -485,13 +520,26 @@ const HRKPIDetails: React.FC = () => {
           })()}
 
         {/* Employee Accomplishments & Disappointments */}
-        {review && (review.major_accomplishments || review.disappointments) && (
+        {review && (review.accomplishments || review.major_accomplishments || review.disappointments || review.future_plan) && (
           <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
             <h3 className="text-sm font-bold text-gray-900 mb-4">Employee Performance Reflection</h3>
 
-            {review.major_accomplishments && (
+            {/* Structured Accomplishments Table */}
+            {review.accomplishments && review.accomplishments.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs font-semibold text-gray-900 mb-2">Major Accomplishments:</p>
+                <AccomplishmentsTable
+                  accomplishments={review.accomplishments}
+                  mode="view"
+                  readonly={true}
+                />
+              </div>
+            )}
+
+            {/* Legacy Major Accomplishments */}
+            {review.major_accomplishments && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-900 mb-2">Major Accomplishments (Legacy):</p>
                 <div className="bg-white p-3 rounded border border-gray-200 mb-2">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
                 </div>
@@ -505,6 +553,16 @@ const HRKPIDetails: React.FC = () => {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Future Plan */}
+            {review.future_plan && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-900 mb-2">Employee's Future Plans & Goals:</p>
+                <div className="bg-white p-3 rounded border border-gray-200">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
+                </div>
               </div>
             )}
 

@@ -4,6 +4,7 @@ import { Button } from '../../../components/common';
 import SignatureField from '../../../components/SignatureField';
 import DatePicker from '../../../components/DatePicker';
 import TextModal from '../../../components/TextModal';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 import { useEmployeeSelfRating } from '../hooks';
 import { getRatingLabel } from '../hooks/selfRatingUtils';
 import { KPIItem } from '../../../types';
@@ -24,6 +25,8 @@ const SelfRating: React.FC = () => {
     majorAccomplishments,
     disappointments,
     improvementNeeded,
+    accomplishments,
+    futurePlan,
     textModal,
     averageRating,
     completion,
@@ -32,6 +35,8 @@ const SelfRating: React.FC = () => {
     setMajorAccomplishments,
     setDisappointments,
     setImprovementNeeded,
+    setAccomplishments,
+    setFuturePlan,
     handleRatingChange,
     handleCommentChange,
     handleSaveDraft,
@@ -542,19 +547,27 @@ const SelfRating: React.FC = () => {
         </p>
 
         <div className="space-y-6">
-          {/* Major Accomplishments */}
+          {/* Accomplishments Table */}
+          <AccomplishmentsTable
+            accomplishments={accomplishments}
+            onChange={setAccomplishments}
+            mode="employee"
+            ratingOptions={ratingOptions.map(opt => ({ value: opt.rating_value, label: `${opt.rating_value.toFixed(2)} - ${opt.label}` }))}
+          />
+
+          {/* Major Accomplishments - Old Text Field (kept for legacy data) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Major Accomplishments
+              Additional Accomplishments Notes (Optional)
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              List your key achievements, successes, and contributions during this period.
+              Any additional context or accomplishments not captured in the table above.
             </p>
             <textarea
               value={majorAccomplishments}
               onChange={(e) => setMajorAccomplishments(e.target.value)}
-              placeholder="Example: Successfully led the Q1 project launch, resulting in 25% increase in customer satisfaction. Mentored 3 junior team members..."
-              rows={6}
+              placeholder="Optional additional notes..."
+              rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
@@ -588,6 +601,23 @@ const SelfRating: React.FC = () => {
               value={improvementNeeded}
               onChange={(e) => setImprovementNeeded(e.target.value)}
               placeholder="Example: Better access to training resources, improved communication tools, additional team support..."
+              rows={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+
+          {/* Future Plan */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Future Plans & Goals
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              What are your goals and plans for the next review period? How do you plan to grow and improve?
+            </p>
+            <textarea
+              value={futurePlan}
+              onChange={(e) => setFuturePlan(e.target.value)}
+              placeholder="Example: Plan to complete certification in X, improve skills in Y, take on leadership role in Z project..."
               rows={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />

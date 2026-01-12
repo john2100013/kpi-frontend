@@ -318,9 +318,8 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
                         type="text"
                         value={kpi.target_value}
                         onChange={(e) => handleKpiChange(index, 'target_value', e.target.value)}
-                        placeholder={kpi.is_qualitative ? "N/A" : "e.g., 150,000"}
-                        disabled={kpi.is_qualitative}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100' : ''}`}
+                        placeholder={kpi.is_qualitative ? "Optional" : "e.g., 150,000"}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
                       />
                     </td>
 
@@ -328,10 +327,9 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
                       <select
                         value={kpi.measure_unit}
                         onChange={(e) => handleKpiChange(index, 'measure_unit', e.target.value)}
-                        disabled={kpi.is_qualitative}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100' : ''}`}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
                       >
-                        <option value="">{kpi.is_qualitative ? 'N/A' : 'Select unit'}</option>
+                        <option value="">{kpi.is_qualitative ? 'Optional' : 'Select unit'}</option>
                         <option value="Percentage">Percentage</option>
                         <option value="Number">Number</option>
                         <option value="Currency">Currency</option>
@@ -344,8 +342,7 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
                         type="date"
                         value={kpi.expected_completion_date}
                         onChange={(e) => handleKpiChange(index, 'expected_completion_date', e.target.value)}
-                        disabled={kpi.is_qualitative}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 ${kpi.is_qualitative ? 'bg-gray-100' : ''}`}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
                       />
                     </td>
 

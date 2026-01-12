@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
-import type { KPI, KPIReview } from '../../../types';
+import type { KPI, KPIReview, Accomplishment } from '../../../types';
 import {
   parseEmployeeData,
   parseManagerData,
@@ -65,9 +65,13 @@ interface UseManagerKPIReviewReturn {
   majorAccomplishmentsManagerComment: string;
   disappointmentsManagerComment: string;
   improvementNeededManagerComment: string;
+  accomplishments: Accomplishment[];
+  actualValues: Record<number, string>;
   textModal: TextModalState;
   employeeAvg: number;
   managerAvg: number;
+  employeeFinalRating: number;
+  managerFinalRating: number;
   
   // Actions
   setManagerRatings: (ratings: ItemRatingsMap) => void;
@@ -80,6 +84,8 @@ interface UseManagerKPIReviewReturn {
   setMajorAccomplishmentsManagerComment: (comment: string) => void;
   setDisappointmentsManagerComment: (comment: string) => void;
   setImprovementNeededManagerComment: (comment: string) => void;
+  setAccomplishments: (accomplishments: Accomplishment[]) => void;
+  setActualValues: (values: Record<number, string>) => void;
   setTextModal: (modal: TextModalState) => void;
   handleRatingChange: (itemId: number, value: number) => void;
   handleCommentChange: (itemId: number, value: string) => void;
@@ -113,6 +119,8 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   const [majorAccomplishmentsManagerComment, setMajorAccomplishmentsManagerComment] = useState('');
   const [disappointmentsManagerComment, setDisappointmentsManagerComment] = useState('');
   const [improvementNeededManagerComment, setImprovementNeededManagerComment] = useState('');
+  const [accomplishments, setAccomplishments] = useState<Accomplishment[]>([]);
+  const [actualValues, setActualValues] = useState<Record<number, string>>({});
   const [textModal, setTextModal] = useState<TextModalState>({
     isOpen: false,
     title: '',
@@ -201,15 +209,16 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       console.log('✅ [KPIReview] Rating options response:', response.data);
       const allOptions = response.data.rating_options || [];
       
-      // Separate numeric (quarterly/yearly) and qualitative rating options
+      // Filter numeric options based on KPI period (yearly or quarterly)
+      const periodType = period || 'quarterly'; // Default to quarterly if not specified
       const numericOptions = allOptions.filter((opt: RatingOption) => 
-        opt.rating_type === 'quarterly' || opt.rating_type === 'yearly'
+        opt.rating_type === periodType
       );
       const qualitativeOptions = allOptions.filter((opt: RatingOption) => 
         opt.rating_type === 'qualitative'
       );
       
-      console.log('📋 [KPIReview] Setting numeric rating options:', numericOptions);
+      console.log(`📋 [KPIReview] Setting ${periodType} rating options:`, numericOptions);
       console.log('📋 [KPIReview] Setting qualitative rating options:', qualitativeOptions);
       setRatingOptions(numericOptions);
       setQualitativeRatingOptions(qualitativeOptions);
@@ -218,19 +227,20 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       if (numericOptions.length === 0) {
         console.warn('⚠️ [KPIReview] No rating options returned, using fallback');
         const fallbackOptions = [
-          { rating_value: 1.00, label: 'Below Expectation', rating_type: 'quarterly' as const },
-          { rating_value: 1.25, label: 'Meets Expectation', rating_type: 'quarterly' as const },
-          { rating_value: 1.50, label: 'Exceeds Expectation', rating_type: 'quarterly' as const },
+          { rating_value: 1.00, label: 'Below Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+          { rating_value: 1.25, label: 'Meets Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+          { rating_value: 1.50, label: 'Exceeds Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
         ];
         setRatingOptions(fallbackOptions);
       }
     } catch (error) {
       console.error('❌ [KPIReview] Error fetching rating options:', error);
       // Fallback to default options if API fails
+      const periodType = period || 'quarterly';
       const fallbackOptions = [
-        { rating_value: 1.00, label: 'Below Expectation', rating_type: 'quarterly' as const },
-        { rating_value: 1.25, label: 'Meets Expectation', rating_type: 'quarterly' as const },
-        { rating_value: 1.50, label: 'Exceeds Expectation', rating_type: 'quarterly' as const },
+        { rating_value: 1.00, label: 'Below Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+        { rating_value: 1.25, label: 'Meets Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+        { rating_value: 1.50, label: 'Exceeds Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
       ];
       console.log('🔄 [KPIReview] Using fallback rating options:', fallbackOptions);
       setRatingOptions(fallbackOptions);
@@ -307,6 +317,22 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           setManagerRatings(mgrRatings);
           setManagerComments(mgrComments);
         }
+
+        // Load accomplishments from review
+        if (reviewData.accomplishments && Array.isArray(reviewData.accomplishments)) {
+          setAccomplishments(reviewData.accomplishments);
+        }
+
+        // Load actual values from kpi items
+        const actualVals: Record<number, string> = {};
+        if (kpiData.items) {
+          kpiData.items.forEach((item: any) => {
+            if (item.actual_value) {
+              actualVals[item.id] = item.actual_value;
+            }
+          });
+        }
+        setActualValues(actualVals);
       } catch (error) {
         console.error('Error fetching KPI:', error);
       }
@@ -366,36 +392,51 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       return;
     }
 
+    // Validate all accomplishments have manager ratings
+    if (accomplishments && accomplishments.length > 0) {
+      const unratedAccomplishments = accomplishments.some(acc => 
+        acc.manager_rating === null || 
+        acc.manager_rating === undefined || 
+        acc.manager_rating === 0
+      );
+      
+      if (unratedAccomplishments) {
+        toast.error('Please provide ratings for all major accomplishments');
+        return;
+      }
+    }
+
     if (!managerSignature) {
       toast.warning('Please provide your digital signature');
       return;
     }
 
-    // Calculate and round average rating
-    const averageRating = calculateAverageRating(kpi.items, managerRatings);
+    // Calculate and round average rating (including accomplishments)
+    const averageRating = calculateAverageRating(kpi.items, managerRatings, accomplishments);
     const roundedRating = roundToAllowedRating(averageRating);
 
-    // Build item data JSON
-    const itemDataJSON = buildItemDataJSON(kpi.items, managerRatings, managerComments);
+// Build item data JSON with actual values
+      const itemDataJSON = buildItemDataJSON(kpi.items, managerRatings, managerComments, actualValues);
 
-    setSaving(true);
-    try {
-      // Prepare qualitative ratings array for backend
-      const qualitativeRatingsArray = buildQualitativeRatingsArray(
-        kpi.items,
-        qualitativeRatings,
-        qualitativeComments
-      );
+      setSaving(true);
+      try {
+        // Prepare qualitative ratings array for backend
+        const qualitativeRatingsArray = buildQualitativeRatingsArray(
+          kpi.items,
+          qualitativeRatings,
+          qualitativeComments
+        );
 
-      await api.post(`/kpi-review/${reviewId}/manager-review`, {
-        manager_rating: roundedRating,
-        manager_comment: itemDataJSON,
-        overall_manager_comment: overallComment,
-        manager_signature: managerSignature,
-        qualitative_ratings: qualitativeRatingsArray,
-        major_accomplishments_manager_comment: majorAccomplishmentsManagerComment,
-        disappointments_manager_comment: disappointmentsManagerComment,
-        improvement_needed_manager_comment: improvementNeededManagerComment,
+        await api.post(`/kpi-review/${reviewId}/manager-review`, {
+          manager_rating: roundedRating,
+          manager_comment: itemDataJSON,
+          overall_manager_comment: overallComment,
+          manager_signature: managerSignature,
+          qualitative_ratings: qualitativeRatingsArray,
+          major_accomplishments_manager_comment: majorAccomplishmentsManagerComment,
+          disappointments_manager_comment: disappointmentsManagerComment,
+          improvement_needed_manager_comment: improvementNeededManagerComment,
+          accomplishments: accomplishments,
       });
 
       // Clear draft after successful submission
@@ -420,9 +461,19 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     return getRatingLabelUtil(rating);
   };
 
-  // Calculate averages
-  const employeeAvg = kpi ? calculateAverageRating(kpi.items || [], employeeRatings) : 0;
-  const managerAvg = kpi ? calculateAverageRating(kpi.items || [], managerRatings) : 0;
+  // Calculate averages - use backend final ratings if available, otherwise calculate
+  const employeeAvg = typeof review?.employee_rating === 'number' 
+    ? review.employee_rating 
+    : (kpi ? calculateAverageRating(kpi.items || [], employeeRatings) : 0);
+  const managerAvg = typeof review?.manager_rating === 'number' 
+    ? review.manager_rating 
+    : (kpi ? calculateAverageRating(kpi.items || [], managerRatings) : 0);
+  const employeeFinalRating = typeof review?.employee_final_rating === 'number' 
+    ? review.employee_final_rating 
+    : employeeAvg;
+  const managerFinalRating = typeof review?.manager_final_rating === 'number' 
+    ? review.manager_final_rating 
+    : managerAvg;
 
   return {
     // State
@@ -445,9 +496,13 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     majorAccomplishmentsManagerComment,
     disappointmentsManagerComment,
     improvementNeededManagerComment,
+    accomplishments,
+    actualValues,
     textModal,
     employeeAvg,
     managerAvg,
+    employeeFinalRating,
+    managerFinalRating,
     
     // Actions
     setManagerRatings,
@@ -460,6 +515,8 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     setMajorAccomplishmentsManagerComment,
     setDisappointmentsManagerComment,
     setImprovementNeededManagerComment,
+    setAccomplishments,
+    setActualValues,
     setTextModal,
     handleRatingChange,
     handleCommentChange,

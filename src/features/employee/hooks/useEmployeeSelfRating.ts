@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import api from '../../../services/api';
-import { KPI } from '../../../types';
+import { KPI, Accomplishment } from '../../../types';
 import { RatingOption } from '../types';
 
 interface TextModalState {
@@ -47,6 +47,11 @@ export const useEmployeeSelfRating = () => {
   const [majorAccomplishments, setMajorAccomplishments] = useState('');
   const [disappointments, setDisappointments] = useState('');
   const [improvementNeeded, setImprovementNeeded] = useState('');
+  const [accomplishments, setAccomplishments] = useState<Accomplishment[]>([
+    { review_id: 0, title: '', description: '', item_order: 1 },
+    { review_id: 0, title: '', description: '', item_order: 2 }
+  ]);
+  const [futurePlan, setFuturePlan] = useState('');
   const [textModal, setTextModal] = useState<TextModalState>({
     isOpen: false,
     title: '',
@@ -56,9 +61,15 @@ export const useEmployeeSelfRating = () => {
   useEffect(() => {
     if (kpiId) {
       fetchKPIDetails();
-      fetchRatingOptions();
     }
   }, [kpiId]);
+
+  // Fetch rating options when KPI period is known
+  useEffect(() => {
+    if (kpi && kpi.period) {
+      fetchRatingOptions(kpi.period);
+    }
+  }, [kpi]);
 
   const fetchKPIDetails = async () => {
     if (!kpiId) return;
@@ -93,6 +104,10 @@ export const useEmployeeSelfRating = () => {
       if (data.major_accomplishments) setMajorAccomplishments(data.major_accomplishments);
       if (data.disappointments) setDisappointments(data.disappointments);
       if (data.improvement_needed) setImprovementNeeded(data.improvement_needed);
+      if (data.accomplishments && data.accomplishments.length > 0) {
+        setAccomplishments(data.accomplishments);
+      }
+      if (data.future_plan) setFuturePlan(data.future_plan);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to load KPI details');
       navigate('/employee/dashboard');
@@ -101,28 +116,32 @@ export const useEmployeeSelfRating = () => {
     }
   };
 
-  const fetchRatingOptions = async () => {
+  const fetchRatingOptions = async (period?: string) => {
     try {
       const response = await api.get('/rating-options');
       const allOptions = response.data?.rating_options || [];
       
-      // Separate numeric (quarterly/yearly) and qualitative rating options
+      // Filter numeric options based on KPI period (yearly or quarterly)
+      const periodType = period || 'quarterly'; // Default to quarterly if not specified
       const numericOptions = allOptions.filter((opt: RatingOption) => 
-        opt.rating_type === 'quarterly' || opt.rating_type === 'yearly'
+        opt.rating_type === periodType
       );
       const qualitativeOptions = allOptions.filter((opt: RatingOption) => 
         opt.rating_type === 'qualitative'
       );
       
+      console.log(`📋 [SelfRating] Setting ${periodType} rating options:`, numericOptions);
+      console.log('📋 [SelfRating] Setting qualitative rating options:', qualitativeOptions);
       setRatingOptions(numericOptions);
       setQualitativeRatingOptions(qualitativeOptions);
     } catch (error) {
       console.error('Failed to fetch rating options:', error);
-      // Fallback to default options
+      // Fallback to default options based on period
+      const periodType = period || 'quarterly';
       setRatingOptions([
-        { rating_value: 1.0, label: 'Below Expectation', rating_type: 'quarterly' },
-        { rating_value: 1.25, label: 'Meets Expectation', rating_type: 'quarterly' },
-        { rating_value: 1.5, label: 'Exceeds Expectation', rating_type: 'quarterly' },
+        { rating_value: 1.0, label: 'Below Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+        { rating_value: 1.25, label: 'Meets Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
+        { rating_value: 1.5, label: 'Exceeds Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
       ]);
       setQualitativeRatingOptions([]);
     }
@@ -168,6 +187,24 @@ export const useEmployeeSelfRating = () => {
   const handleSubmit = async () => {
     if (!kpiId || !kpi) return;
 
+    // Validate accomplishments (minimum 2)
+    if (accomplishments.length < 2) {
+      toast.error('Please add at least 2 major accomplishments');
+      return;
+    }
+
+    // Validate all accomplishments have titles and ratings
+    const incompleteAccomplishments = accomplishments.some(acc => 
+      !acc.title || acc.title.trim() === '' || 
+      acc.employee_rating === null || 
+      acc.employee_rating === undefined
+    );
+
+    if (incompleteAccomplishments) {
+      toast.error('Please complete all accomplishment titles and ratings');
+      return;
+    }
+
     // Validate all KPIs have ratings (excluding qualitative ones)
     const itemsNeedingRatings = kpi.items?.filter((item: any) => !item.is_qualitative) || [];
     const allRated = itemsNeedingRatings.every((item: any) => ratings[item.id] > 0);
@@ -190,9 +227,15 @@ export const useEmployeeSelfRating = () => {
     try {
       setSaving(true);
       
-      // Calculate average rating (only from numeric items)
+      // Calculate average rating (from numeric items + accomplishments)
       const itemRatings = itemsNeedingRatings.map((item: any) => ratings[item.id] || 0);
-      const averageRating = itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
+      const accomplishmentRatings = accomplishments
+        .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0)
+        .map(acc => Number(acc.employee_rating) || 0);
+      const allRatings = [...itemRatings, ...accomplishmentRatings];
+      const averageRating = allRatings.length > 0 
+        ? allRatings.reduce((sum: number, rating: number) => sum + rating, 0) / allRatings.length
+        : 0;
       
       // Round to nearest allowed value
       const allowedRatings = [1.00, 1.25, 1.50];
@@ -223,6 +266,8 @@ export const useEmployeeSelfRating = () => {
         major_accomplishments: majorAccomplishments,
         disappointments: disappointments,
         improvement_needed: improvementNeeded,
+        accomplishments: accomplishments,
+        future_plan: futurePlan,
       });
       
       // Clear draft
@@ -267,12 +312,20 @@ export const useEmployeeSelfRating = () => {
     setTextModal((prev) => ({ ...prev, value }));
   };
 
-  // Calculate average rating
+  // Calculate average rating (from items + accomplishments)
   const averageRating = (() => {
     const itemsWithRatings = kpi?.items?.filter((item: any) => !item.is_qualitative && ratings[item.id]) || [];
-    if (itemsWithRatings.length === 0) return 0;
-    const sum = itemsWithRatings.reduce((acc, item: any) => acc + (ratings[item.id] || 0), 0);
-    return sum / itemsWithRatings.length;
+    const itemRatingsSum = itemsWithRatings.reduce((acc, item: any) => acc + (ratings[item.id] || 0), 0);
+    
+    const accomplishmentRatings = accomplishments
+      .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0)
+      .map(acc => Number(acc.employee_rating) || 0);
+    const accomplishmentsSum = accomplishmentRatings.reduce((acc: number, rating: number) => acc + rating, 0);
+    
+    const totalCount = itemsWithRatings.length + accomplishmentRatings.length;
+    if (totalCount === 0) return 0;
+    
+    return (itemRatingsSum + accomplishmentsSum) / totalCount;
   })();
 
   // Calculate completion percentage
@@ -297,6 +350,8 @@ export const useEmployeeSelfRating = () => {
     majorAccomplishments,
     disappointments,
     improvementNeeded,
+    accomplishments,
+    futurePlan,
     textModal,
     averageRating,
     completion,
@@ -305,6 +360,8 @@ export const useEmployeeSelfRating = () => {
     setMajorAccomplishments,
     setDisappointments,
     setImprovementNeeded,
+    setAccomplishments,
+    setFuturePlan,
     handleRatingChange,
     handleCommentChange,
     handleSaveDraft,

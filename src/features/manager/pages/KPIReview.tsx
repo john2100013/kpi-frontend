@@ -2,6 +2,7 @@ import React from 'react';
 import SignatureField from '../../../components/SignatureField';
 import DatePicker from '../../../components/DatePicker';
 import TextModal from '../../../components/TextModal';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 import { FiArrowLeft, FiSave, FiSend, FiExternalLink } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 import { useManagerKPIReview } from '../hooks';
@@ -24,12 +25,15 @@ const ManagerKPIReview: React.FC = () => {
     employeeQualitativeRatings,
     ratingOptions,
     qualitativeRatingOptions,
-    majorAccomplishmentsManagerComment,
     disappointmentsManagerComment,
     improvementNeededManagerComment,
+    accomplishments,
+    actualValues,
     textModal,
     employeeAvg,
     managerAvg,
+    employeeFinalRating,
+    managerFinalRating,
     setQualitativeRatings,
     setQualitativeComments,
     setOverallComment,
@@ -38,6 +42,8 @@ const ManagerKPIReview: React.FC = () => {
     setMajorAccomplishmentsManagerComment,
     setDisappointmentsManagerComment,
     setImprovementNeededManagerComment,
+    setAccomplishments,
+    setActualValues,
     setTextModal,
     handleRatingChange,
     handleCommentChange,
@@ -194,6 +200,7 @@ const ManagerKPIReview: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '250px' }}>KPI DESCRIPTION</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>TARGET VALUE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>GOAL WEIGHT</th>
@@ -248,6 +255,15 @@ const ManagerKPIReview: React.FC = () => {
                             {item.is_qualitative ? <span className="text-purple-600 font-medium">Qualitative</span> : (item.target_value || 'N/A')}
                           </p>
                         </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="text"
+                          value={actualValues[item.id] || ''}
+                          onChange={(e) => setActualValues({ ...actualValues, [item.id]: e.target.value })}
+                          placeholder="Enter actual value"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-1 rounded text-sm whitespace-nowrap ${item.is_qualitative ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -493,20 +509,28 @@ const ManagerKPIReview: React.FC = () => {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Employee Average Rating</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-lg font-semibold text-gray-700">
                 {employeeAvg > 0 ? employeeAvg.toFixed(2) : 'N/A'}
               </p>
-              {employeeAvg > 0 && (
-                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(employeeAvg)})</p>
+              <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Employee Final Rating</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {employeeFinalRating > 0 ? employeeFinalRating.toFixed(2) : 'N/A'}
+              </p>
+              {employeeFinalRating > 0 && (
+                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(employeeFinalRating)})</p>
               )}
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Manager Average Rating</p>
-              <p className="text-2xl font-bold text-purple-600">
+              <p className="text-lg font-semibold text-gray-700">
                 {managerAvg > 0 ? managerAvg.toFixed(2) : 'Not rated'}
               </p>
-              {managerAvg > 0 && (
-                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(managerAvg)})</p>
+              <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Manager Final Rating</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {managerFinalRating > 0 ? managerFinalRating.toFixed(2) : 'Not rated'}
+              </p>
+              {managerFinalRating > 0 && (
+                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(managerFinalRating)})</p>
               )}
             </div>
           </div>
@@ -514,29 +538,31 @@ const ManagerKPIReview: React.FC = () => {
       </div>
 
       {/* Employee Accomplishments & Disappointments */}
-      {review && (review.major_accomplishments || review.disappointments || review.improvement_needed) && (
+      {review && (review.accomplishments || review.major_accomplishments || review.disappointments || review.improvement_needed || review.future_plan) && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
           
           <div className="space-y-6">
-            {/* Major Accomplishments */}
-            {review.major_accomplishments && (
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Major Accomplishments</h3>
-                <div className="bg-green-50 p-4 rounded-lg mb-4">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
-                </div>
-                
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Feedback</h3>
-                <textarea
-                  value={majorAccomplishmentsManagerComment}
-                  onChange={(e) => setMajorAccomplishmentsManagerComment(e.target.value)}
-                  placeholder="Provide feedback on employee's accomplishments..."
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            {/* Accomplishments Table */}
+            {accomplishments && accomplishments.length > 0 && (
+              <div>
+                <AccomplishmentsTable
+                  accomplishments={accomplishments}
+                  onChange={setAccomplishments}
+                  mode="manager"
+                  ratingOptions={ratingOptions.map(opt => ({ 
+                    value: opt.rating_value, 
+                    label: `${opt.rating_value.toFixed(2)} - ${opt.label}` 
+                  }))}
+                  managerRatingOptions={ratingOptions.map(opt => ({ 
+                    value: opt.rating_value, 
+                    label: `${opt.rating_value.toFixed(2)} - ${opt.label}` 
+                  }))}
                 />
               </div>
             )}
+
+           
 
             {/* Disappointments */}
             {review.disappointments && (
@@ -573,6 +599,16 @@ const ManagerKPIReview: React.FC = () => {
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
+              </div>
+            )}
+
+            {/* Future Plan */}
+            {review.future_plan && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Future Plans & Goals</h3>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
+                </div>
               </div>
             )}
           </div>

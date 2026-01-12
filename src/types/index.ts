@@ -21,6 +21,7 @@ export interface KPIItem {
   title: string;
   description?: string;
   target_value?: string;
+  actual_value?: string;  // NEW: Actual value achieved (manager enters)
   measure_unit?: string;
   measure_criteria?: string;
   current_performance_status?: string;
@@ -32,6 +33,21 @@ export interface KPIItem {
   is_qualitative?: boolean;
   qualitative_rating?: 'exceeds' | 'meets' | 'needs_improvement';
   qualitative_comment?: string;
+}
+
+// NEW: Accomplishment interface for structured major accomplishments
+export interface Accomplishment {
+  id?: number;
+  review_id: number;
+  title: string;
+  description?: string;
+  employee_rating?: number;  // Self-rating 0-1.5 scale
+  employee_comment?: string;
+  manager_rating?: number;   // Manager rating 0-1.5 scale
+  manager_comment?: string;
+  item_order: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface KPI {
@@ -70,10 +86,12 @@ export interface KPIReview {
   kpi_id: number;
   employee_id: number;
   employee_rating: number;
+  employee_final_rating?: number;
   employee_comment: string;
   employee_signature?: string;
   employee_self_rating_signed_at?: string;
   manager_rating: number;
+  manager_final_rating?: number;
   manager_comment: string;
   manager_signature?: string;
   manager_review_signed_at?: string;
@@ -88,6 +106,8 @@ export interface KPIReview {
   disappointments_manager_comment?: string;
   improvement_needed_manager_comment?: string;
   overall_manager_comment?: string;
+  future_plan?: string;  // NEW: Employee's future plans
+  accomplishments?: Accomplishment[];  // NEW: Structured accomplishments
   manager_signed_at?: string;
   employee_rejection_note?: string;
   employee_confirmation_status?: string;

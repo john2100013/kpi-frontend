@@ -2,6 +2,7 @@ import React from 'react';
 import { FiArrowLeft, FiCheckCircle, FiClock } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 import TextModal from '../../../components/TextModal';
+import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 import { useEmployeeKPIDetails } from '../hooks';
 import {
   formatRating,
@@ -517,18 +518,29 @@ const KPIDetails: React.FC = () => {
       </div>
 
       {/* Employee Accomplishments & Disappointments */}
-      {review && (review.major_accomplishments || review.disappointments) && (
+      {review && (review.accomplishments || review.major_accomplishments || review.disappointments || review.future_plan) && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Performance Reflection
           </h2>
 
           <div className="space-y-6">
-            {/* Major Accomplishments */}
+            {/* Accomplishments Table */}
+            {review.accomplishments && review.accomplishments.length > 0 && (
+              <div>
+                <AccomplishmentsTable
+                  accomplishments={review.accomplishments}
+                  mode="view"
+                  readonly={true}
+                />
+              </div>
+            )}
+
+            {/* Legacy Major Accomplishments (for old reviews) */}
             {review.major_accomplishments && (
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                  Your Major Accomplishments
+                  Your Major Accomplishments (Legacy)
                 </h3>
                 <div className="bg-green-50 p-4 rounded-lg mb-4">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -575,6 +587,20 @@ const KPIDetails: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Future Plan */}
+            {review.future_plan && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  Future Plans & Goals
+                </h3>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {review.future_plan}
+                  </p>
+                </div>
               </div>
             )}
           </div>

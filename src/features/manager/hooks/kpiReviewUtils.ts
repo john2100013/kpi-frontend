@@ -146,16 +146,26 @@ export const getRatingLabel = (rating: number): string => {
 };
 
 /**
- * Calculate average rating from item ratings
+ * Calculate average rating from item ratings and accomplishments
  */
 export const calculateAverageRating = (
   items: KPIItem[],
-  ratingsMap: ItemRatingsMap
+  ratingsMap: ItemRatingsMap,
+  accomplishments?: any[]
 ): number => {
   if (!items || items.length === 0) return 0;
   const itemRatings = items.map((item) => ratingsMap[item.id] || 0).filter(r => r > 0);
-  if (itemRatings.length === 0) return 0;
-  return itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
+  
+  // Include manager ratings from accomplishments if available
+  const accomplishmentRatings = accomplishments 
+    ? accomplishments
+        .filter(acc => acc.manager_rating !== null && acc.manager_rating !== undefined && acc.manager_rating > 0)
+        .map(acc => acc.manager_rating)
+    : [];
+  
+  const allRatings = [...itemRatings, ...accomplishmentRatings];
+  if (allRatings.length === 0) return 0;
+  return allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length;
 };
 
 /**
@@ -194,7 +204,8 @@ export const validateAllItemsRated = (
 export const buildItemDataJSON = (
   items: KPIItem[],
   managerRatings: ItemRatingsMap,
-  managerComments: ItemCommentsMap
+  managerComments: ItemCommentsMap,
+  actualValues?: Record<number, string>
 ): string => {
   const itemRatings = items.map((item) => managerRatings[item.id] || 0);
   const averageRating = itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
@@ -205,6 +216,7 @@ export const buildItemDataJSON = (
       item_id: item.id,
       rating: managerRatings[item.id] || 0,
       comment: managerComments[item.id] || '',
+      actual_value: actualValues ? (actualValues[item.id] || '') : '',
     })),
     average_rating: averageRating,
     rounded_rating: roundedRating,

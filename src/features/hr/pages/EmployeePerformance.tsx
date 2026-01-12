@@ -13,7 +13,8 @@ interface PerformanceData {
   quarter?: string;
   year: number;
   review_id: number;
-  final_rating: number;
+  average_rating: number; // Precise weighted calculation
+  final_rating: number; // Rounded to company rating options
   total_weight: number;
   manager_signed_at: string;
   review_quarter?: string;
@@ -47,9 +48,10 @@ const EmployeePerformance: React.FC = () => {
       const response = await api.get(`/kpis/employee-performance/${employeeId}`);
       const data = response.data.performance || [];
       
-      // Ensure all final_rating values are numbers
+      // Ensure all rating values are numbers
       const normalizedData = data.map((period: any) => ({
         ...period,
+        average_rating: period.average_rating != null && !isNaN(period.average_rating) ? period.average_rating : 0,
         final_rating: period.final_rating != null && !isNaN(period.final_rating) ? period.final_rating : 0,
         total_weight: period.total_weight != null && !isNaN(period.total_weight) ? period.total_weight : 0,
         item_calculations: period.item_calculations || [],
@@ -567,6 +569,7 @@ const EmployeePerformance: React.FC = () => {
 
           <div className="divide-y divide-gray-200">
             {quarterlyData.map((period, periodIdx) => {
+              const averageRating = period.average_rating || 0;
               const finalRating = period.final_rating || 0;
               const ratingInfo = getRatingLabel(finalRating);
               const avgManagerRating = calculateAverageManagerRating(period.item_calculations || []);
@@ -590,11 +593,17 @@ const EmployeePerformance: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">Final Rating</p>
-                      <p className="text-3xl font-bold text-purple-600">{finalRating.toFixed(2)}</p>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium mt-2 inline-block ${ratingInfo.color}`}>
-                        {ratingInfo.label}
-                      </span>
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-500 mb-1">Average Rating</p>
+                        <p className="text-lg font-semibold text-gray-700">{averageRating.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Final Rating</p>
+                        <p className="text-3xl font-bold text-purple-600">{finalRating.toFixed(2)}</p>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium mt-2 inline-block ${ratingInfo.color}`}>
+                          {ratingInfo.label}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -636,8 +645,9 @@ const EmployeePerformance: React.FC = () => {
                               {avgManagerRating > 0 ? avgManagerRating.toFixed(2) : '-'}
                             </td>
                             <td className="py-2 px-3 text-right">{((period.total_weight || 0) * 100).toFixed(0)}%</td>
-                            <td className="py-2 px-3 text-right text-purple-600">
-                              {finalRating.toFixed(2)} ({ratingToPercent(finalRating).toFixed(0)}%)
+                            <td className="py-2 px-3 text-right">
+                              <div className="text-gray-600 text-xs">Avg: {averageRating.toFixed(2)}</div>
+                              <div className="text-purple-600 font-bold">Final: {finalRating.toFixed(2)} ({ratingToPercent(finalRating).toFixed(0)}%)</div>
                             </td>
                           </tr>
                         </tfoot>
@@ -672,6 +682,7 @@ const EmployeePerformance: React.FC = () => {
 
           <div className="divide-y divide-gray-200">
             {yearlyData.map((period, periodIdx) => {
+              const averageRating = period.average_rating || 0;
               const finalRating = period.final_rating || 0;
               const ratingInfo = getRatingLabel(finalRating);
               const avgManagerRating = calculateAverageManagerRating(period.item_calculations || []);
@@ -695,11 +706,17 @@ const EmployeePerformance: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">Final Rating</p>
-                      <p className="text-3xl font-bold text-red-600">{finalRating.toFixed(2)}</p>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium mt-2 inline-block ${ratingInfo.color}`}>
-                        {ratingInfo.label}
-                      </span>
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-500 mb-1">Average Rating</p>
+                        <p className="text-lg font-semibold text-gray-700">{averageRating.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Final Rating</p>
+                        <p className="text-3xl font-bold text-red-600">{finalRating.toFixed(2)}</p>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium mt-2 inline-block ${ratingInfo.color}`}>
+                          {ratingInfo.label}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -741,7 +758,10 @@ const EmployeePerformance: React.FC = () => {
                               {avgManagerRating > 0 ? avgManagerRating.toFixed(2) : '-'}
                             </td>
                             <td className="py-2 px-3 text-right">{((period.total_weight || 0) * 100).toFixed(0)}%</td>
-                            <td className="py-2 px-3 text-right text-red-600">{finalRating.toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">
+                              <div className="text-gray-600 text-xs">Avg: {averageRating.toFixed(2)}</div>
+                              <div className="text-red-600 font-bold">Final: {finalRating.toFixed(2)} ({ratingToPercent(finalRating).toFixed(0)}%)</div>
+                            </td>
                           </tr>
                         </tfoot>
                       </table>
