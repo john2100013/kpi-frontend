@@ -29,7 +29,7 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
   }
 
   if (review) {
-    if (review.review_status === 'manager_submitted') {
+      if (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation') {
       return {
         stage: 'Awaiting Your Confirmation',
         color: 'bg-indigo-100 text-indigo-700',
@@ -94,8 +94,8 @@ export const getPrimaryAction = (
     };
   }
 
-  if (review && review.review_status === 'manager_submitted') {
-    return {
+  if (review && (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation')) {
+      return {
       label: 'Confirm',
       onClick: () => navigate(`/employee/kpi-confirmation/${review.id}`)
     };
@@ -116,9 +116,5 @@ export const getPrimaryAction = (
 
 export const canEditReview = (review: KPIReview | undefined): boolean => {
   if (!review) return false;
-  return (
-    review.review_status === 'employee_submitted' ||
-    review.review_status === 'manager_submitted' ||
-    review.review_status === 'completed'
-  );
+  return review.review_status === 'employee_submitted';
 };

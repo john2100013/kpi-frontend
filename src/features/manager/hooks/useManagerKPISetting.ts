@@ -184,9 +184,16 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
   };
 
   const fetchEmployee = async () => {
+    if (!employeeId) return;
+    
     try {
-      const response = await api.get(`/employees/${employeeId}`);
-      setEmployee(response.data.employee);
+      const response = await api.get('/users/list');
+      const users = response.data.data?.users || response.data.users || [];
+      console.log('[fetchEmployee] Users response:', { users: Array.isArray(users), count: users.length });
+      const employee = users.find((u: any) => u.id === parseInt(employeeId));
+      if (employee) {
+        setEmployee(employee);
+      }
     } catch (error) {
       console.error('Error fetching employee:', error);
     } finally {
@@ -281,7 +288,7 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     try {
       const validKpiRows = getValidKPIRows(kpiRows);
       
-      await api.post('/kpis', {
+      await api.post('/kpis/create', {
         employee_id: parseInt(employeeId!),
         period,
         quarter: period === 'quarterly' ? quarter : undefined,

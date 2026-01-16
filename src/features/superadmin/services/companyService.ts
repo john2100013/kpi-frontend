@@ -18,8 +18,17 @@ export interface CompanyFormData {
 
 export const companyService = {
   fetchCompanies: async (): Promise<Company[]> => {
-    const response = await api.get('/companies');
-    return response.data.companies || [];
+    try {
+      console.log('[companyService] Calling GET /companies/list');
+      const response = await api.get('/companies/list');
+      console.log('[companyService] Response received:', response.data);
+      const companies = response.data.companies || response.data.data?.companies || [];
+      console.log('[companyService] Returning companies:', companies);
+      return companies;
+    } catch (error: any) {
+      console.error('[companyService] Error fetching companies:', error.message, error.response?.data);
+      throw error;
+    }
   },
 
   updateCompany: async (id: number, data: CompanyFormData): Promise<Company> => {

@@ -1,11 +1,17 @@
-import React from 'react';
-import { FiArrowLeft, FiUser, FiSearch, FiFilter, FiCheckCircle, FiXCircle, FiTrash2 } from 'react-icons/fi';
+import React, { useEffect, useState } from 'react';
+import { FiArrowLeft, FiUser, FiSearch, FiFilter, FiCheckCircle, FiXCircle, FiTrash2, FiEdit, FiUsers, FiPlus } from 'react-icons/fi';
 import { useUserManagement } from '../hooks';
+import { EditUserModal, AssignManagerDepartmentsModal, AddUserModal } from '../components';
+import { useSearchParams } from 'react-router-dom';
 
 const UserManagement: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  
   const {
     users,
     companies,
+    departments,
     loading,
     actionLoading,
     roleFilter,
@@ -14,12 +20,29 @@ const UserManagement: React.FC = () => {
     setCompanyFilter,
     searchQuery,
     setSearchQuery,
+    editingUser,
+    setEditingUser,
+    assigningManager,
+    setAssigningManager,
+    handleEditUser,
+    handleSaveUser,
+    handleAssignDepartments,
+    handleSaveManagerDepartments,
     handleToggleStatus,
     handleDeleteUser,
     handleResetFilters,
     handleBack,
     getRoleBadgeColor,
+    fetchUsers,
   } = useUserManagement();
+
+  // Handle tab parameter for auto-filtering to managers
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'assign-managers') {
+      setRoleFilter('2'); // Filter to managers (role_id = 2)
+    }
+  }, [searchParams, setRoleFilter]);
 
   if (loading) {
     return <div className="p-6">Loading users...</div>;
@@ -52,27 +75,28 @@ const UserManagement: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Role *</label>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              required
             >
-              <option value="">All Roles</option>
-              <option value="hr">HR</option>
-              <option value="manager">Manager</option>
-              <option value="employee">Employee</option>
+              <option value="4">Employee</option>
+              <option value="2">Manager</option>
+              <option value="3">HR</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Company *</label>
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              required
             >
-              <option value="">All Companies</option>
+              {companies.length === 0 && <option value="">No companies available</option>}
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
@@ -108,24 +132,35 @@ const UserManagement: React.FC = () => {
 
       {/* Users Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             All Users ({users.length})
           </h2>
+          <button
+            onClick={() => setShowAddUserModal(true)}
+            disabled={!companyFilter || !roleFilter}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            title={!companyFilter || !roleFilter ? 'Please select company and role first' : ''}
+          >
+            <FiPlus className="text-lg" />
+            <span>
+              Add {roleFilter === '4' ? 'Employee' : roleFilter === '2' ? 'Manager' : roleFilter === '3' ? 'HR' : 'User'}
+            </span>
+          </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[1200px]">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">User</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">User</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Department</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Created</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -138,28 +173,28 @@ const UserManagement: React.FC = () => {
               ) : (
                 users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                           <FiUser className="text-purple-600" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{user.name}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{user.name}</p>
                           {user.payroll_number && (
-                            <p className="text-xs text-gray-500">{user.payroll_number}</p>
+                            <p className="text-xs text-gray-500 truncate">{user.payroll_number}</p>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{user.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
                         {user.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{user.company_name || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{user.department || '-'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{user.company_name || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{user.department || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         user.is_active 
                           ? 'bg-green-100 text-green-700' 
@@ -168,33 +203,49 @@ const UserManagement: React.FC = () => {
                         {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Edit User"
+                        >
+                          <FiEdit className="text-lg" />
+                        </button>
+
+                        {user.role === 'manager' && (
+                          <button
+                            onClick={() => handleAssignDepartments(user)}
+                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Assign Departments"
+                          >
+                            <FiUsers className="text-lg" />
+                          </button>
+                        )}
+
                         <button
                           onClick={() => handleToggleStatus(user.id, user.is_active || false)}
                           disabled={actionLoading === user.id}
-                          className={`flex items-center space-x-1 text-sm font-medium ${
+                          className={`p-2 rounded-lg transition-colors ${
                             user.is_active 
-                              ? 'text-red-600 hover:text-red-700' 
-                              : 'text-green-600 hover:text-green-700'
+                              ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                              : 'text-green-600 hover:text-green-700 hover:bg-green-50'
                           } disabled:opacity-50`}
                           title={user.is_active ? 'Deactivate' : 'Activate'}
                         >
-                          {user.is_active ? <FiXCircle /> : <FiCheckCircle />}
-                          <span>{actionLoading === user.id ? 'Loading...' : (user.is_active ? 'Deactivate' : 'Activate')}</span>
+                          {user.is_active ? <FiXCircle className="text-lg" /> : <FiCheckCircle className="text-lg" />}
                         </button>
                         
                         <button
                           onClick={() => handleDeleteUser(user.id, user.name)}
                           disabled={actionLoading === user.id}
-                          className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           title="Delete User"
                         >
-                          <FiTrash2 />
-                          <span>Delete</span>
+                          <FiTrash2 className="text-lg" />
                         </button>
                       </div>
                     </td>
@@ -205,6 +256,36 @@ const UserManagement: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
+        onSave={handleSaveUser}
+      />
+
+      {/* Assign Manager Departments Modal */}
+      <AssignManagerDepartmentsModal
+        isOpen={!!assigningManager}
+        onClose={() => setAssigningManager(null)}
+        manager={assigningManager}
+        departments={departments}
+        onSave={handleSaveManagerDepartments}
+      />
+
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        onSuccess={() => {
+          fetchUsers();
+          setShowAddUserModal(false);
+        }}
+        companyId={parseInt(companyFilter)}
+        companyName={companies.find(c => c.id === parseInt(companyFilter))?.name || ''}
+        preSelectedRoleId={roleFilter}
+      />
     </div>
   );
 };

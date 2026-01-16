@@ -35,6 +35,10 @@ export const useEmployeeSelfRating = () => {
   const { user } = useAuth();
   const toast = useToast();
 
+  console.log('📝 [useEmployeeSelfRating] Hook initialized');
+  console.log('📝 [useEmployeeSelfRating] kpiId from params:', kpiId);
+  console.log('📝 [useEmployeeSelfRating] User:', { id: user?.id, name: user?.name });
+
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,29 +63,68 @@ export const useEmployeeSelfRating = () => {
   });
 
   useEffect(() => {
+    console.log('🔄 [useEmployeeSelfRating] useEffect triggered with kpiId:', kpiId);
     if (kpiId) {
       fetchKPIDetails();
+    } else {
+      console.error('❌ [useEmployeeSelfRating] No kpiId in useEffect');
     }
   }, [kpiId]);
 
   // Fetch rating options when KPI period is known
   useEffect(() => {
+    console.log('🔄 [useEmployeeSelfRating] KPI period useEffect triggered:', { hasPeriod: !!kpi?.period, period: kpi?.period });
     if (kpi && kpi.period) {
       fetchRatingOptions(kpi.period);
     }
   }, [kpi]);
 
   const fetchKPIDetails = async () => {
-    if (!kpiId) return;
+    if (!kpiId) {
+      console.error('❌ [useEmployeeSelfRating] No kpiId provided');
+      return;
+    }
 
     try {
+      console.log('🔍 [useEmployeeSelfRating] fetchKPIDetails started for kpiId:', kpiId);
       setLoading(true);
-      const response = await api.get(`/kpis/${kpiId}`);
-      const data = response.data.kpi;
+      
+      const url = `/kpis/${kpiId}`;
+      console.log('🔍 [useEmployeeSelfRating] Making API call to:', url);
+      
+      const response = await api.get(url);
+      
+      console.log('✅ [useEmployeeSelfRating] Raw API response:', response.data);
+      console.log('✅ [useEmployeeSelfRating] Response structure:', {
+        success: response.data.success,
+        hasKpi: !!response.data.kpi,
+        hasData: !!response.data.data,
+        dataKeys: Object.keys(response.data)
+      });
+      
+      // FIXED: Handle nested response structure (response.data.data or response.data.kpi)
+      const data = response.data.data || response.data.kpi || response.data;
+      
+      console.log('✅ [useEmployeeSelfRating] Extracted KPI data:', {
+        id: data?.id,
+        title: data?.title,
+        status: data?.status,
+        period: data?.period,
+        hasItems: !!data?.items,
+        itemsCount: data?.items?.length
+      });
+      
+      if (!data) {
+        console.error('❌ [useEmployeeSelfRating] No KPI data found in response');
+        throw new Error('No KPI data found in response');
+      }
+      
       setKpi(data);
+      console.log('✅ [useEmployeeSelfRating] KPI state set successfully');
 
       // Load existing self-ratings if any
       if (data.items && data.items.length > 0) {
+        console.log('📊 [useEmployeeSelfRating] Processing KPI items:', data.items.length);
         const initialRatings: Record<number, number> = {};
         const initialComments: Record<number, string> = {};
 
@@ -94,6 +137,8 @@ export const useEmployeeSelfRating = () => {
           }
         });
 
+        console.log('📊 [useEmployeeSelfRating] Initial ratings:', initialRatings);
+        console.log('📊 [useEmployeeSelfRating] Initial comments:', initialComments);
         setRatings(initialRatings);
         setComments(initialComments);
       }
@@ -108,18 +153,32 @@ export const useEmployeeSelfRating = () => {
         setAccomplishments(data.accomplishments);
       }
       if (data.future_plan) setFuturePlan(data.future_plan);
+      
+      console.log('✅ [useEmployeeSelfRating] All KPI data loaded successfully');
     } catch (error: any) {
+      console.error('❌ [useEmployeeSelfRating] Error fetching KPI details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       toast.error(error.response?.data?.error || 'Failed to load KPI details');
+      console.log('🔄 [useEmployeeSelfRating] Navigating back to dashboard');
       navigate('/employee/dashboard');
     } finally {
+      console.log('🏁 [useEmployeeSelfRating] fetchKPIDetails completed, setting loading to false');
       setLoading(false);
     }
   };
 
   const fetchRatingOptions = async (period?: string) => {
+    console.log('📋 [useEmployeeSelfRating] fetchRatingOptions started for period:', period);
     try {
       const response = await api.get('/rating-options');
       const allOptions = response.data?.rating_options || [];
+      
+      console.log('📋 [useEmployeeSelfRating] Fetched rating options:', allOptions.length);
       
       // Filter numeric options based on KPI period (yearly or quarterly)
       const periodType = period || 'quarterly'; // Default to quarterly if not specified
@@ -135,9 +194,10 @@ export const useEmployeeSelfRating = () => {
       setRatingOptions(numericOptions);
       setQualitativeRatingOptions(qualitativeOptions);
     } catch (error) {
-      console.error('Failed to fetch rating options:', error);
+      console.error('❌ [useEmployeeSelfRating] Failed to fetch rating options:', error);
       // Fallback to default options based on period
       const periodType = period || 'quarterly';
+      console.log('🔄 [useEmployeeSelfRating] Using fallback rating options for:', periodType);
       setRatingOptions([
         { rating_value: 1.0, label: 'Below Expectation', rating_type: periodType as 'quarterly' | 'yearly' },
         { rating_value: 1.25, label: 'Meets Expectation', rating_type: periodType as 'quarterly' | 'yearly' },

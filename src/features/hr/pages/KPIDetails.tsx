@@ -22,6 +22,7 @@ import {
 } from '../hooks/kpiDetailsUtils';
 import { KPIInformationCard, KPIRejectionCard } from '../components';
 import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const HRKPIDetails: React.FC = () => {
   const {
@@ -37,6 +38,21 @@ const HRKPIDetails: React.FC = () => {
     handleResolveRejection,
     navigate,
   } = useKPIDetails();
+
+  // Department feature detection for conditional rendering
+  // Pass kpi.id to fetch features for the KPI's employee department
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(kpi?.id);
+  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled();
+  const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+  const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+
+  console.log('📊 [HR KPIDetails] Feature settings:', {
+    kpiId: kpi?.id,
+    isSelfRatingDisabled,
+    calculationMethodName,
+    isActualValueMethod,
+    period: kpi?.period
+  });
 
   if (loading || !kpi) {
     return <div className="p-6">Loading...</div>;
@@ -68,6 +84,24 @@ const HRKPIDetails: React.FC = () => {
       {/* Employee & Manager Information */}
       <KPIInformationCard kpi={kpi} />
 
+      {/* Calculation Method Card */}
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+        <div className="flex items-start space-x-3">
+          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-white text-xs font-bold">📊</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-purple-900 mb-2">Calculation Method</h3>
+            <p className="text-sm text-purple-800">
+              This KPI uses <span className="font-bold">{calculationMethodName}</span> for rating calculations.
+            </p>
+            <p className="text-xs text-purple-700 mt-2">
+              Self-Rating: {isSelfRatingDisabled ? '❌ Disabled' : '✅ Enabled'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Comprehensive KPI Review Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="mb-4">
@@ -81,7 +115,7 @@ const HRKPIDetails: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full" style={{ minWidth: '2000px' }}>
+          <table className="w-full" style={{ minWidth: isActualValueMethod ? '2200px' : '2000px' }}>
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase sticky left-0 bg-gray-50 z-10 whitespace-nowrap" style={{ minWidth: '50px' }}>
@@ -102,6 +136,12 @@ const HRKPIDetails: React.FC = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
                   ACTUAL VALUE ACHIEVED
                 </th>
+                {/* Show Percentage columns only for Actual vs Target method */}
+                {isActualValueMethod && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
+                    PERCENTAGE VALUE OBTAINED
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>
                   MEASURE UNIT
                 </th>
@@ -111,15 +151,29 @@ const HRKPIDetails: React.FC = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>
                   GOAL WEIGHT
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
-                  EMPLOYEE SELF RATING
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>
-                  EMPLOYEE COMMENT
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
-                  MANAGER RATING
-                </th>
+                {/* Employee Self Rating - Conditionally Rendered */}
+                {!isSelfRatingDisabled && (
+                  <>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
+                      EMPLOYEE SELF RATING
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>
+                      EMPLOYEE COMMENT
+                    </th>
+                  </>
+                )}
+                {/* Manager Rating - shown for all methods except Actual vs Target */}
+                {!isActualValueMethod && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
+                    MANAGER RATING
+                  </th>
+                )}
+                {/* Manager Rating % - shown only for Actual vs Target method */}
+                {isActualValueMethod && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>
+                    MANAGER RATING %
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>
                   MANAGER COMMENT
                 </th>
@@ -200,6 +254,28 @@ const HRKPIDetails: React.FC = () => {
                           <p className="text-sm text-gray-700">{item.actual_value || 'N/A'}</p>
                         )}
                       </td>
+                      {/* Percentage Value Obtained - shown only for Actual vs Target method */}
+                      {isActualValueMethod && (
+                        <td className="px-4 py-4">
+                          {item.is_qualitative ? (
+                            <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                          ) : item.percentage_value_obtained !== null && item.percentage_value_obtained !== undefined ? (
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-semibold ${
+                              item.percentage_value_obtained >= 100 
+                                ? 'bg-green-100 text-green-700'
+                                : item.percentage_value_obtained >= 75
+                                ? 'bg-blue-100 text-blue-700'
+                                : item.percentage_value_obtained >= 50
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {parseFloat(item.percentage_value_obtained).toFixed(2)}%
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400">N/A</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded text-sm whitespace-nowrap ${
@@ -221,42 +297,50 @@ const HRKPIDetails: React.FC = () => {
                           {item.goal_weight || item.measure_criteria || 'N/A'}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        {item.is_qualitative ? (
-                          <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
-                        ) : review && review.employee_rating ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-semibold text-gray-900">{formatRating(empRating)}</span>
-                              {empRating > 0 && (
-                                <span className="text-xs text-gray-500 ml-1">({getRatingLabel(empRating)} Expectation)</span>
+                      {/* Employee Self Rating - Conditionally Rendered */}
+                      {!isSelfRatingDisabled && (
+                        <td className="px-4 py-4">
+                          {item.is_qualitative ? (
+                            <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                          ) : review && review.employee_rating ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-semibold text-gray-900">{formatRating(empRating)}</span>
+                                {empRating > 0 && (
+                                  <span className="text-xs text-gray-500 ml-1">({getRatingLabel(empRating)} Expectation)</span>
+                                )}
+                              </div>
+                              {review.employee_self_rating_signed_at && (
+                                <p className="text-xs text-gray-500">
+                                  {new Date(review.employee_self_rating_signed_at).toLocaleDateString()}
+                                </p>
                               )}
                             </div>
-                            {review.employee_self_rating_signed_at && (
-                              <p className="text-xs text-gray-500">
-                                {new Date(review.employee_self_rating_signed_at).toLocaleDateString()}
+                          ) : (
+                            <span className="text-sm text-gray-500">Not submitted</span>
+                          )}
+                        </td>
+                      )}
+                      {/* Employee Comment - Conditionally Rendered */}
+                      {!isSelfRatingDisabled && (
+                        <td className="px-4 py-4">
+                          {empComment ? (
+                            <button
+                              onClick={() => openTextModal('Employee Comment', empComment)}
+                              className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
+                            >
+                              <p className="truncate max-w-[200px]" title={empComment}>
+                                {empComment.length > 50 ? empComment.substring(0, 50) + '...' : empComment}
                               </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-500">Not submitted</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {empComment ? (
-                          <button
-                            onClick={() => openTextModal('Employee Comment', empComment)}
-                            className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
-                          >
-                            <p className="truncate max-w-[200px]" title={empComment}>
-                              {empComment.length > 50 ? empComment.substring(0, 50) + '...' : empComment}
-                            </p>
-                          </button>
-                        ) : (
-                          <span className="text-sm text-gray-400">No comment</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
+                            </button>
+                          ) : (
+                            <span className="text-sm text-gray-400">No comment</span>
+                          )}
+                        </td>
+                      )}
+                      {/* Manager Rating - shown for all methods except Actual vs Target */}
+                      {!isActualValueMethod && (
+                        <td className="px-4 py-4">
                         {item.is_qualitative ? (
                           item.qualitative_rating ? (
                             <div className="space-y-1">
@@ -298,6 +382,36 @@ const HRKPIDetails: React.FC = () => {
                           <span className="text-sm text-gray-500">Not reviewed</span>
                         )}
                       </td>
+                      )}
+                      {/* Manager Rating % - shown only for Actual vs Target method */}
+                      {isActualValueMethod && (
+                        <td className="px-4 py-4">
+                          {item.is_qualitative ? (
+                            <span className="text-sm text-purple-600 font-medium">N/A (Qualitative)</span>
+                          ) : item.manager_rating_percentage !== null && item.manager_rating_percentage !== undefined ? (
+                            <div className="space-y-1">
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-semibold ${
+                                item.manager_rating_percentage >= 90 
+                                  ? 'bg-green-100 text-green-700'
+                                  : item.manager_rating_percentage >= 75
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : item.manager_rating_percentage >= 60
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {parseFloat(item.manager_rating_percentage).toFixed(2)}%
+                              </span>
+                              {review && review.manager_review_signed_at && (
+                                <p className="text-xs text-gray-500">
+                                  {new Date(review.manager_review_signed_at).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">Not reviewed</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-4">
                         {item.is_qualitative && item.qualitative_comment ? (
                           <Button
@@ -425,9 +539,9 @@ const HRKPIDetails: React.FC = () => {
           kpi.items &&
           kpi.items.length > 0 &&
           (() => {
-            // Use backend-calculated ratings if available
-            const averageRating = review.manager_rating || 0;
-            const finalRating = review.manager_final_rating || averageRating;
+            // Use backend-calculated ratings if available - ENSURE THEY ARE NUMBERS
+            const averageRating = parseFloat(review.manager_rating as any) || 0;
+            const finalRating = parseFloat(review.manager_final_rating as any) || averageRating;
             
             // Calculate for display breakdown
             let calculatedRating = 0;
@@ -543,12 +657,12 @@ const HRKPIDetails: React.FC = () => {
                 <div className="bg-white p-3 rounded border border-gray-200 mb-2">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.major_accomplishments}</p>
                 </div>
-                {review.major_accomplishments_manager_comment && (
+                {review.major_accomplishments_comment && (
                   <>
                     <p className="text-xs font-semibold text-gray-900 mb-2">Manager's Feedback:</p>
                     <div className="bg-blue-50 p-3 rounded border border-blue-200">
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {review.major_accomplishments_manager_comment}
+                        {review.major_accomplishments_comment}
                       </p>
                     </div>
                   </>
@@ -572,12 +686,12 @@ const HRKPIDetails: React.FC = () => {
                 <div className="bg-white p-3 rounded border border-gray-200 mb-2">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
                 </div>
-                {review.disappointments_manager_comment && (
+                {review.disappointments_comment && (
                   <>
                     <p className="text-xs font-semibold text-gray-900 mb-2">Manager's Guidance:</p>
                     <div className="bg-blue-50 p-3 rounded border border-blue-200">
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {review.disappointments_manager_comment}
+                        {review.disappointments_comment}
                       </p>
                     </div>
                   </>

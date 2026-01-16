@@ -52,6 +52,7 @@ export const employeeService = {
   // Fetch review by ID for confirmation
   fetchReviewById: async (reviewId: number): Promise<KPIReviewConfirmation> => {
     const response = await api.get(`/kpi-review/${reviewId}`);
+    console.log('📥 [employeeService] fetchReviewById response.data:', response.data);
     return response.data.review;
   },
 

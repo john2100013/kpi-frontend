@@ -11,6 +11,18 @@ export interface DashboardStageInfo {
 export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardStageInfo => {
   const review = reviews.find(r => r.kpi_id === kpi.id);
 
+  // Backend may send either 'status' or 'review_status' field
+  const reviewStatus = (review as any)?.status || review?.review_status;
+
+  console.log(`🎯 [getDashboardKPIStage] KPI ${kpi.id} (${kpi.title}):`, {
+    kpi_status: kpi.status,
+    has_review: !!review,
+    review_id: review?.id,
+    review_status_field: review?.review_status,
+    status_field: (review as any)?.status,
+    resolved_status: reviewStatus
+  });
+
   if (kpi.status === 'pending') {
     return {
       stage: 'KPI Setting - Awaiting Acknowledgement',
@@ -28,7 +40,7 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
   }
 
   if (review) {
-    if (review.review_status === 'manager_submitted') {
+    if (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation') {
       return {
         stage: 'Awaiting Your Confirmation',
         color: 'bg-indigo-100 text-indigo-700',
@@ -36,7 +48,7 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
       };
     }
 
-    if (review.review_status === 'employee_submitted') {
+    if (reviewStatus === 'employee_submitted') {
       return {
         stage: 'Self-Rating Submitted - Awaiting Manager Review',
         color: 'bg-yellow-100 text-yellow-700',
@@ -44,7 +56,7 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
       };
     }
 
-    if (review.review_status === 'completed') {
+    if (reviewStatus === 'completed') {
       return {
         stage: 'KPI Review Completed',
         color: 'bg-green-100 text-green-700',
@@ -52,7 +64,7 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
       };
     }
 
-    if (review.review_status === 'rejected') {
+    if (reviewStatus === 'rejected') {
       return {
         stage: 'Review Rejected',
         color: 'bg-red-100 text-red-700',
@@ -60,7 +72,7 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
       };
     }
 
-    if (review.review_status === 'pending') {
+    if (reviewStatus === 'pending') {
       return {
         stage: 'KPI Review - Self-Rating Required',
         color: 'bg-purple-100 text-purple-700',
@@ -68,6 +80,11 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
       };
     }
   }
+
+  console.log(`⚠️ [getDashboardKPIStage] KPI ${kpi.id} falling through to 'In Progress' - status not matched:`, {
+    reviewStatus: reviewStatus,
+    reviewStatusValue: JSON.stringify(reviewStatus)
+  });
 
   return {
     stage: 'In Progress',
@@ -90,38 +107,69 @@ export interface DashboardStats {
 }
 
 export const calculateDashboardStats = (kpis: KPI[], reviews: KPIReview[]): DashboardStats => {
+  console.log('📊 [calculateDashboardStats] Calculating stats with:', {
+    totalKPIs: kpis.length,
+    totalReviews: reviews.length,
+    kpiStatuses: kpis.map(k => ({ id: k.id, status: k.status, title: k.title }))
+  });
+
+  const awaitingAcknowledgement = kpis.filter(k => k.status === 'pending');
+  const reviewPending = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    return k.status === 'acknowledged' && !review;
+  });
+  const selfRatingRequired = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    const reviewStatus = (review as any)?.status || review?.review_status;
+    return review && reviewStatus === 'pending';
+  });
+  const awaitingManagerReview = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    const reviewStatus = (review as any)?.status || review?.review_status;
+    return review && reviewStatus === 'employee_submitted';
+  });
+  const awaitingConfirmation = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    const reviewStatus = (review as any)?.status || review?.review_status;
+    return review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation');
+  });
+  const completed = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    const reviewStatus = (review as any)?.status || review?.review_status;
+    return review && reviewStatus === 'completed';
+  });
+  const rejected = kpis.filter(k => {
+    const review = reviews.find(r => r.kpi_id === k.id);
+    const reviewStatus = (review as any)?.status || review?.review_status;
+    return review && reviewStatus === 'rejected';
+  });
+
+  console.log('📈 [calculateDashboardStats] Stats breakdown:', {
+    awaitingAcknowledgement: awaitingAcknowledgement.length,
+    awaitingAcknowledgementKPIs: awaitingAcknowledgement.map(k => ({ id: k.id, status: k.status, title: k.title })),
+    reviewPending: reviewPending.length,
+    selfRatingRequired: selfRatingRequired.length,
+    awaitingManagerReview: awaitingManagerReview.length,
+    awaitingConfirmation: awaitingConfirmation.length,
+    completed: completed.length,
+    rejected: rejected.length
+  });
+
   return {
     totalKpis: kpis.length,
     reviewCompleted: kpis.filter(k => {
       const review = reviews.find(r => r.kpi_id === k.id);
-      return review && (review.review_status === 'manager_submitted' || review.review_status === 'completed');
+      const reviewStatus = (review as any)?.status || review?.review_status;
+      return review && (reviewStatus === 'manager_submitted' || reviewStatus === 'completed');
     }).length,
     settingCompleted: kpis.filter(k => k.status === 'acknowledged').length,
-    awaitingAcknowledgement: kpis.filter(k => k.status === 'pending').length,
-    reviewPending: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return k.status === 'acknowledged' && !review;
-    }).length,
-    selfRatingRequired: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return review && review.review_status === 'pending';
-    }).length,
-    awaitingManagerReview: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return review && review.review_status === 'employee_submitted';
-    }).length,
-    awaitingConfirmation: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return review && review.review_status === 'manager_submitted';
-    }).length,
-    completed: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return review && review.review_status === 'completed';
-    }).length,
-    rejected: kpis.filter(k => {
-      const review = reviews.find(r => r.kpi_id === k.id);
-      return review && review.review_status === 'rejected';
-    }).length,
+    awaitingAcknowledgement: awaitingAcknowledgement.length,
+    reviewPending: reviewPending.length,
+    selfRatingRequired: selfRatingRequired.length,
+    awaitingManagerReview: awaitingManagerReview.length,
+    awaitingConfirmation: awaitingConfirmation.length,
+    completed: completed.length,
+    rejected: rejected.length,
   };
 };
 

@@ -28,25 +28,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check for stored auth data
+    console.log('[AuthContext] 🔄 Initializing auth context...');
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     const storedCompanies = localStorage.getItem('companies');
     const storedSelectedCompany = localStorage.getItem('selectedCompany');
 
+    console.log('[AuthContext] 💾 Stored token exists:', !!storedToken);
+    console.log('[AuthContext] 💾 Stored user exists:', !!storedUser);
+    console.log('[AuthContext] 💾 Stored companies:', storedCompanies);
+
+    // Load companies first (independent of token validity)
+    if (storedCompanies) {
+      try {
+        const parsedCompanies = JSON.parse(storedCompanies);
+        console.log('[AuthContext] 🏢 Parsed companies from localStorage:', parsedCompanies);
+        console.log('[AuthContext] 📊 Companies count from localStorage:', parsedCompanies.length);
+        setCompanies(parsedCompanies);
+        setHasMultipleCompanies(parsedCompanies.length > 1);
+      } catch (error) {
+        console.error('[AuthContext] ❌ Failed to parse companies from localStorage:', error);
+      }
+    } else {
+      console.log('[AuthContext] ⚠️ No companies in localStorage');
+    }
+
+    // Load user and token if available
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
       api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       
-      if (storedCompanies) {
-        const parsedCompanies = JSON.parse(storedCompanies);
-        setCompanies(parsedCompanies);
-        setHasMultipleCompanies(parsedCompanies.length > 1);
-      }
-      
       if (storedSelectedCompany) {
         setSelectedCompany(JSON.parse(storedSelectedCompany));
       }
+    } else {
+      console.log('[AuthContext] ⚠️ Token or user missing - user needs to authenticate');
     }
 
     setIsLoading(false);
@@ -54,13 +71,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (payrollNumber: string, password: string) => {
     try {
+      console.log('[AuthContext] 🔐 Login attempt with payroll:', payrollNumber);
       const response = await api.post('/auth/login', {
         payrollNumber,
         password,
         loginMethod: 'payroll'
       });
 
+      console.log('[AuthContext] 📦 Login response received:', response.data);
       const { token: newToken, user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
+
+      console.log('[AuthContext] 🏢 Companies from response:', userCompanies);
+      console.log('[AuthContext] 📊 Companies count:', userCompanies?.length || 0);
+      console.log('[AuthContext] 🔀 Has multiple companies:', multiple);
 
       setToken(newToken);
       setUser(newUser);
@@ -88,13 +111,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithEmail = async (email: string, password: string) => {
     try {
+      console.log('[AuthContext] 🔐 Login attempt with email:', email);
       const response = await api.post('/auth/login', {
         email,
         password,
         loginMethod: 'email'
       });
 
+      console.log('[AuthContext] 📦 Login response received:', response.data);
       const { token: newToken, user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
+
+      console.log('[AuthContext] 🏢 Companies from response:', userCompanies);
+      console.log('[AuthContext] 📊 Companies count:', userCompanies?.length || 0);
+      console.log('[AuthContext] 🔀 Has multiple companies:', multiple);
 
       setToken(newToken);
       setUser(newUser);

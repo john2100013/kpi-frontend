@@ -24,46 +24,135 @@ const KPIAcknowledgement: React.FC = () => {
     value: '',
   });
 
+  console.log('📄 [KPIAcknowledgement] Component mounted/rendered');
+  console.log('📄 [KPIAcknowledgement] kpiId from URL params:', kpiId);
+  console.log('📄 [KPIAcknowledgement] Current state:', { loading, kpiExists: !!kpi, kpiId: kpi?.id });
+
   useEffect(() => {
+    console.log('🔄 [KPIAcknowledgement] useEffect triggered with kpiId:', kpiId);
     if (kpiId) {
       fetchKPI();
+    } else {
+      console.error('❌ [KPIAcknowledgement] No kpiId found in URL params!');
     }
   }, [kpiId]);
 
   const fetchKPI = async () => {
+    console.log('🔍 [KPIAcknowledgement] fetchKPI started for kpiId:', kpiId);
     try {
-      const response = await api.get(`/kpis/${kpiId}`);
-      setKpi(response.data.kpi);
-    } catch (error) {
-      console.error('Error fetching KPI:', error);
+      const url = `/kpis/${kpiId}`;
+      console.log('🔍 [KPIAcknowledgement] Making API call to:', url);
+      
+      const response = await api.get(url);
+      
+      console.log('✅ [KPIAcknowledgement] Raw API response:', response.data);
+      console.log('✅ [KPIAcknowledgement] Response structure:', {
+        success: response.data.success,
+        hasKpi: !!response.data.kpi,
+        hasData: !!response.data.data,
+        dataKeys: Object.keys(response.data)
+      });
+      
+      // Check if data is in response.data.data (nested) or response.data.kpi
+      const kpiData = response.data.data || response.data.kpi || response.data;
+      
+      console.log('✅ [KPIAcknowledgement] Extracted KPI data:', {
+        id: kpiData.id,
+        title: kpiData.title,
+        status: kpiData.status,
+        employee_id: kpiData.employee_id,
+        itemsCount: kpiData.items?.length
+      });
+      
+      setKpi(kpiData);
+      console.log('✅ [KPIAcknowledgement] KPI state set successfully');
+    } catch (error: any) {
+      console.error('❌ [KPIAcknowledgement] Error fetching KPI:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      toast.error(error.response?.data?.error || 'Failed to load KPI');
     } finally {
+      console.log('🏁 [KPIAcknowledgement] fetchKPI completed, setting loading to false');
       setLoading(false);
     }
   };
 
   const handleSubmit = async () => {
+    console.log('🚀 [KPIAcknowledgement] handleSubmit started');
+    console.log('🚀 [KPIAcknowledgement] Submission data:', {
+      kpiId,
+      hasSignature: !!employeeSignature,
+      signatureLength: employeeSignature?.length,
+      acknowledgementDate
+    });
+
     if (!employeeSignature) {
+      console.log('❌ [KPIAcknowledgement] Validation failed: No signature');
       toast.error('Please provide your digital signature');
       return;
     }
 
     setSubmitting(true);
     try {
-      await api.post(`/kpi-acknowledgement/${kpiId}`, {
+      // CORRECT ENDPOINT: /kpis/:kpiId/acknowledge (not /kpi-acknowledgement/:kpiId)
+      const url = `/kpis/${kpiId}/acknowledge`;
+      console.log('📤 [KPIAcknowledgement] Sending POST request to:', url);
+      console.log('📤 [KPIAcknowledgement] Request payload:', {
+        employee_signature: employeeSignature.substring(0, 50) + '...'
+      });
+
+      const response = await api.post(url, {
         employee_signature: employeeSignature,
       });
 
-      navigate('/employee/my-kpis');
+      console.log('✅ [KPIAcknowledgement] Acknowledgement successful:', response.data);
+      toast.success(response.data.message || 'KPI acknowledged successfully');
+      
+      console.log('🔄 [KPIAcknowledgement] Navigating to employee dashboard');
+      navigate('/employee/dashboard');
     } catch (error: any) {
+      console.error('❌ [KPIAcknowledgement] Submission error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       toast.error(error.response?.data?.error || 'Failed to acknowledge KPI');
     } finally {
+      console.log('🏁 [KPIAcknowledgement] handleSubmit completed, setting submitting to false');
       setSubmitting(false);
     }
   };
 
-  if (loading || !kpi) {
-    return <div className="p-6">Loading...</div>;
+  console.log('🎨 [KPIAcknowledgement] Rendering check:', { loading, kpiExists: !!kpi });
+  
+  if (loading) {
+    console.log('⏳ [KPIAcknowledgement] Showing loading state');
+    return <div className="p-6">Loading KPI data...</div>;
   }
+  
+  if (!kpi) {
+    console.log('❌ [KPIAcknowledgement] No KPI data - showing error state');
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-800">Failed to load KPI. Please try again.</p>
+          <button 
+            onClick={() => navigate('/employee/dashboard')}
+            className="mt-4 text-red-600 underline"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  console.log('✅ [KPIAcknowledgement] Rendering main content for KPI:', kpi.id);
 
   return (
     <div className="space-y-6">

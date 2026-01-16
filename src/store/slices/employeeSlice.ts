@@ -66,13 +66,27 @@ export const fetchEmployees = createAsyncThunk(
       department?: string;
       manager?: number;
       status?: string;
+      companyId?: number;
+      managerId?: number;
     } = {},
     { rejectWithValue }
   ) => {
     try {
-      const response = await api.get('/employees', { params });
+      console.log('[employeeSlice] 📡 Fetching employees with params:', params);
+      // Backend uses /users/list with role=employee parameter
+      const response = await api.get('/users/list', { 
+        params: { ...params, role: 'employee' } 
+      });
+      console.log('[employeeSlice] ✅ Employees fetched:', {
+        count: response.data.users?.length || 0,
+        total: response.data.pagination?.total || 0
+      });
       return response.data;
     } catch (error: any) {
+      console.error('[employeeSlice] ❌ Failed to fetch employees:', {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message
+      });
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch employees');
     }
   }
@@ -256,9 +270,26 @@ const employeeSlice = createSlice({
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
         state.loading = false;
+        console.log('[employeeSlice] 📋 Processing fetched employees:', action.payload);
         
-        // Handle different response formats
-        if (action.payload.employees) {
+        // Backend returns { success: true, data: { users: [...], pagination: {...} } }
+        if (action.payload.data?.users) {
+          state.employees = action.payload.data.users;
+          state.pagination = action.payload.data.pagination || {
+            page: 1,
+            totalPages: 1,
+            total: action.payload.data.users.length,
+          };
+        } else if (action.payload.users) {
+          // Direct format: { users: [...], pagination: {...} }
+          state.employees = action.payload.users;
+          state.pagination = action.payload.pagination || {
+            page: 1,
+            totalPages: 1,
+            total: action.payload.users.length,
+          };
+        } else if (action.payload.employees) {
+          // Fallback for legacy format
           state.employees = action.payload.employees;
           state.pagination = {
             page: action.payload.page || 1,
@@ -268,12 +299,18 @@ const employeeSlice = createSlice({
         } else if (Array.isArray(action.payload)) {
           state.employees = action.payload;
         } else {
+          console.warn('[employeeSlice] ⚠️ Unexpected payload format:', action.payload);
           state.employees = [];
         }
+        console.log('[employeeSlice] ✅ Employees stored:', {
+          count: state.employees.length,
+          pagination: state.pagination
+        });
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        console.error('[employeeSlice] ❌ fetchEmployees rejected:', action.payload);
       });
 
     // Fetch employee by ID

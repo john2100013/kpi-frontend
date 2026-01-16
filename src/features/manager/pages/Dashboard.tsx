@@ -14,8 +14,10 @@ import {
   FiBell,
   FiFilter,
   FiSave,
+  FiInfo,
 } from 'react-icons/fi';
 import { useManagerDashboard, getCategoryLabel, getCategoryColor, getCategoryIcon, getPeriodLabel, getPeriodValue } from '../hooks';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const ManagerDashboard: React.FC = () => {
   const toast = useToast();
@@ -44,6 +46,8 @@ const ManagerDashboard: React.FC = () => {
     navigate,
   } = useManagerDashboard();
 
+  const { features, loading: featuresLoading } = useCompanyFeatures();
+
   const handleSaveDefaultPeriod = async () => {
     const success = await saveDefaultPeriod();
     if (success) {
@@ -53,7 +57,7 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || featuresLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Loading...</div>
@@ -61,8 +65,25 @@ const ManagerDashboard: React.FC = () => {
     );
   }
 
+  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Disabled Notice for Managers */}
+      {!isSelfRatingEnabled && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>Manager-Led Review:</strong> Your organization uses a manager-led review process. 
+                You will be the one to start and conduct KPI reviews for your team members.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
@@ -121,7 +142,7 @@ const ManagerDashboard: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">All Departments</option>
-              {managerDepartments.map(dept => (
+              {(managerDepartments || []).map(dept => (
                 <option key={dept.id} value={dept.name}>
                   {dept.name}
                 </option>

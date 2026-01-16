@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiFileText, FiEye } from 'react-icons/fi';
+import { FiFileText, FiEye, FiClock } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 import { KPI } from '../../../types';
 
@@ -10,7 +10,8 @@ interface ReviewPendingKPICardProps {
     color: string;
   };
   onView: (kpiId: number) => void;
-  onStartReview: (kpiId: number) => void;
+  onStartReview?: (kpiId: number) => void;
+  isSelfRatingDisabled?: boolean;
 }
 
 export const ReviewPendingKPICard: React.FC<ReviewPendingKPICardProps> = ({
@@ -18,6 +19,7 @@ export const ReviewPendingKPICard: React.FC<ReviewPendingKPICardProps> = ({
   statusInfo,
   onView,
   onStartReview,
+  isSelfRatingDisabled = false,
 }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
@@ -32,6 +34,13 @@ export const ReviewPendingKPICard: React.FC<ReviewPendingKPICardProps> = ({
           </div>
           
           <p className="text-sm text-gray-600 mb-3">{kpi.description}</p>
+          
+          {isSelfRatingDisabled && (
+            <div className="mb-3 flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+              <FiClock className="flex-shrink-0" />
+              <span>Waiting for manager to start review</span>
+            </div>
+          )}
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
@@ -66,13 +75,15 @@ export const ReviewPendingKPICard: React.FC<ReviewPendingKPICardProps> = ({
           >
             View
           </Button>
-          <Button
-            onClick={() => onStartReview(kpi.id)}
-            variant="primary"
-            size="sm"
-          >
-            Start Review
-          </Button>
+          {!isSelfRatingDisabled && onStartReview && (
+            <Button
+              onClick={() => onStartReview(kpi.id)}
+              variant="primary"
+              size="sm"
+            >
+              Start Review
+            </Button>
+          )}
         </div>
       </div>
     </div>

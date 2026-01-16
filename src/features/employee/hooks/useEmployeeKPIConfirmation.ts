@@ -39,12 +39,26 @@ export const useEmployeeKPIConfirmation = () => {
     try {
       setLoading(true);
       const reviewData = await employeeService.fetchReviewById(parseInt(reviewId!));
+      console.log('📥 [useEmployeeKPIConfirmation] fetched reviewData:', reviewData);
       setReview(reviewData);
 
       // Fetch the full KPI details with items
       if (reviewData?.kpi_id) {
         const kpiData = await employeeService.fetchKPIById(reviewData.kpi_id);
-        setKpi(kpiData);
+        console.log('📥 [useEmployeeKPIConfirmation] fetched kpiData:', kpiData);
+        
+        // If review already has items (from backend getById), use them
+        // Otherwise use items from KPI fetch
+        if (reviewData.items && reviewData.items.length > 0) {
+          console.log('✅ Using items from review.items:', reviewData.items);
+          setKpi({
+            ...kpiData,
+            items: reviewData.items,
+          });
+        } else {
+          console.log('✅ Using items from kpiData:', kpiData);
+          setKpi(kpiData);
+        }
       }
     } catch (error: any) {
       console.error('Error fetching review:', error);
@@ -105,6 +119,15 @@ export const useEmployeeKPIConfirmation = () => {
 
   const parsedRatings = review ? parseItemRatingsFromReview(review) : null;
   const ratingSummary = review ? calculateRatingSummary(review, kpi) : null;
+
+  // Log parsed ratings and review for debugging
+  useEffect(() => {
+    if (review) {
+      console.log('🔍 [useEmployeeKPIConfirmation] review object:', review);
+      console.log('🔍 [useEmployeeKPIConfirmation] parsedRatings:', parsedRatings);
+      console.log('🔍 [useEmployeeKPIConfirmation] ratingSummary:', ratingSummary);
+    }
+  }, [review, parsedRatings, ratingSummary]);
 
   return {
     reviewId,

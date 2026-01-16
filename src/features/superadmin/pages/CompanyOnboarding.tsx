@@ -172,6 +172,13 @@ const CompanyOnboarding: React.FC = () => {
                   onChange={(e) => updateHRUser(index, 'email', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
+                <input
+                  type="text"
+                  placeholder="Payroll Number *"
+                  value={hr.payrollNumber}
+                  onChange={(e) => updateHRUser(index, 'payrollNumber', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
                 <div className="relative">
                   <input
                     type={showHRPasswords[index] ? "text" : "password"}
@@ -248,6 +255,13 @@ const CompanyOnboarding: React.FC = () => {
                   placeholder="Email *"
                   value={manager.email}
                   onChange={(e) => updateManager(index, 'email', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+                <input
+                  type="text"
+                  placeholder="Payroll Number *"
+                  value={manager.payrollNumber}
+                  onChange={(e) => updateManager(index, 'payrollNumber', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <div className="relative">

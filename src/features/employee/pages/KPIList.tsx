@@ -1,8 +1,9 @@
 import React from 'react';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiInfo } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 import { useEmployeeKPIList } from '../hooks';
 import { KPIListRow } from '../components';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const KPIList: React.FC = () => {
   const {
@@ -18,9 +19,13 @@ const KPIList: React.FC = () => {
     navigate,
   } = useEmployeeKPIList();
 
-  if (loading) {
+  const { features, loading: featuresLoading } = useCompanyFeatures();
+
+  if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
   }
+
+  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
 
   return (
     <div className="space-y-6">
@@ -37,6 +42,21 @@ const KPIList: React.FC = () => {
           <p className="text-sm text-gray-600 mt-1">View all your KPIs and their current status</p>
         </div>
       </div>
+
+      {/* Self-Rating Disabled Notice */}
+      {!isSelfRatingEnabled && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-800">
+                <strong>Manager-Led Review:</strong> Your organization uses a manager-led review process. 
+                You can view your KPIs, but reviews will be initiated by your manager.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">

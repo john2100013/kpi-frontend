@@ -94,8 +94,9 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
       
       setTemplate(fetchedTemplate);
 
-      const employeesResponse = await api.get('/employees');
-      const fetchedEmployees = employeesResponse.data.employees || [];
+      const employeesResponse = await api.get('/users/list');
+      const users = employeesResponse.data.data || employeesResponse.data.users || [];
+      const fetchedEmployees = users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3);
       console.log('👥 [Frontend] Fetched employees count:', fetchedEmployees.length);
       setEmployees(fetchedEmployees);
       

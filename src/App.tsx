@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { initializeAuth } from './store/slices/authSlice';
+import { ROLE_IDS, isManager, isSuperAdmin, isHR, isEmployee } from './utils/roleUtils';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
@@ -68,10 +69,13 @@ import {
   AssignHrToCompany,
   CompanyManagement,
   UserManagement,
+  DepartmentManagement,
+  DepartmentCalculationSettings,
+  AssignManagerDepartments,
 } from './features/superadmin';
 
 // Protected Route Component (Using Redux)
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: number[] }> = ({
   children,
   allowedRoles,
 }) => {
@@ -94,8 +98,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(currentUser.role_id)) {
+    // Redirect to user's appropriate dashboard instead of causing a loop
+    let redirectPath = '/login';
+    if (isSuperAdmin(currentUser)) {
+      redirectPath = '/super-admin/dashboard';
+    } else if (isManager(currentUser)) {
+      redirectPath = '/manager/dashboard';
+    } else if (isHR(currentUser)) {
+      redirectPath = '/hr/dashboard';
+    } else if (isEmployee(currentUser)) {
+      redirectPath = '/employee/dashboard';
+    }
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;
@@ -118,6 +133,34 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 function AppRoutes() {
   const { user } = useAppSelector((state) => state.auth);
+  const { setUser: setAuthContextUser } = useAuth();
+
+  // Sync Redux user to AuthContext whenever it changes
+  useEffect(() => {
+    console.log('[AppRoutes] Syncing Redux user to AuthContext:', user);
+    setAuthContextUser(user);
+  }, [user, setAuthContextUser]);
+
+  // Root route handler - redirect based on auth state
+  const RootRedirect = () => {
+    if (!user) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    // User is logged in, redirect to their dashboard
+    if (isSuperAdmin(user)) {
+      return <Navigate to="/super-admin/dashboard" replace />;
+    } else if (isManager(user)) {
+      return <Navigate to="/manager/dashboard" replace />;
+    } else if (isHR(user)) {
+      return <Navigate to="/hr/dashboard" replace />;
+    } else if (isEmployee(user)) {
+      return <Navigate to="/employee/dashboard" replace />;
+    }
+    
+    // Fallback - should never happen but prevents loops
+    return <Navigate to="/login" replace />;
+  };
 
   return (
     <Routes>
@@ -128,7 +171,7 @@ function AppRoutes() {
       <Route
         path="/super-admin/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <SuperAdminDashboard />
             </Layout>
@@ -138,7 +181,7 @@ function AppRoutes() {
       <Route
         path="/super-admin/assign-hr"
         element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <AssignHrToCompany />
             </Layout>
@@ -148,7 +191,7 @@ function AppRoutes() {
       <Route
         path="/super-admin/company-management"
         element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <CompanyManagement />
             </Layout>
@@ -158,7 +201,7 @@ function AppRoutes() {
       <Route
         path="/super-admin/user-management"
         element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <UserManagement />
             </Layout>
@@ -166,9 +209,39 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/super-admin/assign-manager-departments"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
+            <Layout>
+              <AssignManagerDepartments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/department-management"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
+            <Layout>
+              <DepartmentManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/calculation-settings"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
+            <Layout>
+              <DepartmentCalculationSettings />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/onboard"
         element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <CompanyOnboarding />
             </Layout>
@@ -177,12 +250,12 @@ function AppRoutes() {
       />
       
       {/* Manager Routes */}
-      {user?.role === 'manager' && (
+      {isManager(user) && (
         <>
           <Route
             path="/manager/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ManagerDashboard />
                 </Layout>
@@ -192,7 +265,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-setting/:employeeId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <KPISetting />
                 </Layout>
@@ -202,7 +275,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-review/:reviewId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ManagerKPIReview />
                 </Layout>
@@ -212,7 +285,7 @@ function AppRoutes() {
           <Route
             path="/manager/select-employee"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <EmployeeSelection />
                 </Layout>
@@ -222,7 +295,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-management"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <EmployeeSelection />
                 </Layout>
@@ -232,7 +305,7 @@ function AppRoutes() {
           <Route
             path="/manager/employees"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <EmployeeSelection />
                 </Layout>
@@ -242,7 +315,7 @@ function AppRoutes() {
           <Route
             path="/manager/reviews"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ReviewsList />
                 </Layout>
@@ -252,7 +325,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-list"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ManagerKPIList />
                 </Layout>
@@ -262,7 +335,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-details/:kpiId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ManagerKPIDetails />
                 </Layout>
@@ -272,7 +345,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-templates"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <KPITemplates />
                 </Layout>
@@ -282,7 +355,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-templates/create"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <KPITemplateForm />
                 </Layout>
@@ -292,7 +365,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-templates/:id/edit"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <KPITemplateForm />
                 </Layout>
@@ -302,7 +375,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-templates/:templateId/apply"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ApplyKPITemplate />
                 </Layout>
@@ -312,7 +385,7 @@ function AppRoutes() {
           <Route
             path="/manager/employee-kpis/:employeeId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <EmployeeKPIs />
                 </Layout>
@@ -322,7 +395,7 @@ function AppRoutes() {
           <Route
             path="/manager/acknowledged-kpis"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <AcknowledgedKPIs />
                 </Layout>
@@ -332,7 +405,7 @@ function AppRoutes() {
           <Route
             path="/manager/kpi-setting-completed"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <KPISettingCompleted />
                 </Layout>
@@ -342,7 +415,7 @@ function AppRoutes() {
           <Route
             path="/manager/completed-reviews"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <CompletedReviews />
                 </Layout>
@@ -352,7 +425,7 @@ function AppRoutes() {
           <Route
             path="/manager/schedule-meeting"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <MeetingScheduler />
                 </Layout>
@@ -362,7 +435,7 @@ function AppRoutes() {
           <Route
             path="/manager/schedule-meeting/kpi/:kpiId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <MeetingScheduler />
                 </Layout>
@@ -372,7 +445,7 @@ function AppRoutes() {
           <Route
             path="/manager/schedule-meeting/review/:reviewId"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <MeetingScheduler />
                 </Layout>
@@ -382,7 +455,7 @@ function AppRoutes() {
           <Route
             path="/manager/notifications"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <Notifications />
                 </Layout>
@@ -396,7 +469,7 @@ function AppRoutes() {
       <Route
         path="/employee/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <EmployeeDashboard />
             </Layout>
@@ -406,7 +479,7 @@ function AppRoutes() {
       <Route
         path="/employee/my-kpis"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <EmployeeDashboard />
             </Layout>
@@ -416,7 +489,7 @@ function AppRoutes() {
       <Route
         path="/employee/acknowledge"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <AcknowledgeList />
             </Layout>
@@ -426,7 +499,7 @@ function AppRoutes() {
       <Route
         path="/employee/kpi-acknowledgement/:kpiId"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <KPIAcknowledgement />
             </Layout>
@@ -436,7 +509,7 @@ function AppRoutes() {
       <Route
         path="/employee/kpi-confirmation/:reviewId"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <KPIConfirmation />
             </Layout>
@@ -446,7 +519,7 @@ function AppRoutes() {
       <Route
         path="/employee/self-rating/:kpiId"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <SelfRating />
             </Layout>
@@ -456,7 +529,7 @@ function AppRoutes() {
       <Route
         path="/employee/kpi-list"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <KPIList />
             </Layout>
@@ -466,7 +539,7 @@ function AppRoutes() {
       <Route
         path="/employee/kpi-details/:kpiId"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <KPIDetails />
             </Layout>
@@ -476,7 +549,7 @@ function AppRoutes() {
       <Route
         path="/employee/reviews"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <Reviews />
             </Layout>
@@ -486,7 +559,7 @@ function AppRoutes() {
       <Route
         path="/employee/kpi-setting-completed"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <KPISettingCompleted />
             </Layout>
@@ -496,7 +569,7 @@ function AppRoutes() {
       <Route
         path="/employee/completed-reviews"
         element={
-          <ProtectedRoute allowedRoles={['employee']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
             <Layout>
               <CompletedReviews />
             </Layout>
@@ -508,7 +581,7 @@ function AppRoutes() {
       <Route
         path="/hr/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <HRDashboard />
             </Layout>
@@ -518,7 +591,7 @@ function AppRoutes() {
       <Route
         path="/hr/kpi-list"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <HRKPIList />
             </Layout>
@@ -528,7 +601,7 @@ function AppRoutes() {
       <Route
         path="/hr/kpi-details/:kpiId"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <HRKPIDetails />
             </Layout>
@@ -538,7 +611,7 @@ function AppRoutes() {
       <Route
         path="/hr/acknowledged-kpis"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <AcknowledgedKPIs />
             </Layout>
@@ -548,7 +621,7 @@ function AppRoutes() {
       <Route
         path="/hr/kpi-setting-completed"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <KPISettingCompleted />
             </Layout>
@@ -558,7 +631,7 @@ function AppRoutes() {
       <Route
         path="/hr/completed-reviews"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <CompletedReviews />
             </Layout>
@@ -568,7 +641,7 @@ function AppRoutes() {
       <Route
         path="/hr/notifications"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <Notifications />
             </Layout>
@@ -578,7 +651,7 @@ function AppRoutes() {
       <Route
         path="/hr/settings"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <HRSettings />
             </Layout>
@@ -588,7 +661,7 @@ function AppRoutes() {
       <Route
         path="/hr/email-templates"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <EmailTemplates />
             </Layout>
@@ -598,7 +671,7 @@ function AppRoutes() {
       <Route
         path="/hr/rejected-kpis"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <RejectedKPIManagement />
             </Layout>
@@ -608,7 +681,7 @@ function AppRoutes() {
       <Route
         path="/hr/departments"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <DepartmentDashboard />
             </Layout>
@@ -618,7 +691,7 @@ function AppRoutes() {
       <Route
         path="/manager/departments"
         element={
-          <ProtectedRoute allowedRoles={['manager']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
             <Layout>
               <DepartmentDashboard />
             </Layout>
@@ -628,7 +701,7 @@ function AppRoutes() {
       <Route
         path="/hr/employee-performance/:employeeId"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <EmployeePerformance />
             </Layout>
@@ -638,7 +711,7 @@ function AppRoutes() {
       <Route
         path="/hr/employees"
         element={
-          <ProtectedRoute allowedRoles={['hr']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
             <Layout>
               <Employees />
             </Layout>
@@ -648,7 +721,7 @@ function AppRoutes() {
       <Route
         path="/manager/employees"
         element={
-          <ProtectedRoute allowedRoles={['manager']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
             <Layout>
               <Employees />
             </Layout>
@@ -658,7 +731,7 @@ function AppRoutes() {
       <Route
         path="/employees"
         element={
-          <ProtectedRoute allowedRoles={['hr', 'manager', 'super_admin']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR, ROLE_IDS.MANAGER, ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <Employees />
             </Layout>
@@ -680,7 +753,7 @@ function AppRoutes() {
       <Route
         path="/profile/edit"
         element={
-          <ProtectedRoute allowedRoles={['hr', 'manager']}>
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR, ROLE_IDS.MANAGER]}>
             <Layout>
               <EditProfile />
             </Layout>
@@ -698,9 +771,9 @@ function AppRoutes() {
         }
       />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Default redirect - smart redirect based on auth state */}
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="*" element={<RootRedirect />} />
     </Routes>
   );
 }

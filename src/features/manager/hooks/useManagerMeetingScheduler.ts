@@ -82,14 +82,16 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
   const fetchData = async () => {
     try {
       const [employeesRes, kpisRes, reviewsRes] = await Promise.all([
-        api.get('/employees').catch(() => ({ data: { employees: [] } })),
+        api.get('/users/list').catch(() => ({ data: { data: [] } })),
         api.get('/kpis').catch(() => ({ data: { kpis: [] } })),
         api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
       ]);
 
-      setEmployees(employeesRes.data.employees || []);
-      setKpis(kpisRes.data.kpis || []);
-      setReviews(reviewsRes.data.reviews || []);
+      const users = employeesRes.data.data || employeesRes.data.users || [];
+      const employees = users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3);
+      setEmployees(employees);
+      setKpis(kpisRes.data.kpis || kpisRes.data.data || []);
+      setReviews(reviewsRes.data.reviews || reviewsRes.data.data || []);
 
       // Pre-select if kpiId or reviewId is provided
       if (kpiId) {

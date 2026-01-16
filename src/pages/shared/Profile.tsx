@@ -6,6 +6,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from '../../context/ToastContext';
 import { FiArrowLeft, FiSave, FiUpload, FiX, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiEdit } from 'react-icons/fi';
 import { Button } from '../../components/common';
+import { isHR, isManager, isEmployee, getRoleDisplayName } from '../../utils/roleUtils';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -227,7 +228,7 @@ const Profile: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">User Information</h2>
-          {(user?.role === 'hr' || user?.role === 'manager') && (
+          {(isHR(user) || isManager(user)) && (
             <Button
               onClick={() => navigate('/profile/edit')}
               variant="primary"
@@ -248,7 +249,7 @@ const Profile: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Role</p>
-            <p className="font-semibold text-gray-900 capitalize">{user?.role}</p>
+            <p className="font-semibold text-gray-900">{getRoleDisplayName(user?.role_id)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Payroll Number</p>
@@ -379,7 +380,7 @@ const Profile: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600 mb-6">
             Update your account password. Make sure to use a strong password.
-            {user?.role === 'employee' && (
+            {isEmployee(user) && (
               <span className="block mt-1 text-purple-600">
                 If you're using the default password (Africa.1), please change it immediately for security.
               </span>

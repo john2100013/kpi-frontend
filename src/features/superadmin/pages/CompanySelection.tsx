@@ -9,6 +9,13 @@ const CompanySelection: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Log companies state
+  React.useEffect(() => {
+    console.log('[CompanySelection] \ud83c\udfe2 Companies from AuthContext:', companies);
+    console.log('[CompanySelection] \ud83d\udcca Companies count:', companies?.length || 0);
+    console.log('[CompanySelection] \ud83d\udd0d Companies array:', JSON.stringify(companies, null, 2));
+  }, [companies]);
+
   const handleSelectCompany = async (companyId: number) => {
     try {
       setLoading(true);

@@ -94,7 +94,8 @@ export interface KPIReviewConfirmation {
   employee_comment: string;
   manager_rating: number;
   manager_comment: string;
-  overall_manager_comment: string;
+  overall_comment: string;
+  overall_manager_comment?: string;
   review_status: string;
   kpi_title: string;
   kpi_description: string;

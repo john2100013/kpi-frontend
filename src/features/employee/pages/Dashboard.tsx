@@ -1,10 +1,11 @@
 import React from 'react';
-import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit } from 'react-icons/fi';
+import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit, FiInfo } from 'react-icons/fi';
 import PasswordChangeModal from '../../../components/PasswordChangeModal';
 import { StatsCard, StatusCard, Button } from '../../../components/common';
 import { useEmployeeDashboard } from '../hooks';
 import { DashboardKPIRow } from '../components';
 import { KPI, KPIReview } from '../../../types';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const EmployeeDashboard: React.FC = () => {
   const {
@@ -32,12 +33,31 @@ const EmployeeDashboard: React.FC = () => {
     navigate,
   } = useEmployeeDashboard();
 
-  if (loading) {
+  const { features, loading: featuresLoading } = useCompanyFeatures();
+
+  if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
+  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Disabled Notice */}
+      {!isSelfRatingEnabled && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Your organization uses a manager-led review process. 
+                Reviews will be initiated by your manager. You can view your KPIs below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My KPIs</h1>

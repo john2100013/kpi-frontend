@@ -18,7 +18,6 @@ import {
   calculateAverageRating,
   roundToAllowedRating,
   validateAllItemsRated,
-  buildItemDataJSON,
   buildQualitativeRatingsArray,
   saveReviewDraft,
   loadReviewDraft,
@@ -38,7 +37,8 @@ interface TextModalState {
 }
 
 interface RatingOption {
-  rating_value: number;
+  id?: number;
+  rating_value: number | string;
   label: string;
   description?: string;
   rating_type: 'yearly' | 'quarterly' | 'qualitative';
@@ -67,6 +67,9 @@ interface UseManagerKPIReviewReturn {
   improvementNeededManagerComment: string;
   accomplishments: Accomplishment[];
   actualValues: Record<number, string>;
+  targetValues: Record<number, string>;
+  goalWeights: Record<number, string>;
+  currentPerformanceStatuses: Record<number, string>;
   textModal: TextModalState;
   employeeAvg: number;
   managerAvg: number;
@@ -86,6 +89,9 @@ interface UseManagerKPIReviewReturn {
   setImprovementNeededManagerComment: (comment: string) => void;
   setAccomplishments: (accomplishments: Accomplishment[]) => void;
   setActualValues: (values: Record<number, string>) => void;
+  setTargetValues: (values: Record<number, string>) => void;
+  setGoalWeights: (values: Record<number, string>) => void;
+  setCurrentPerformanceStatuses: (values: Record<number, string>) => void;
   setTextModal: (modal: TextModalState) => void;
   handleRatingChange: (itemId: number, value: number) => void;
   handleCommentChange: (itemId: number, value: string) => void;
@@ -121,6 +127,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   const [improvementNeededManagerComment, setImprovementNeededManagerComment] = useState('');
   const [accomplishments, setAccomplishments] = useState<Accomplishment[]>([]);
   const [actualValues, setActualValues] = useState<Record<number, string>>({});
+  const [targetValues, setTargetValues] = useState<Record<number, string>>({});
+  const [goalWeights, setGoalWeights] = useState<Record<number, string>>({});
+  const [currentPerformanceStatuses, setCurrentPerformanceStatuses] = useState<Record<number, string>>({});
   const [textModal, setTextModal] = useState<TextModalState>({
     isOpen: false,
     title: '',
@@ -273,11 +282,17 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       // Fetch KPI to get items
       try {
         const kpiRes = await api.get(`/kpis/${reviewData.kpi_id}`);
-        const kpiData = kpiRes.data.kpi;
+        console.log('📦 [useManagerKPIReview] KPI response:', kpiRes.data);
+        const kpiData = kpiRes.data.data || kpiRes.data.kpi || kpiRes.data;
+        console.log('📦 [useManagerKPIReview] Extracted KPI data:', { 
+          hasKpiData: !!kpiData, 
+          hasItems: !!kpiData?.items, 
+          itemsCount: kpiData?.items?.length 
+        });
         setKpi(kpiData);
         
         // Initialize manager ratings/comments for all items
-        if (kpiData.items && kpiData.items.length > 0) {
+        if (kpiData && kpiData.items && kpiData.items.length > 0) {
           const { ratings, comments } = initializeItemMaps(kpiData.items);
           setManagerRatings(ratings);
           setManagerComments(comments);
@@ -321,6 +336,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         // Load accomplishments from review
         if (reviewData.accomplishments && Array.isArray(reviewData.accomplishments)) {
           setAccomplishments(reviewData.accomplishments);
+        } else {
+          // Set empty array so table still shows for manager
+          setAccomplishments([]);
         }
 
         // Load actual values from kpi items
@@ -337,7 +355,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         console.error('Error fetching KPI:', error);
       }
       
-      setOverallComment(reviewData.overall_manager_comment || '');
+      setOverallComment(reviewData.overall_comment || '');
       // DO NOT pre-fill signature from KPI setting - manager review needs separate signature
       setManagerSignature('');
       if (reviewData.manager_signed_at) {
@@ -380,30 +398,55 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   };
 
   const handleSubmit = async () => {
+    console.log('🚀 [handleSubmit] Starting submission');
+    console.log('📊 KPI items:', kpi?.items);
+    console.log('📊 Manager ratings:', managerRatings);
+    console.log('📊 Qualitative ratings:', qualitativeRatings);
+    console.log('📊 Accomplishments:', accomplishments);
+    
     if (!kpi?.items || kpi.items.length === 0) {
       toast.error('No KPI items found');
       return;
     }
 
-    // Validate all KPI items are rated
-    const allRated = validateAllItemsRated(kpi.items, managerRatings, qualitativeRatings);
+    // Validate all KPI items are rated (returns details on missing items)
+    const validation = validateAllItemsRated(kpi.items, managerRatings, qualitativeRatings);
+    const allRated = validation.valid;
     if (!allRated) {
-      toast.error('Please provide a rating for all KPI items (1.00, 1.25, or 1.50 for quantitative; Exceeds/Meets/Needs Improvement for qualitative)');
+      console.error('❌ Validation failed: Not all items are rated');
+      console.error('❌ Missing or invalid items:', validation.missingItems);
+      // Show a user-friendly toast and also include item ids for debugging
+      toast.error('Please provide a rating for all KPI items. Missing: ' + validation.missingItems.map(i => `${i.item_id}(${i.title})`).join(', '));
+      return;
+    }
+    console.log('✅ All KPI items validated');
+
+    // Additional guard: ensure at least one manager rating is > 0 (avoid submitting all-zero payloads)
+    const managerValues = Object.values(managerRatings || {}).map(v => parseFloat(String(v)) || 0);
+    const hasAnyManagerRating = managerValues.some(v => v > 0) || (accomplishments && accomplishments.length > 0);
+    if (!hasAnyManagerRating) {
+      console.error('❌ Submission blocked: All manager item ratings are zero or empty and no accomplishments provided');
+      toast.error('Please provide ratings for items before submitting the review');
       return;
     }
 
     // Validate all accomplishments have manager ratings
     if (accomplishments && accomplishments.length > 0) {
-      const unratedAccomplishments = accomplishments.some(acc => 
-        acc.manager_rating === null || 
-        acc.manager_rating === undefined || 
-        acc.manager_rating === 0
-      );
+      console.log('🔍 Validating accomplishments:', accomplishments);
+      const unratedAccomplishments = accomplishments.some(acc => {
+        const isUnrated = acc.manager_rating === null || 
+          acc.manager_rating === undefined || 
+          acc.manager_rating === 0;
+        console.log(`📝 Accomplishment "${acc.title}": manager_rating=${acc.manager_rating}, isUnrated=${isUnrated}`);
+        return isUnrated;
+      });
       
       if (unratedAccomplishments) {
+        console.error('❌ Validation failed: Not all accomplishments are rated');
         toast.error('Please provide ratings for all major accomplishments');
         return;
       }
+      console.log('✅ All accomplishments validated');
     }
 
     if (!managerSignature) {
@@ -411,15 +454,49 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       return;
     }
 
+    console.log('✅ All validations passed, proceeding with submission');
+
     // Calculate and round average rating (including accomplishments)
     const averageRating = calculateAverageRating(kpi.items, managerRatings, accomplishments);
     const roundedRating = roundToAllowedRating(averageRating);
 
-// Build item data JSON with actual values
-      const itemDataJSON = buildItemDataJSON(kpi.items, managerRatings, managerComments, actualValues);
+    // Build manager ratings array for kpi_item_ratings table
+    const managerRatingsArray = kpi.items.map(item => {
+      const actualValue = actualValues[item.id] || '';
+      const targetValue = targetValues[item.id] || item.target_value || '';
+      const goalWeight = goalWeights[item.id] || item.goal_weight || '';
+      const currentStatus = currentPerformanceStatuses[item.id] || item.current_performance_status || '';
+      
+      const targetValueNum = targetValue ? parseFloat(String(targetValue)) : 0;
+      const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+      
+      // Calculate percentage value obtained: (actual / target) * 100
+      const percentageValueObtained = actualValue && targetValueNum > 0 
+        ? (parseFloat(actualValue) / targetValueNum) * 100
+        : null;
+      
+      // Calculate manager rating percentage: Percentage Obtained * Goal Weight
+      const managerRatingPercentage = percentageValueObtained && goalWeightNum > 0
+        ? percentageValueObtained * goalWeightNum
+        : null;
+      
+      return {
+        item_id: item.id,
+        rating: managerRatings[item.id] || 0,
+        comment: managerComments[item.id] || '',
+        actual_value: actualValue || null,
+        target_value: targetValue || null,
+        goal_weight: goalWeight || null,
+        current_performance_status: currentStatus || null,
+        percentage_value_obtained: percentageValueObtained,
+        manager_rating_percentage: managerRatingPercentage,
+      };
+    });
 
-      setSaving(true);
-      try {
+    console.log('📊 [handleSubmit] Manager ratings array:', managerRatingsArray);
+
+    setSaving(true);
+    try {
         // Prepare qualitative ratings array for backend
         const qualitativeRatingsArray = buildQualitativeRatingsArray(
           kpi.items,
@@ -427,17 +504,22 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           qualitativeComments
         );
 
-        await api.post(`/kpi-review/${reviewId}/manager-review`, {
-          manager_rating: roundedRating,
-          manager_comment: itemDataJSON,
-          overall_manager_comment: overallComment,
+        const payload = {
+          manager_rating: managerRatingsArray, // Send as array for kpi_item_ratings table
+          overall_comment: overallComment,
           manager_signature: managerSignature,
           qualitative_ratings: qualitativeRatingsArray,
-          major_accomplishments_manager_comment: majorAccomplishmentsManagerComment,
-          disappointments_manager_comment: disappointmentsManagerComment,
+          major_accomplishments_comment: majorAccomplishmentsManagerComment,
+          disappointments_comment: disappointmentsManagerComment,
           improvement_needed_manager_comment: improvementNeededManagerComment,
           accomplishments: accomplishments,
-      });
+          average_manager_rating: roundedRating, // Include rounded average for kpi_reviews table
+        };
+
+        console.log('📤 [handleSubmit] Manager review payload:', payload);
+
+        await api.post(`/kpi-review/${reviewId}/manager-review`, payload);
+      
 
       // Clear draft after successful submission
       if (reviewId) {
@@ -498,6 +580,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     improvementNeededManagerComment,
     accomplishments,
     actualValues,
+    targetValues,
+    goalWeights,
+    currentPerformanceStatuses,
     textModal,
     employeeAvg,
     managerAvg,
@@ -517,6 +602,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     setImprovementNeededManagerComment,
     setAccomplishments,
     setActualValues,
+    setTargetValues,
+    setGoalWeights,
+    setCurrentPerformanceStatuses,
     setTextModal,
     handleRatingChange,
     handleCommentChange,

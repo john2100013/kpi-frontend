@@ -1,10 +1,11 @@
-export type UserRole = 'employee' | 'manager' | 'hr' | 'super_admin';
+export type UserRole = 'employee' | 'manager' | 'hr' | 'super_admin' | 'superadmin' | 'managers' | 'employees';
 
 export interface User {
   id: number;
   name: string;
   email?: string;
   role: UserRole;
+  role_id: number;  // Primary role identifier (1=superadmin, 2=managers, 3=hr, 4=employees)
   payroll_number: string;
   national_id?: string;
   department?: string;
@@ -33,6 +34,8 @@ export interface KPIItem {
   is_qualitative?: boolean;
   qualitative_rating?: 'exceeds' | 'meets' | 'needs_improvement';
   qualitative_comment?: string;
+  percentage_value_obtained?: number;  // Percentage achieved from actual vs target
+  manager_rating_percentage?: number;  // Manager's rating as percentage for actual vs target method
 }
 
 // NEW: Accomplishment interface for structured major accomplishments
@@ -96,22 +99,30 @@ export interface KPIReview {
   manager_signature?: string;
   manager_review_signed_at?: string;
   review_status: 'pending' | 'employee_submitted' | 'manager_submitted' | 'completed' | 'rejected' | 'awaiting_employee_confirmation';
+  status?: 'pending' | 'employee_submitted' | 'manager_submitted' | 'completed' | 'rejected' | 'awaiting_employee_confirmation' | 'manager_initiated';  // Alias for review_status (backend sometimes sends this)
   review_quarter?: string;
   review_year?: number;
   review_period?: string;
   major_accomplishments?: string;
   disappointments?: string;
   improvement_needed?: string;
-  major_accomplishments_manager_comment?: string;
-  disappointments_manager_comment?: string;
+  major_accomplishments_comment?: string;
+  disappointments_comment?: string;
   improvement_needed_manager_comment?: string;
-  overall_manager_comment?: string;
+  overall_comment?: string;
+  overall_manager_comment?: string;  // Overall manager comments on the review
   future_plan?: string;  // NEW: Employee's future plans
   accomplishments?: Accomplishment[];  // NEW: Structured accomplishments
   manager_signed_at?: string;
   employee_rejection_note?: string;
   employee_confirmation_status?: string;
   employee_confirmation_signed_at?: string;
+  
+  // Correct rejection field names from database (not prefixed with employee_)
+  rejection_note?: string;  // Actual database column name
+  confirmation_status?: string;  // Actual database column name
+  confirmation_signed_at?: string;  // Actual database column name
+  confirmation_signature?: string;  // Actual database column name
   
   // Rejection fields
   rejection_reason?: string;

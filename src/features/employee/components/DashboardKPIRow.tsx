@@ -24,10 +24,13 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
   onConfirm,
   onEdit,
 }) => {
+  // Backend may send either 'status' or 'review_status' field
+  const reviewStatus = (review as any)?.status || review?.review_status;
+  
   const isPending = kpi.status === 'pending';
-  const needsReview = kpi.status === 'acknowledged' && (!review || review.review_status === 'pending');
-  const needsConfirmation = review && review.review_status === 'manager_submitted';
-  const canEdit = review && review.review_status === 'employee_submitted';
+  const needsReview = kpi.status === 'acknowledged' && (!review || reviewStatus === 'pending');
+  const needsConfirmation = review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation');
+  const canEdit = review && reviewStatus === 'employee_submitted';
 
   return (
     <tr className="hover:bg-gray-50">
