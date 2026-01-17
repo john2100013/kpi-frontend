@@ -124,7 +124,7 @@ export const managerService = {
       const response = await api.get(
         `/departments/statistics/${department}/${category}`
       );
-      const employees = response.data.employees || [];
+      const employees = response.data.data?.employees || response.data.employees || [];
       console.log('[managerService] Employees by category fetched:', employees.length);
       return employees;
     } catch (error) {
@@ -208,7 +208,7 @@ export const managerService = {
     try {
       console.log('[managerService] Fetching KPIs for employee:', employeeId);
       const response = await api.get('/kpis');
-      const allKPIs = response.data.kpis || response.data.data || [];
+      const allKPIs = response.data.data?.kpis || response.data.kpis || [];
       // Filter KPIs for this specific employee
       const filteredKPIs = allKPIs.filter((kpi: any) => kpi.employee_id === parseInt(employeeId));
       console.log('[managerService] Employee KPIs fetched:', filteredKPIs.length);

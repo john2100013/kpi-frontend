@@ -43,7 +43,7 @@ export interface EmployeeDashboardStats {
 
 export interface RatingOption {
   rating_type: string;
-  rating_value: number;
+  rating_value: number | string; // Database returns string, needs conversion
   label: string;
   description?: string;
 }

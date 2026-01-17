@@ -25,6 +25,7 @@ const ManagerKPISetting: React.FC = () => {
     setYear,
     setMeetingDate,
     setManagerSignature,
+    setSelectedPeriodSetting,
     setTextModal,
     handleKpiChange,
     handleQualitativeToggle,
@@ -38,6 +39,16 @@ const ManagerKPISetting: React.FC = () => {
     handleCancel,
     getMinRowsForPeriod,
   } = useManagerKPISetting();
+
+  // Debug logging
+  console.log('🏗️ [KPISetting] Component state:', {
+    period,
+    quarter,
+    year,
+    selectedPeriodSetting,
+    availablePeriodsCount: availablePeriods?.length || 0,
+    availablePeriods,
+  });
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -98,9 +109,38 @@ const ManagerKPISetting: React.FC = () => {
         onPeriodChange={(newPeriod) => {
           setPeriod(newPeriod);
           setQuarter('Q1');
+          // Clear selected period when switching period type
+          setSelectedPeriodSetting(null);
         }}
-        onQuarterChange={setQuarter}
-        onYearChange={setYear}
+        onQuarterChange={(newQuarter) => {
+          setQuarter(newQuarter);
+          // Find and set the selected period setting
+          const matchingPeriod = availablePeriods.find(
+            (p: any) => p.period_type === 'quarterly' && p.quarter === newQuarter && p.is_active
+          );
+          if (matchingPeriod) {
+            setSelectedPeriodSetting(matchingPeriod);
+            setYear(matchingPeriod.year);
+            if (matchingPeriod.start_date) {
+              setMeetingDate(new Date(matchingPeriod.start_date));
+            }
+          }
+        }}
+        onYearChange={(newYear) => {
+          setYear(newYear);
+          // For yearly periods, find and set the selected period setting
+          if (period === 'yearly') {
+            const matchingPeriod = availablePeriods.find(
+              (p: any) => p.period_type === 'yearly' && p.year === newYear && p.is_active
+            );
+            if (matchingPeriod) {
+              setSelectedPeriodSetting(matchingPeriod);
+              if (matchingPeriod.start_date) {
+                setMeetingDate(new Date(matchingPeriod.start_date));
+              }
+            }
+          }
+        }}
         meetingDate={meetingDate}
         onMeetingDateChange={setMeetingDate}
         kpiRows={kpiRows}

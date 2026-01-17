@@ -39,19 +39,45 @@ const EmployeeDashboard: React.FC = () => {
     return <div className="p-6">Loading...</div>;
   }
 
-  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
+  // Check period-specific self-rating settings
+  const quarterlyEnabled = features?.enable_employee_self_rating_quarterly !== false;
+  const yearlyEnabled = features?.enable_employee_self_rating_yearly !== false;
+  const bothDisabled = !quarterlyEnabled && !yearlyEnabled;
+  const mixedSettings = quarterlyEnabled !== yearlyEnabled;
+
+  console.log('📊 [Dashboard] Self-rating settings:', {
+    quarterlyEnabled,
+    yearlyEnabled,
+    bothDisabled,
+    mixedSettings
+  });
 
   return (
     <div className="space-y-6">
-      {/* Self-Rating Disabled Notice */}
-      {!isSelfRatingEnabled && (
+      {/* Self-Rating Status Notice */}
+      {bothDisabled && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Your organization uses a manager-led review process. 
-                Reviews will be initiated by your manager. You can view your KPIs below.
+                <strong>Manager-Led Review Process:</strong> Your manager will initiate and conduct all KPI reviews.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {mixedSettings && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>Mixed Review Process:</strong>
+                {!quarterlyEnabled && ' Quarterly KPIs: Manager-led.'}
+                {!yearlyEnabled && ' Yearly KPIs: Manager-led.'}
+                {quarterlyEnabled && ' Quarterly KPIs: Self-rating enabled.'}
+                {yearlyEnabled && ' Yearly KPIs: Self-rating enabled.'}
               </p>
             </div>
           </div>

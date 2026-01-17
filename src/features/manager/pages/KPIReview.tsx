@@ -63,8 +63,9 @@ const ManagerKPIReview: React.FC = () => {
   // Pass kpi.id to fetch features for the KPI's employee department
   const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(kpi?.id);
 
-  // Determine if self-rating is disabled for this department
-  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled();
+  // Determine if self-rating is disabled for this department based on KPI period
+  const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled(kpiPeriod);
   
   // Get calculation method name based on KPI period
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
@@ -75,12 +76,14 @@ const ManagerKPIReview: React.FC = () => {
     reviewId: review?.id,
     hasKpi: !!kpi,
     kpiId: kpi?.id,
-    kpiPeriod: kpi?.period
+    kpiPeriod: kpi?.period,
+    determinedPeriod: kpiPeriod
   });
   console.log('📊 [KPIReview] Self-rating settings:', {
     kpiId: kpi?.id,
+    kpiPeriod,
     isSelfRatingDisabled,
-    isEmployeeSelfRatingEnabled: isEmployeeSelfRatingEnabled()
+    isEmployeeSelfRatingEnabled: isEmployeeSelfRatingEnabled(kpiPeriod)
   });
   console.log('📊 [KPIReview] Calculation method:', {
     period: kpi?.period,
@@ -102,8 +105,9 @@ const ManagerKPIReview: React.FC = () => {
     );
   }
 
-  // If review doesn't have an ID, employee hasn't submitted self-rating yet
-  if (!review.id) {
+  // If review doesn't have an ID AND self-rating is enabled, employee hasn't submitted self-rating yet
+  // If self-rating is disabled, manager can proceed directly even without review ID
+  if (!review.id && !isSelfRatingDisabled) {
     return (
       <div className="space-y-6">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">

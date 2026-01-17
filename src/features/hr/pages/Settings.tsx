@@ -68,9 +68,17 @@ const Settings: React.FC = () => {
         api.get('/settings/period-settings'),
         api.get('/settings/reminder-settings'),
         api.get('/settings/daily-reminders'),
-        api.get('/settings/hr-email-notifications').catch(() => ({ data: { setting: { receive_email_notifications: true } } })),
-        api.get('/rating-options/manage').catch(() => ({ data: { rating_options: [] } })),
+        api.get('/settings/hr-email-notifications'),
+        api.get('/rating-options/manage'),
       ]);
+
+      console.log('📦 [Settings] API Responses:', {
+        periods: periodsRes.data,
+        reminders: remindersRes.data,
+        daily: dailyRes.data,
+        emailNotif: emailNotifRes.data,
+        ratingOptions: ratingOptionsRes.data
+      });
 
       // Backend now returns dates in YYYY-MM-DD format using PostgreSQL to_char
       // So we can use them directly without any timezone conversion
@@ -103,11 +111,17 @@ const Settings: React.FC = () => {
       console.log('📋 [FRONTEND] Final formatted settings:', formattedSettings);
       setPeriodSettings(formattedSettings);
       setReminderSettings(remindersRes.data.settings || []);
-      setDailyReminderSetting(dailyRes.data.setting || { send_daily_reminders: false, days_before_meeting: 3, cc_emails: '' });
-      setHrEmailNotifications(emailNotifRes.data.setting?.receive_email_notifications !== false);
+      
+      // FIX: Backend returns 'settings' (plural) not 'setting' (singular)
+      setDailyReminderSetting(dailyRes.data.settings || { send_daily_reminders: false, days_before_meeting: 3, cc_emails: '' });
+      
+      // FIX: Backend returns 'settings' with 'receive_notifications' not 'receive_email_notifications'
+      setHrEmailNotifications(emailNotifRes.data.settings?.receive_notifications !== false);
+      
       setRatingOptions(ratingOptionsRes.data.rating_options || []);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('❌ [Settings] Error fetching settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }

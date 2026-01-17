@@ -36,8 +36,8 @@ const KPIConfirmation: React.FC = () => {
   } = useEmployeeKPIConfirmation();
 
   // Department features for conditional display
-  // Pass kpi.id to fetch features for the KPI's employee department
-  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(kpi?.id);
+  // Pass review.kpi_id to fetch features for the KPI's employee department
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled, features } = useCompanyFeatures(review?.kpi_id);
   
   // State for Actual vs Target data
   const [actualValues, setActualValues] = useState<Record<number, string>>({});
@@ -48,19 +48,51 @@ const KPIConfirmation: React.FC = () => {
   const [managerRatingPercentages, setManagerRatingPercentages] = useState<Record<number, number>>({});
   const [finalRatingPercentage, setFinalRatingPercentage] = useState<number>(0);
   
-  // Calculation settings - get period from KPI (quarterly or yearly)
-  const kpiPeriod = kpi?.period || 'quarterly';
-  const calculationMethodName = getCalculationMethodName(kpiPeriod);
-  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled();
+  // CRITICAL: Use review.period NOT kpi.period (kpi is undefined, review has the period!)
+  const reviewPeriod = (review as any)?.period || kpi?.period || 'quarterly';
+  
+  // Get calculation method name based on KPI period (use RAW period value)
+  const calculationMethodName = reviewPeriod ? getCalculationMethodName(reviewPeriod) : 'Normal Calculation';
   const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+  
+  // Determine if self-rating is disabled - use RAW period value to match calculation method
+  const isSelfRatingDisabled = reviewPeriod ? !isEmployeeSelfRatingEnabled(reviewPeriod) : true;
+  
+  // CRITICAL CONDITION: Show employee columns ONLY if:
+  // 1. Self-rating is ENABLED (!isSelfRatingDisabled = true)
+  // 2. AND calculation method is NOT Actual vs Target (!isActualValueMethod = true)
+  const shouldShowEmployeeColumns = !isSelfRatingDisabled && !isActualValueMethod;
 
-  console.log('📊 [KPIConfirmation] Feature settings:', {
-    kpiId: kpi?.id,
-    kpiPeriod,
-    calculationMethodName,
-    isSelfRatingDisabled,
-    isActualValueMethod
-  });
+  console.log('🔍🔍🔍 [KPIConfirmation] DETAILED CONDITION CHECK 🔍🔍🔍');
+  console.log('===============================================');
+  console.log('📊 RAW DATA:');
+  console.log('   kpiId (from kpi):', kpi?.id);
+  console.log('   kpi_id (from review):', (review as any)?.kpi_id);
+  console.log('   rawPeriod (from kpi):', kpi?.period);
+  console.log('   rawPeriod (from review):', (review as any)?.period);
+  console.log('   reviewPeriod (USED):', reviewPeriod);
+  console.log('   reviewPeriodType:', typeof reviewPeriod);
+  console.log('');
+  console.log('📊 CALCULATION METHOD:');
+  console.log('   calculationMethodName:', calculationMethodName);
+  console.log('   isActualValueMethod:', isActualValueMethod);
+  console.log('   includes "Actual vs Target":', calculationMethodName.includes('Actual vs Target'));
+  console.log('');
+  console.log('📊 SELF-RATING CHECK:');
+  console.log('   isSelfRatingDisabled:', isSelfRatingDisabled);
+  console.log('   isEnabled (!isSelfRatingDisabled):', !isSelfRatingDisabled);
+  console.log('   rawCheckResult:', isEmployeeSelfRatingEnabled(reviewPeriod || 'quarterly'));
+  console.log('');
+  console.log('📊 FINAL CONDITIONS:');
+  console.log('   isSelfRatingDisabled:', isSelfRatingDisabled);
+  console.log('   !isSelfRatingDisabled:', !isSelfRatingDisabled);
+  console.log('   isActualValueMethod:', isActualValueMethod);
+  console.log('   !isActualValueMethod:', !isActualValueMethod);
+  console.log('   shouldShowEmployeeColumns:', shouldShowEmployeeColumns);
+  console.log('   LOGIC: !isSelfRatingDisabled (', !isSelfRatingDisabled, ') && !isActualValueMethod (', !isActualValueMethod, ') =', shouldShowEmployeeColumns);
+  console.log('');
+  console.log('📊 FEATURES:', features);
+  console.log('===============================================');
 
   // Fetch ratings data with actual values and percentages
   useEffect(() => {
@@ -248,6 +280,12 @@ const KPIConfirmation: React.FC = () => {
           {kpi && (
             <>
               <p>
+                <span className="font-medium text-gray-900">KPI Type:</span>{' '}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  {kpi.period || 'Quarterly'}
+                </span>
+              </p>
+              <p>
                 <span className="font-medium text-gray-900">Period:</span> {kpi.quarter}{' '}
                 {kpi.year}
               </p>
@@ -264,12 +302,13 @@ const KPIConfirmation: React.FC = () => {
           <div className="flex items-start space-x-3">
             <FiAlertCircle className="text-blue-600 text-xl mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-1">Calculation Method</h3>
-              <p className="text-sm text-blue-800">
+              <h3 className="font-semibold text-blue-900 mb-1">Review Configuration</h3>
+              <p className="text-sm text-blue-800 mb-1">
+                <span className="font-medium">Calculation Method:</span>{' '}
                 <span className="font-semibold">{calculationMethodName || 'Normal Calculation'}</span>
               </p>
-              <p className="text-sm text-blue-700 mt-1">
-                Self-Rating: {isSelfRatingDisabled ? '❌ Disabled' : '✅ Enabled'}
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">Employee Self-Rating:</span> {isSelfRatingDisabled ? '❌ Disabled' : '✅ Enabled'}
               </p>
             </div>
           </div>
@@ -316,7 +355,7 @@ const KPIConfirmation: React.FC = () => {
                 >
                   GOAL WEIGHT
                 </th>
-                {/* Show Actual Value columns only for Actual vs Target method */}
+                {/* Show Actual Value columns ONLY for Actual vs Target method */}
                 {isActualValueMethod && (
                   <>
                     <th
@@ -345,8 +384,8 @@ const KPIConfirmation: React.FC = () => {
                     </th>
                   </>
                 )}
-                {/* Show Employee columns ONLY if self-rating is enabled */}
-                {!isSelfRatingDisabled && (
+                {/* Show Employee columns ONLY if self-rating is enabled AND NOT using Actual vs Target */}
+                {shouldShowEmployeeColumns && (
                   <>
                     <th
                       className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
@@ -473,8 +512,8 @@ const KPIConfirmation: React.FC = () => {
                           </td>
                         </>
                       )}
-                      {/* Employee Rating columns - only if enabled */}
-                      {!isSelfRatingDisabled && (
+                      {/* Employee Rating columns - only if enabled AND NOT using Actual vs Target */}
+                      {shouldShowEmployeeColumns && (
                         <>
                           <td className="px-4 py-4">
                             <div className="space-y-1">
@@ -675,6 +714,100 @@ const KPIConfirmation: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Employee Performance Reflection Section - Show only if self-rating was enabled AND NOT using Actual vs Target calculation */}
+      {shouldShowEmployeeColumns && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
+          
+          {/* Major Accomplishments */}
+          {(review as any).accomplishments && Array.isArray((review as any).accomplishments) && (review as any).accomplishments.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-3">Major Accomplishments</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border border-gray-200 rounded-lg">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Title</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Description</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee Rating</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee Comment</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Manager Rating</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Manager Comment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {(review as any).accomplishments.map((acc: any, index: number) => (
+                      <tr key={acc.id || index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{acc.title || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{acc.description || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-purple-600">
+                          {acc.employee_rating ? parseFloat(acc.employee_rating).toFixed(2) : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{acc.employee_comment || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-yellow-600">
+                          {acc.manager_rating ? parseFloat(acc.manager_rating).toFixed(2) : 'Not rated'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{acc.manager_comment || 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {(review as any).major_accomplishments_comment && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-medium text-yellow-900">Manager's Overall Comment:</p>
+                  <p className="text-sm text-yellow-700 mt-1">{(review as any).major_accomplishments_comment}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Disappointments */}
+          {(review as any).disappointments && (
+            <div className="mb-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-2">Challenges & Disappointments</h3>
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mb-2">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).disappointments}</p>
+              </div>
+              {(review as any).disappointments_comment && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-medium text-yellow-900">Manager's Guidance:</p>
+                  <p className="text-sm text-yellow-700 mt-1">{(review as any).disappointments_comment}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Improvement Needed */}
+          {(review as any).improvement_needed && (
+            <div className="mb-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-2">Suggestions for Organizational Improvement</h3>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-2">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).improvement_needed}</p>
+              </div>
+              {(review as any).improvement_needed_manager_comment && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-medium text-yellow-900">Manager's Response:</p>
+                  <p className="text-sm text-yellow-700 mt-1">{(review as any).improvement_needed_manager_comment}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Future Plan */}
+          {(review as any).future_plan && (
+            <div>
+              <h3 className="text-md font-semibold text-gray-900 mb-2">Future Plans & Goals</h3>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).future_plan}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Decision Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

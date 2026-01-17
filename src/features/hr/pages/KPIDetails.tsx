@@ -42,12 +42,14 @@ const HRKPIDetails: React.FC = () => {
   // Department feature detection for conditional rendering
   // Pass kpi.id to fetch features for the KPI's employee department
   const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(kpi?.id);
-  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled();
+  const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled(kpiPeriod);
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
   const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
 
   console.log('📊 [HR KPIDetails] Feature settings:', {
     kpiId: kpi?.id,
+    kpiPeriod,
     isSelfRatingDisabled,
     calculationMethodName,
     isActualValueMethod,
@@ -269,7 +271,7 @@ const HRKPIDetails: React.FC = () => {
                                 ? 'bg-yellow-100 text-yellow-700'
                                 : 'bg-red-100 text-red-700'
                             }`}>
-                              {parseFloat(item.percentage_value_obtained).toFixed(2)}%
+                              {Number(item.percentage_value_obtained).toFixed(2)}%
                             </span>
                           ) : (
                             <span className="text-sm text-gray-400">N/A</span>
@@ -399,7 +401,7 @@ const HRKPIDetails: React.FC = () => {
                                   ? 'bg-yellow-100 text-yellow-700'
                                   : 'bg-red-100 text-red-700'
                               }`}>
-                                {parseFloat(item.manager_rating_percentage).toFixed(2)}%
+                                {Number(item.manager_rating_percentage).toFixed(2)}%
                               </span>
                               {review && review.manager_review_signed_at && (
                                 <p className="text-xs text-gray-500">
@@ -540,8 +542,8 @@ const HRKPIDetails: React.FC = () => {
           kpi.items.length > 0 &&
           (() => {
             // Use backend-calculated ratings if available - ENSURE THEY ARE NUMBERS
-            const averageRating = parseFloat(review.manager_rating as any) || 0;
-            const finalRating = parseFloat(review.manager_final_rating as any) || averageRating;
+            const averageRating = Number(review.manager_rating) || 0;
+            const finalRating = Number(review.manager_final_rating) || averageRating;
             
             // Calculate for display breakdown
             let calculatedRating = 0;

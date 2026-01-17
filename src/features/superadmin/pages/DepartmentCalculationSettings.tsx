@@ -60,6 +60,7 @@ interface DepartmentFeatures {
   use_actual_values_quarterly: boolean;
   use_normal_calculation: boolean;
   enable_employee_self_rating_quarterly: boolean;
+  enable_employee_self_rating_yearly: boolean;
   created_at?: string;
   updated_at?: string;
   is_default?: boolean;
@@ -72,6 +73,7 @@ interface DepartmentFeaturesUpdatePayload {
   use_actual_values_quarterly?: boolean;
   use_normal_calculation?: boolean;
   enable_employee_self_rating_quarterly?: boolean;
+  enable_employee_self_rating_yearly?: boolean;
 }
 
 interface Company {
@@ -183,6 +185,7 @@ const DepartmentCalculationSettings: React.FC = () => {
       use_actual_values_quarterly: department.use_actual_values_quarterly,
       use_normal_calculation: department.use_normal_calculation,
       enable_employee_self_rating_quarterly: department.enable_employee_self_rating_quarterly,
+      enable_employee_self_rating_yearly: department.enable_employee_self_rating_yearly,
     });
     setHasChanges(false);
     setEditDialogOpen(true);
@@ -403,16 +406,38 @@ const DepartmentCalculationSettings: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {department.enable_employee_self_rating_quarterly ? (
-                          <Chip
-                            icon={<CheckCircleIcon />}
-                            label="Enabled"
-                            size="small"
-                            color="success"
-                          />
-                        ) : (
-                          <Chip label="Disabled" size="small" color="default" />
-                        )}
+                        <Stack direction="column" spacing={0.5}>
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 65 }}>
+                              Quarterly:
+                            </Typography>
+                            {department.enable_employee_self_rating_quarterly ? (
+                              <Chip
+                                icon={<CheckCircleIcon />}
+                                label="Enabled"
+                                size="small"
+                                color="success"
+                              />
+                            ) : (
+                              <Chip label="Disabled" size="small" color="default" />
+                            )}
+                          </Box>
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 65 }}>
+                              Yearly:
+                            </Typography>
+                            {department.enable_employee_self_rating_yearly ? (
+                              <Chip
+                                icon={<CheckCircleIcon />}
+                                label="Enabled"
+                                size="small"
+                                color="success"
+                              />
+                            ) : (
+                              <Chip label="Disabled" size="small" color="default" />
+                            )}
+                          </Box>
+                        </Stack>
                       </TableCell>
                       <TableCell align="center">
                         <Tooltip title="Edit Settings">
@@ -500,6 +525,24 @@ const DepartmentCalculationSettings: React.FC = () => {
                     Calculate as: Σ((actual_value / target_value × 100) × goal_weight).
                   </FormHelperText>
                 </FormControl>
+
+                <FormControl component="fieldset">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={editedFeatures.enable_employee_self_rating_yearly || false}
+                        onChange={handleToggle('enable_employee_self_rating_yearly')}
+                        color="primary"
+                      />
+                    }
+                    label="Enable Employee Self-Rating"
+                    labelPlacement="start"
+                    sx={{ justifyContent: 'space-between', ml: 0, width: '100%' }}
+                  />
+                  <FormHelperText>
+                    Allow employees to rate themselves before manager rating for yearly KPIs.
+                  </FormHelperText>
+                </FormControl>
               </Stack>
             </Box>
 
@@ -561,7 +604,7 @@ const DepartmentCalculationSettings: React.FC = () => {
                     sx={{ justifyContent: 'space-between', ml: 0, width: '100%' }}
                   />
                   <FormHelperText>
-                    Allow employees to rate themselves before manager rating.
+                    Allow employees to rate themselves before manager rating for quarterly KPIs.
                   </FormHelperText>
                 </FormControl>
               </Stack>

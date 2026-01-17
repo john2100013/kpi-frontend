@@ -12,7 +12,7 @@ import { PeriodSetting } from '../types';
  */
 export const shouldManagerInitiateReview = (
   kpi: KPI,
-  companyFeatures: { enable_employee_self_rating_quarterly?: boolean } | null
+  companyFeatures: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): boolean => {
   if (!companyFeatures) return false;
   
@@ -21,9 +21,12 @@ export const shouldManagerInitiateReview = (
     return companyFeatures.enable_employee_self_rating_quarterly === false;
   }
   
-  // For yearly KPIs - currently we only have quarterly self-rating flag
-  // Assume yearly follows same logic as quarterly for now
-  // TODO: Add separate yearly self-rating flag if needed
+  // For yearly KPIs, check yearly self-rating setting
+  if (kpi.period === 'yearly' || kpi.period === 'Yearly') {
+    return companyFeatures.enable_employee_self_rating_yearly === false;
+  }
+  
+  // Default to quarterly setting for backward compatibility
   return companyFeatures.enable_employee_self_rating_quarterly === false;
 };
 
@@ -33,7 +36,7 @@ export const shouldManagerInitiateReview = (
 export const getKPIStage = (
   kpi: KPI,
   reviews: KPIReview[],
-  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean } | null
+  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): { stage: string; color: string; icon: React.ReactNode } => {
   const review = reviews.find(r => r.kpi_id === kpi.id);
 
@@ -120,7 +123,7 @@ export const getKPIStage = (
 export const getKPIStageWithProgress = (
   kpi: KPI,
   reviews: KPIReview[],
-  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean } | null
+  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): { stage: string; color: string; icon: React.ReactNode; progress: number } => {
   const stageInfo = getKPIStage(kpi, reviews, companyFeatures);
   let progress = 45; // Default

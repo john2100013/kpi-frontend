@@ -272,6 +272,17 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          {/* Start Review from KPI (must be before :reviewId route) */}
+          <Route
+            path="/manager/kpi-review/kpi/:kpiId"
+            element={
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
+                <Layout>
+                  <ManagerKPIReview />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/manager/kpi-review/:reviewId"
             element={

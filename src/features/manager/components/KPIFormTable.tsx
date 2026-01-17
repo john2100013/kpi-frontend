@@ -67,8 +67,7 @@ interface KPIFormTableProps {
 
 export const KPIFormTable: React.FC<KPIFormTableProps> = ({
   period,
-  quarter,
-  year,
+  // quarter and year are kept for backward compatibility but not used in component
   availablePeriods,
   selectedPeriodSetting,
   onPeriodChange,
@@ -88,7 +87,16 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
   setTextModal,
   mode = 'setting',
 }) => {
-  const canRemoveRow = (index: number) => kpiRows.length > minRows;
+  const canRemoveRow = (_index: number) => kpiRows.length > minRows;
+
+  // Debug logging
+  console.log('🔍 [KPIFormTable] Render:', {
+    period,
+    selectedPeriodSetting,
+    availablePeriodsCount: availablePeriods?.length || 0,
+    availablePeriods: availablePeriods,
+    selectedId: selectedPeriodSetting?.id,
+  });
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -114,7 +122,6 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
               <option value="quarterly">Quarterly</option>
               <option value="yearly">Yearly</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Select the evaluation period</p>
           </div>
 
           <div>
@@ -123,55 +130,81 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
             </label>
             {period === 'quarterly' ? (
               <select
-                value={quarter}
-                onChange={(e) => onQuarterChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                value={selectedPeriodSetting?.id || ''}
+                onChange={(e) => {
+                  console.log('📝 [Quarterly Dropdown] onChange triggered:', e.target.value);
+                  const selectedId = parseInt(e.target.value);
+                  const selected = availablePeriods.find((p: any) => p.id === selectedId);
+                  console.log('📝 [Quarterly Dropdown] Found period:', selected);
+                  if (selected) {
+                    onQuarterChange(selected.quarter);
+                    onYearChange(selected.year);
+                  }
+                }}
+                onFocus={() => console.log('🎯 [Quarterly Dropdown] Focused')}
+                onClick={() => console.log('🖱️ [Quarterly Dropdown] Clicked')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                style={{ appearance: 'auto' }}
               >
                 <option value="">Select Quarter</option>
-                {availablePeriods
-                  .filter((p: any) => p.period_type === 'quarterly' && p.year === year && p.is_active)
-                  .sort((a: any, b: any) => {
-                    const qOrder: { [key: string]: number } = { 'Q1': 1, 'Q2': 2, 'Q3': 3, 'Q4': 4 };
-                    return (qOrder[a.quarter] || 0) - (qOrder[b.quarter] || 0);
-                  })
-                  .map((ps: any) => {
-                    const startDate = ps.start_date ? new Date(ps.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                    const endDate = ps.end_date ? new Date(ps.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                    return (
-                      <option key={`${ps.quarter}-${ps.year}`} value={ps.quarter}>
-                        {ps.quarter} {ps.year} {startDate && endDate ? `(${startDate} - ${endDate})` : ''}
-                      </option>
-                    );
-                  })}
+                {(() => {
+                  const filtered = availablePeriods.filter((p: any) => p.period_type === 'quarterly' && p.is_active);
+                  console.log('📊 [Quarterly Dropdown] Filtered periods:', filtered);
+                  return filtered
+                    .sort((a: any, b: any) => {
+                      // Sort by year first, then by quarter
+                      if (a.year !== b.year) return b.year - a.year;
+                      const qOrder: { [key: string]: number } = { 'Q1': 1, 'Q2': 2, 'Q3': 3, 'Q4': 4 };
+                      return (qOrder[a.quarter] || 0) - (qOrder[b.quarter] || 0);
+                    })
+                    .map((ps: any) => {
+                      const startDate = ps.start_date ? new Date(ps.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                      const endDate = ps.end_date ? new Date(ps.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                      console.log('🔖 [Quarterly Dropdown] Option:', ps.id, ps.quarter, ps.year);
+                      return (
+                        <option key={ps.id} value={ps.id}>
+                          {ps.quarter} {ps.year} {startDate && endDate ? `(${startDate} - ${endDate})` : ''}
+                        </option>
+                      );
+                    });
+                })()}
               </select>
             ) : (
               <select
-                value={year}
-                onChange={(e) => onYearChange(parseInt(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                value={selectedPeriodSetting?.id || ''}
+                onChange={(e) => {
+                  console.log('📝 [Yearly Dropdown] onChange triggered:', e.target.value);
+                  const selectedId = parseInt(e.target.value);
+                  const selected = availablePeriods.find((p: any) => p.id === selectedId);
+                  console.log('📝 [Yearly Dropdown] Found period:', selected);
+                  if (selected) {
+                    onYearChange(selected.year);
+                  }
+                }}
+                onFocus={() => console.log('🎯 [Yearly Dropdown] Focused')}
+                onClick={() => console.log('🖱️ [Yearly Dropdown] Clicked')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                style={{ appearance: 'auto' }}
               >
                 <option value="">Select Year</option>
-                {Array.from(new Set(availablePeriods
-                  .filter((p: any) => p.period_type === 'yearly' && p.is_active)
-                  .map((p: any) => p.year)))
-                  .sort((a: number, b: number) => b - a)
-                  .map((y: number) => {
-                    const ps = availablePeriods.find((p: any) => p.period_type === 'yearly' && p.year === y && p.is_active);
-                    const startDate = ps?.start_date ? new Date(ps.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                    const endDate = ps?.end_date ? new Date(ps.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                    return (
-                      <option key={y} value={y}>
-                        {y} {startDate && endDate ? `(${startDate} - ${endDate})` : ''}
-                      </option>
-                    );
-                  })}
+                {(() => {
+                  const filtered = availablePeriods.filter((p: any) => p.period_type === 'yearly' && p.is_active);
+                  console.log('📊 [Yearly Dropdown] Filtered periods:', filtered);
+                  return filtered
+                    .sort((a: any, b: any) => b.year - a.year)
+                    .map((ps: any) => {
+                      const startDate = ps.start_date ? new Date(ps.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                      const endDate = ps.end_date ? new Date(ps.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                      console.log('🔖 [Yearly Dropdown] Option:', ps.id, ps.year);
+                      return (
+                        <option key={ps.id} value={ps.id}>
+                          {ps.year} {startDate && endDate ? `(${startDate} - ${endDate})` : ''}
+                        </option>
+                      );
+                    });
+                })()}
               </select>
             )}
-            <p className="text-xs text-gray-500 mt-1">
-              {selectedPeriodSetting 
-                ? `Period: ${selectedPeriodSetting.start_date ? new Date(selectedPeriodSetting.start_date).toLocaleDateString() : 'N/A'} - ${selectedPeriodSetting.end_date ? new Date(selectedPeriodSetting.end_date).toLocaleDateString() : 'N/A'}`
-                : 'Choose the review period'}
-            </p>
           </div>
 
           {/* Meeting Date - Only show in KPI Setting mode */}

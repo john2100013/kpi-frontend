@@ -42,6 +42,14 @@ export const getManagerRoutes = (
   ProtectedRoute: React.FC<ProtectedRouteProps>,
   Layout: React.FC<LayoutProps>
 ) => {
+  // Wrapper component to log route matching
+  const ManagerKPIReviewWrapper: React.FC = () => {
+    console.log('🎯 [ManagerKPIReviewWrapper] Component rendered!');
+    console.log('🎯 [ManagerKPIReviewWrapper] Current URL:', window.location.href);
+    console.log('🎯 [ManagerKPIReviewWrapper] Pathname:', window.location.pathname);
+    return <ManagerKPIReview />;
+  };
+
   return (
     <>
       {/* Dashboard */}
@@ -68,13 +76,25 @@ export const getManagerRoutes = (
         }
       />
 
+      {/* Start Review from KPI (must be before :reviewId route) */}
+      <Route
+        path="/manager/kpi-review/kpi/:kpiId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <ManagerKPIReviewWrapper />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* KPI Review */}
       <Route
         path="/manager/kpi-review/:reviewId"
         element={
           <ProtectedRoute allowedRoles={['manager']}>
             <Layout>
-              <ManagerKPIReview />
+              <ManagerKPIReviewWrapper />
             </Layout>
           </ProtectedRoute>
         }

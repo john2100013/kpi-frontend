@@ -263,7 +263,8 @@ const ConfirmReview: React.FC = () => {
   const { avgEmployeeRating, avgManagerRating, finalEmployeeRating, finalManagerRating } = calculateTotalRatings();
   
   // Determine calculation method and self-rating status
-  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled();
+  const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled(kpiPeriod);
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
   const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
 

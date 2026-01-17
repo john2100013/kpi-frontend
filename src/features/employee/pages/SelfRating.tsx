@@ -568,7 +568,10 @@ const SelfRating: React.FC = () => {
             accomplishments={accomplishments}
             onChange={setAccomplishments}
             mode="employee"
-            ratingOptions={ratingOptions.map(opt => ({ value: opt.rating_value, label: `${opt.rating_value.toFixed(2)} - ${opt.label}` }))}
+            ratingOptions={ratingOptions.map(opt => ({ 
+              value: Number(opt.rating_value), 
+              label: `${Number(opt.rating_value).toFixed(2)} - ${opt.label}` 
+            }))}
           />
 
           {/* Major Accomplishments - Old Text Field (kept for legacy data) */}

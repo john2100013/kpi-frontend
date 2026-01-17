@@ -20,6 +20,7 @@ export interface DepartmentFeatures {
   use_actual_values_quarterly: boolean;
   use_normal_calculation: boolean;
   enable_employee_self_rating_quarterly: boolean;
+  enable_employee_self_rating_yearly: boolean;
   created_at?: string;
   updated_at?: string;
   is_default?: boolean;
@@ -74,6 +75,7 @@ export const useDepartmentFeatures = (kpiId?: number) => {
         use_actual_values_quarterly: false,
         use_normal_calculation: true,
         enable_employee_self_rating_quarterly: false,
+        enable_employee_self_rating_yearly: false,
         is_default: true,
       });
     } finally {
@@ -157,18 +159,52 @@ export const useDepartmentFeatures = (kpiId?: number) => {
   };
 
   /**
-   * Check if employee self-rating is enabled for quarterly KPIs
+   * Check if employee self-rating is enabled
+   * @param kpiPeriod - The KPI period type: 'yearly' or 'quarterly'. If not provided, defaults to 'quarterly'
    */
-  const isEmployeeSelfRatingEnabled = (): boolean => {
-    return features?.enable_employee_self_rating_quarterly || false;
+  const isEmployeeSelfRatingEnabled = (kpiPeriod?: 'yearly' | 'quarterly'): boolean => {
+    if (!features) return false;
+    
+    // Default to quarterly for backward compatibility
+    const period = kpiPeriod || 'quarterly';
+    
+    if (period === 'yearly') {
+      return features.enable_employee_self_rating_yearly || false;
+    } else {
+      return features.enable_employee_self_rating_quarterly || false;
+    }
   };
 
-  // Fetch features on mount or when kpiId changes
+  /**
+   * HELPER: Fetch department features for a specific department ID
+   * This is useful whenca checking features for an employee's department that differs from the current user's
+   */
+  const fetchDepartmentFeaturesById = async (departmentId: number): Promise<DepartmentFeatures | null> => {
+    try {
+      const token = localStorage.getItem('token');
+      // Use the existing /:departmentId endpoint
+      const endpoint = `${API_URL}/department-features/${departmentId}`;
+
+      console.log(`🔍 [fetchDepartmentFeaturesById] Fetching features for department ${departmentId}`);
+      
+      const response = await axios.get(endpoint, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log(`✅ [fetchDepartmentFeaturesById] Features for dept ${departmentId}:`, response.data);
+      return response.data;
+    } catch (err: any) {
+      console.error(`❌ [fetchDepartmentFeaturesById] Error fetching features for dept ${departmentId}:`, err);
+      return null;
+    }
+  };
+
+  // Fetch features on mount or when kpiId or user ID changes
   useEffect(() => {
-    if (user?.department || kpiId) {
+    if (user?.id) {
       fetchFeatures();
     }
-  }, [user?.department, kpiId]);
+  }, [user?.id, kpiId]);
 
   return {
     features,
@@ -180,5 +216,6 @@ export const useDepartmentFeatures = (kpiId?: number) => {
     areGoalWeightsRequired,
     areActualValuesRequired,
     isEmployeeSelfRatingEnabled,
+    fetchDepartmentFeaturesById, // Export the new helper
   };
 };

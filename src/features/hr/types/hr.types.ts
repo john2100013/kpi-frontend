@@ -65,7 +65,7 @@ export interface KPIPagination {
 
 export interface RatingOption {
   id?: number;
-  rating_value: number | null;
+  rating_value: number | string | null; // Database returns DECIMAL as string
   label: string;
   description?: string;
   is_active: boolean;

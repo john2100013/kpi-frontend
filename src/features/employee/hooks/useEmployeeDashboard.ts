@@ -62,8 +62,20 @@ export const useEmployeeDashboard = () => {
           review_status: review.review_status,
           status: (review as any).status,
           has_review_status: 'review_status' in review,
-          has_status: 'status' in review
+          has_status: 'status' in review,
+          all_fields: Object.keys(review),
+          is_manager_submitted_check_1: review.review_status === 'manager_submitted',
+          is_manager_submitted_check_2: (review as any).status === 'manager_submitted'
         });
+      });
+
+      // Log reviews with manager_submitted status specifically
+      const managerSubmittedReviews = reviewsData.filter((r: any) => 
+        r.review_status === 'manager_submitted' || r.status === 'manager_submitted'
+      );
+      console.log('🎯 [useEmployeeDashboard] Manager submitted reviews found:', {
+        count: managerSubmittedReviews.length,
+        reviews: managerSubmittedReviews
       });
 
       setKpis(kpisData);
@@ -155,6 +167,13 @@ export const useEmployeeDashboard = () => {
   };
 
   const stats = calculateDashboardStats(kpis, reviews);
+  console.log('📊 [useEmployeeDashboard] Stats calculated:', {
+    stats,
+    kpis_count: kpis.length,
+    reviews_count: reviews.length,
+    awaitingConfirmation_count: stats.awaitingConfirmation
+  });
+  
   const uniquePeriods = getUniquePeriods(kpis);
   const filteredKpis = filterKpis(kpis, reviews, searchTerm, selectedPeriod, selectedStatus);
 
