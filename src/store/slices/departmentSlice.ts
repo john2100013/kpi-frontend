@@ -30,14 +30,28 @@ export const fetchDepartments = createAsyncThunk(
   'departments/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      // Backend doesn't have a dedicated /departments endpoint
-      // Departments are fetched from employees
-      const response = await api.get('/employees');
-      // Extract unique departments from employees
-      const employees = response.data.employees || [];
-      const uniqueDepts = [...new Set(employees.map((emp: any) => emp.department as string).filter(Boolean))];
-      return { departments: uniqueDepts.map((name, id) => ({ id, name: name as string })) };
+      console.log('[departmentSlice] 📡 Fetching departments...');
+      // Backend: GET /departments requires superadmin role (403 for HR)
+      // Use /departments/list instead which is accessible to all authenticated users
+      const response = await api.get('/departments/list');
+      console.log('[departmentSlice] 📥 Raw response:', {
+        status: response.status,
+        dataKeys: Object.keys(response.data || {}),
+        data: response.data
+      });
+      // Backend returns: { success: true, data: { departments: [...] } }
+      const departments = response.data.data?.departments || response.data.departments || [];
+      console.log('[departmentSlice] ✅ Departments parsed:', {
+        count: departments.length,
+        departments: departments
+      });
+      return { departments };
     } catch (error: any) {
+      console.error('[departmentSlice] ❌ Failed to fetch departments:', {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url
+      });
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch departments');
     }
   }
@@ -47,9 +61,13 @@ export const fetchDepartmentById = createAsyncThunk(
   'departments/fetchById',
   async (id: number, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/departments/${id}`);
+      console.log('[departmentSlice] 📡 Fetching department by ID:', id);
+      // Use /departments/list/:departmentId for fetching single department
+      const response = await api.get(`/departments/list/${id}`);
+      console.log('[departmentSlice] ✅ Department fetched:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('[departmentSlice] ❌ Failed to fetch department:', error);
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch department');
     }
   }
@@ -112,11 +130,23 @@ const departmentSlice = createSlice({
       })
       .addCase(fetchDepartments.fulfilled, (state, action) => {
         state.loading = false;
-        state.departments = Array.isArray(action.payload) ? action.payload : action.payload.departments || [];
+        console.log('[departmentSlice] 📦 Storing departments in state:', action.payload);
+        // action.payload is { departments: [...] }
+        if (action.payload.departments && Array.isArray(action.payload.departments)) {
+          state.departments = action.payload.departments;
+        } else if (Array.isArray(action.payload)) {
+          // Fallback for direct array format
+          state.departments = action.payload;
+        } else {
+          console.error('[departmentSlice] ⚠️ Invalid departments format:', action.payload);
+          state.departments = [];
+        }
+        console.log('[departmentSlice] ✅ State updated with', state.departments.length, 'departments');
       })
       .addCase(fetchDepartments.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        console.error('[departmentSlice] ❌ fetchDepartments rejected:', action.payload);
       });
 
     // Fetch by ID

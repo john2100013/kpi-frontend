@@ -47,9 +47,25 @@ const SelfRating: React.FC = () => {
     navigate,
   } = useEmployeeSelfRating();
 
-  if (loading || !kpi) {
-    return <div className="p-6">Loading...</div>;
+  console.log('🎨 [SelfRating] Component render:', { loading, hasKpi: !!kpi, kpiId: kpi?.id });
+
+  if (loading) {
+    console.log('⏳ [SelfRating] Showing loading state');
+    return <div className="p-6">Loading KPI details...</div>;
   }
+  
+  if (!kpi) {
+    console.log('❌ [SelfRating] No KPI data - showing error state');
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-800">Failed to load KPI details. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  console.log('✅ [SelfRating] Rendering main content for KPI:', { id: kpi.id, title: kpi.title });
 
   return (
     <div className="space-y-6">
@@ -552,7 +568,10 @@ const SelfRating: React.FC = () => {
             accomplishments={accomplishments}
             onChange={setAccomplishments}
             mode="employee"
-            ratingOptions={ratingOptions.map(opt => ({ value: opt.rating_value, label: `${opt.rating_value.toFixed(2)} - ${opt.label}` }))}
+            ratingOptions={ratingOptions.map(opt => ({ 
+              value: Number(opt.rating_value), 
+              label: `${Number(opt.rating_value).toFixed(2)} - ${opt.label}` 
+            }))}
           />
 
           {/* Major Accomplishments - Old Text Field (kept for legacy data) */}

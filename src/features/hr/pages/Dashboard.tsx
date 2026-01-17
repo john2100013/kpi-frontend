@@ -110,7 +110,7 @@ const HRDashboard: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">All Departments</option>
-              {departmentsList.map(dept => (
+              {Array.isArray(departmentsList) && departmentsList.map(dept => (
                 <option key={dept.id} value={dept.name}>{dept.name}</option>
               ))}
             </select>
@@ -123,7 +123,7 @@ const HRDashboard: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">All Periods</option>
-              {periodSettings.map(setting => (
+              {Array.isArray(periodSettings) && periodSettings.map(setting => (
                 <option key={setting.id} value={getPeriodValue(setting)}>
                   {getPeriodLabel(setting)}
                 </option>
@@ -138,7 +138,7 @@ const HRDashboard: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">All Managers</option>
-              {managers.map(manager => (
+              {Array.isArray(managers) && managers.map(manager => (
                 <option key={manager.id} value={manager.id}>{manager.name}</option>
               ))}
             </select>
@@ -376,7 +376,7 @@ const HRDashboard: React.FC = () => {
                             <Button
                               variant="danger"
                               size="sm"
-                              onClick={() => navigate(`/hr/kpi-list?employeeId=${employee.id}&status=rejected`)}
+                              onClick={() => navigate(`/hr/kpi-list?employee_id=${employee.id}&status=rejected`)}
                             >
                               View Rejected KPI
                             </Button>

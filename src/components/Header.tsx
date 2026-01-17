@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiSearch, FiBell, FiMenu, FiLogOut, FiUser, FiHome } from 'react-icons/fi';
+import { getRoleDisplayName } from '../utils/roleUtils';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -188,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-xs text-gray-500">{getRoleDisplayName(user?.role_id)}</p>
                 </div>
               </button>
 
@@ -199,7 +200,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="px-3 py-2 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
                       <p className="text-xs text-gray-500">{user?.email}</p>
-                      <p className="text-xs text-gray-500 capitalize mt-1">{user?.role}</p>
+                      <p className="text-xs text-gray-500 mt-1">{getRoleDisplayName(user?.role_id)}</p>
                     </div>
                     <button
                       onClick={() => {

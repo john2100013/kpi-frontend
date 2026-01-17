@@ -1,10 +1,11 @@
 import React from 'react';
-import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit } from 'react-icons/fi';
+import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit, FiInfo } from 'react-icons/fi';
 import PasswordChangeModal from '../../../components/PasswordChangeModal';
 import { StatsCard, StatusCard, Button } from '../../../components/common';
 import { useEmployeeDashboard } from '../hooks';
 import { DashboardKPIRow } from '../components';
 import { KPI, KPIReview } from '../../../types';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const EmployeeDashboard: React.FC = () => {
   const {
@@ -32,12 +33,57 @@ const EmployeeDashboard: React.FC = () => {
     navigate,
   } = useEmployeeDashboard();
 
-  if (loading) {
+  const { features, loading: featuresLoading } = useCompanyFeatures();
+
+  if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
+  // Check period-specific self-rating settings
+  const quarterlyEnabled = features?.enable_employee_self_rating_quarterly !== false;
+  const yearlyEnabled = features?.enable_employee_self_rating_yearly !== false;
+  const bothDisabled = !quarterlyEnabled && !yearlyEnabled;
+  const mixedSettings = quarterlyEnabled !== yearlyEnabled;
+
+  console.log('📊 [Dashboard] Self-rating settings:', {
+    quarterlyEnabled,
+    yearlyEnabled,
+    bothDisabled,
+    mixedSettings
+  });
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Status Notice */}
+      {bothDisabled && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-800">
+                <strong>Manager-Led Review Process:</strong> Your manager will initiate and conduct all KPI reviews.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {mixedSettings && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>Mixed Review Process:</strong>
+                {!quarterlyEnabled && ' Quarterly KPIs: Manager-led.'}
+                {!yearlyEnabled && ' Yearly KPIs: Manager-led.'}
+                {quarterlyEnabled && ' Quarterly KPIs: Self-rating enabled.'}
+                {yearlyEnabled && ' Yearly KPIs: Self-rating enabled.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My KPIs</h1>

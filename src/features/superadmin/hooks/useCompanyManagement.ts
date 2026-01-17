@@ -25,9 +25,15 @@ export const useCompanyManagement = () => {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
+      console.log('[CompanyManagement] Fetching companies...');
       const data = await companyService.fetchCompanies();
+      console.log('[CompanyManagement] Companies fetched successfully:', data);
       setCompanies(data);
+      if (data.length === 0) {
+        console.warn('[CompanyManagement] No companies returned from API');
+      }
     } catch (error: any) {
+      console.error('[CompanyManagement] Error fetching companies:', error);
       const message = error.response?.data?.error || 'Failed to fetch companies';
       setErrorMessage(message);
       toast.error(message);

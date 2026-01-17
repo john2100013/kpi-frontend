@@ -104,12 +104,32 @@ export const useKPIList = () => {
         hrService.fetchReviews(),
       ]);
 
-      setKpis(kpisRes.kpis || []);
+      console.log('📦 [useKPIList] fetchKPIs response:', {
+        hasSuccess: !!kpisRes.success,
+        hasData: !!kpisRes.data,
+        hasKpis: !!kpisRes.data?.kpis,
+        kpisCount: kpisRes.data?.kpis?.length || 0,
+        hasPagination: !!kpisRes.data?.pagination,
+        structure: Object.keys(kpisRes),
+        dataStructure: kpisRes.data ? Object.keys(kpisRes.data) : null,
+        sampleKPI: kpisRes.data?.kpis?.[0]
+      });
+
+      const kpisArray = kpisRes.data?.kpis || kpisRes.kpis || [];
+      const paginationData = kpisRes.data?.pagination || kpisRes.pagination;
+
+      console.log('📦 [useKPIList] Extracted data:', {
+        kpisArray: kpisArray.length,
+        hasPagination: !!paginationData,
+        firstKPI: kpisArray[0]
+      });
+
+      setKpis(kpisArray);
       setReviews(reviewsRes || []);
       setPagination(prev => ({
         ...prev,
-        totalPages: kpisRes.pagination?.total_pages || 1,
-        totalCount: kpisRes.pagination?.total_count || 0,
+        totalPages: paginationData?.total_pages || paginationData?.totalPages || 1,
+        totalCount: paginationData?.total_count || paginationData?.total || 0,
       }));
     } catch (error) {
       console.error('Error fetching data:', error);

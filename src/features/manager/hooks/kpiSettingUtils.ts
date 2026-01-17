@@ -79,7 +79,7 @@ export const validateKPIForm = (
 };
 
 /**
- * Validate goal weights for quantitative items
+ * Validate goal weights for all KPI items (qualitative and non-qualitative)
  */
 export const validateGoalWeights = (
   kpiRows: KPIRow[]
@@ -88,13 +88,14 @@ export const validateGoalWeights = (
     kpi => kpi.title && kpi.title.trim() !== '' && kpi.description && kpi.description.trim() !== ''
   );
 
-  const quantitativeRows = validKpiRows.filter(row => !row.is_qualitative);
+  // Include ALL valid rows (both qualitative and non-qualitative)
+  const allRows = validKpiRows;
   
-  if (quantitativeRows.length === 0) {
+  if (allRows.length === 0) {
     return { isValid: true };
   }
 
-  const rawWeights = quantitativeRows
+  const rawWeights = allRows
     .map(row => {
       const value = (row.goal_weight || '').toString().trim();
       if (!value) return NaN;
@@ -104,13 +105,13 @@ export const validateGoalWeights = (
     .filter(w => !isNaN(w));
 
   const hasAnyWeights = rawWeights.length > 0;
-  const allHaveWeights = rawWeights.length === quantitativeRows.length;
+  const allHaveWeights = rawWeights.length === allRows.length;
   const someHaveWeights = hasAnyWeights && !allHaveWeights;
 
   if (someHaveWeights) {
     return {
       isValid: false,
-      error: 'Some quantitative KPI items have goal weights while others do not. Please either fill in all goal weights or leave all blank.'
+      error: 'Some KPI items have goal weights while others do not. Please either fill in all goal weights or leave all blank.'
     };
   }
 
@@ -128,7 +129,7 @@ export const validateGoalWeights = (
     if (roundedTotal !== 100) {
       return {
         isValid: false,
-        error: `Total Goal Weight for quantitative items must be exactly 100%. Current total is ${roundedTotal.toFixed(2)}%.`
+        error: `Total Goal Weight must be exactly 100%. Current total is ${roundedTotal.toFixed(2)}%.`
       };
     }
   }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { login as loginAction, loginWithEmail as loginWithEmailAction, clearError } from '../../../store/slices/authSlice';
 import { Button, Input, Card } from '../../../components/common';
+import { isSuperAdmin, isManager, isHR, isEmployee } from '../../../utils/roleUtils';
+import { useAuth } from '../../../context/AuthContext';
 
 const Login: React.FC = () => {
   const [loginMethod, setLoginMethod] = useState<'payroll' | 'email'>('payroll');
@@ -14,6 +16,7 @@ const Login: React.FC = () => {
   
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { setUser: setAuthContextUser } = useAuth();
   const { user, isLoading, error, hasMultipleCompanies, passwordChangeRequired } = useAppSelector((state) => state.auth);
 
   // Clear errors on component mount
@@ -24,36 +27,38 @@ const Login: React.FC = () => {
   // Handle navigation after successful login
   useEffect(() => {
     if (user && !isLoading) {
+      // Sync Redux user to AuthContext
+      console.log('[Login] Syncing Redux user to AuthContext:', user);
+      setAuthContextUser(user);
+      
+      // Determine dashboard path based on role_id
+      let dashboardPath = '/login'; // Default to login page to prevent loops
+      if (isSuperAdmin(user)) {
+        dashboardPath = '/super-admin/dashboard';
+      } else if (isManager(user)) {
+        dashboardPath = '/manager/dashboard';
+      } else if (isEmployee(user)) {
+        dashboardPath = '/employee/dashboard';
+      } else if (isHR(user)) {
+        dashboardPath = '/hr/dashboard';
+      }
+
+      // Handle password change requirement
       if (passwordChangeRequired) {
-        const dashboardPath = {
-          super_admin: '/super-admin/dashboard',
-          manager: '/manager/dashboard',
-          employee: '/employee/dashboard',
-          hr: '/hr/dashboard',
-        }[user.role] || '/';
         navigate(`${dashboardPath}?passwordChangeRequired=true`);
         return;
       }
 
-      if (user.role === 'super_admin') {
-        navigate('/super-admin/dashboard');
-        return;
-      }
-
-      if (hasMultipleCompanies) {
+      // Handle multiple companies (except super admin who always sees company selection implicitly)
+      if (hasMultipleCompanies && !isSuperAdmin(user)) {
         navigate('/select-company');
         return;
       }
-
-      const dashboardPath = {
-        manager: '/manager/dashboard',
-        employee: '/employee/dashboard',
-        hr: '/hr/dashboard',
-      }[user.role] || '/';
       
+      // Navigate to the appropriate dashboard
       navigate(dashboardPath);
     }
-  }, [user, isLoading, hasMultipleCompanies, passwordChangeRequired, navigate]);
+  }, [user, isLoading, hasMultipleCompanies, passwordChangeRequired, navigate, setAuthContextUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

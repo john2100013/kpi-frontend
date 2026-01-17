@@ -51,18 +51,42 @@ export const hrService = {
     department: string, 
     category: string
   ): Promise<Employee[]> => {
+    console.log('[hrService] 📡 Fetching employees by category:', { department, category });
     const response = await api.get(
       `/departments/statistics/${department}/${category}`
     );
-    return response.data.employees || [];
+    console.log('[hrService] 📥 Employees by category response:', {
+      status: response.status,
+      dataKeys: Object.keys(response.data || {}),
+      hasData: !!response.data.data,
+      hasEmployees: !!response.data.employees,
+      data: response.data
+    });
+    
+    // Backend returns { success: true, data: { employees: [...] } }
+    const employees = response.data.data?.employees || response.data.employees || [];
+    console.log('[hrService] ✅ Employees by category parsed:', { count: employees.length, employees });
+    return employees;
   },
 
   /**
    * Fetch list of managers
    */
   fetchManagers: async (): Promise<Manager[]> => {
+    console.log('[hrService] 📡 Fetching managers...');
     const response = await api.get('/departments/managers');
-    return response.data.managers || [];
+    console.log('[hrService] 📥 Managers response:', {
+      status: response.status,
+      dataKeys: Object.keys(response.data || {}),
+      hasData: !!response.data.data,
+      hasManagers: !!response.data.managers,
+      data: response.data
+    });
+    
+    // Backend returns { success: true, data: { managers: [...] } }
+    const managers = response.data.data?.managers || response.data.managers || [];
+    console.log('[hrService] ✅ Managers parsed:', { count: managers.length, managers });
+    return managers;
   },
 
   /**
@@ -285,13 +309,39 @@ export const hrService = {
    * Fetch KPI by ID with its review
    */
   fetchKPIById: async (kpiId: string) => {
+    console.log('[hrService] 📡 Fetching KPI by ID:', kpiId);
+    
     const [kpiRes, reviewsRes] = await Promise.all([
       api.get(`/kpis/${kpiId}`),
       api.get('/kpi-review'),
     ]);
 
-    const kpi = kpiRes.data.kpi;
-    const review = reviewsRes.data.reviews?.find((r: any) => r.kpi_id === parseInt(kpiId));
+    console.log('[hrService] 📥 KPI response structure:', {
+      hasData: !!kpiRes.data,
+      hasSuccess: !!kpiRes.data?.success,
+      hasDataData: !!kpiRes.data?.data,
+      hasKpi: !!kpiRes.data?.kpi,
+      responseKeys: Object.keys(kpiRes.data || {}),
+      dataKeys: kpiRes.data?.data ? Object.keys(kpiRes.data.data) : null
+    });
+
+    // Handle both response structures: { data: {...} } or { success: true, data: {...} }
+    const kpi = kpiRes.data?.data || kpiRes.data?.kpi || kpiRes.data;
+    const reviews = reviewsRes.data?.reviews || reviewsRes.data?.data || reviewsRes.data;
+    const review = Array.isArray(reviews) 
+      ? reviews.find((r: any) => r.kpi_id === parseInt(kpiId))
+      : null;
+
+    console.log('[hrService] ✅ KPI extracted:', {
+      hasKpi: !!kpi,
+      kpiId: kpi?.id,
+      kpiTitle: kpi?.title,
+      kpiStatus: kpi?.status,
+      hasItems: !!kpi?.items,
+      itemsCount: kpi?.items?.length,
+      hasReview: !!review,
+      reviewId: review?.id
+    });
 
     return { kpi, review };
   },

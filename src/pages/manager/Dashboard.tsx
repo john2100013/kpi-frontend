@@ -304,7 +304,7 @@ const ManagerDashboard: React.FC = () => {
 
   // Get unique employees with their KPI status
   const employeeStatusList = employees
-    .filter(emp => emp.role === 'employee')
+    .filter(emp => emp.role_id === 4) // Employee role ID
     .map(emp => ({
       ...emp,
       kpiCount: getEmployeeKPICount(emp.id),

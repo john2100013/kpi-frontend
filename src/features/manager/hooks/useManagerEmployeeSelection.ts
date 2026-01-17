@@ -55,13 +55,43 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
 
   const fetchEmployees = async () => {
     try {
-      // Fetch employees filtered by manager's assigned departments
-      const response = await api.get('/employees', {
-        params: { managerId: 'current' } // Backend will use authenticated user's ID
-      });
-      setEmployees(response.data.employees || []);
+      console.log('[useManagerEmployeeSelection] Fetching employees for manager');
+      // Fetch from the manager service which uses correct endpoint
+      const response = await api.get('/users/list');
+      console.log('[useManagerEmployeeSelection] Raw response:', response.data);
+      
+      // Parse response - backend returns: { success: true, data: { users: [...], pagination: {...} } }
+      let allUsers = [];
+      if (response.data.data && response.data.data.users && Array.isArray(response.data.data.users)) {
+        allUsers = response.data.data.users;
+        console.log('[useManagerEmployeeSelection] Format: data.data.users array');
+      } else if (response.data.users && Array.isArray(response.data.users)) {
+        allUsers = response.data.users;
+        console.log('[useManagerEmployeeSelection] Format: data.users array');
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        allUsers = response.data.data;
+        console.log('[useManagerEmployeeSelection] Format: data.data array');
+      } else if (Array.isArray(response.data)) {
+        allUsers = response.data;
+        console.log('[useManagerEmployeeSelection] Format: direct array');
+      } else {
+        console.log('[useManagerEmployeeSelection] Unknown format, defaulting to empty array');
+        allUsers = [];
+      }
+      
+      console.log('[useManagerEmployeeSelection] Parsed users count:', allUsers.length);
+      console.log('[useManagerEmployeeSelection] Users is array?', Array.isArray(allUsers));
+      
+      // Filter to get only employees (exclude managers, hr, superadmin)
+      const employees = allUsers.filter((user: any) => 
+        user.role_id !== 1 && user.role_id !== 2 && user.role_id !== 3
+      );
+      
+      console.log('[useManagerEmployeeSelection] Employees fetched:', employees.length);
+      setEmployees(employees);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error('[useManagerEmployeeSelection] Error fetching employees:', error);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -69,10 +99,13 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
 
   const fetchReviews = async () => {
     try {
+      console.log('[useManagerEmployeeSelection] Fetching reviews from /kpi-review');
       const response = await api.get('/kpi-review');
-      setReviews(response.data.reviews || []);
+      const reviews = response.data.reviews || response.data.data || [];
+      console.log('[useManagerEmployeeSelection] Reviews fetched:', reviews.length);
+      setReviews(reviews);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('[useManagerEmployeeSelection] Error fetching reviews:', error);
     }
   };
 

@@ -57,8 +57,25 @@ export const fetchDepartmentStatistics = createAsyncThunk(
       if (filters.period) params.append('period', filters.period);
       if (filters.manager) params.append('manager', filters.manager);
 
+      console.log('[statisticsSlice] 📡 Fetching department statistics with filters:', filters);
       const response = await api.get(`/departments/statistics?${params.toString()}`);
-      return response.data;
+      console.log('[statisticsSlice] 📥 Statistics response:', {
+        status: response.status,
+        dataKeys: Object.keys(response.data || {}),
+        hasData: !!response.data.data,
+        hasStatistics: !!response.data.statistics,
+        fullResponse: JSON.stringify(response.data, null, 2)
+      });
+      
+      // Log each department's statistics
+      if (response.data?.data?.statistics) {
+        response.data.data.statistics.forEach((dept: any) => {
+          console.log(`[statisticsSlice] 📊 ${dept.department} categories:`, dept.categories);
+        });
+      }
+      
+      // Backend returns { success: true, data: { statistics: [...] } }
+      return response.data.data || response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch department statistics');
     }
@@ -125,8 +142,21 @@ const statisticsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchDepartmentStatistics.fulfilled, (state, action) => {
+        console.log('[statisticsSlice] 📦 Processing statistics payload:', action.payload);
         state.loading = false;
-        state.departmentStatistics = Array.isArray(action.payload) ? action.payload : action.payload.statistics || [];
+        
+        // Handle multiple response formats
+        let statistics = [];
+        if (Array.isArray(action.payload)) {
+          statistics = action.payload;
+        } else if (action.payload?.statistics && Array.isArray(action.payload.statistics)) {
+          statistics = action.payload.statistics;
+        } else if (action.payload?.data?.statistics && Array.isArray(action.payload.data.statistics)) {
+          statistics = action.payload.data.statistics;
+        }
+        
+        console.log('[statisticsSlice] ✅ Statistics extracted:', { count: statistics.length, statistics });
+        state.departmentStatistics = statistics;
       })
       .addCase(fetchDepartmentStatistics.rejected, (state, action) => {
         state.loading = false;

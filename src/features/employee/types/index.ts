@@ -43,7 +43,7 @@ export interface EmployeeDashboardStats {
 
 export interface RatingOption {
   rating_type: string;
-  rating_value: number;
+  rating_value: number | string; // Database returns string, needs conversion
   label: string;
   description?: string;
 }
@@ -94,7 +94,8 @@ export interface KPIReviewConfirmation {
   employee_comment: string;
   manager_rating: number;
   manager_comment: string;
-  overall_manager_comment: string;
+  overall_comment: string;
+  overall_manager_comment?: string;
   review_status: string;
   kpi_title: string;
   kpi_description: string;

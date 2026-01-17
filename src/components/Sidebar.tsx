@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { isManager, isEmployee, isHR, isSuperAdmin } from '../utils/roleUtils';
 import {
   FiHome,
   FiTarget,
@@ -13,6 +14,7 @@ import {
   FiMail,
   FiSettings,
   FiAlertTriangle,
+  FiSliders,
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -28,21 +30,46 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[Sidebar] 🔍 Component rendered');
+    console.log('[Sidebar] 👤 User object:', user);
+    console.log('[Sidebar] 🎭 User role:', user?.role);
+    console.log('[Sidebar] 🎭 User role_id:', user?.role_id);
+    console.log('[Sidebar] 🎭 User role type:', typeof user?.role);
+    console.log('[Sidebar] 🎭 User role_id type:', typeof user?.role_id);
+    console.log('[Sidebar] 🚪 Sidebar isOpen:', isOpen);
+    console.log('[Sidebar] 🔍 isHR result:', isHR(user));
+    console.log('[Sidebar] 🔍 isManager result:', isManager(user));
+    console.log('[Sidebar] 🔍 isEmployee result:', isEmployee(user));
+    console.log('[Sidebar] 🔍 isSuperAdmin result:', isSuperAdmin(user));
+  }, [user, isOpen]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[Sidebar] 🔍 Component mounted/updated');
+    console.log('[Sidebar] 👤 User object:', user);
+    console.log('[Sidebar] 🎭 User role:', user?.role);
+    console.log('[Sidebar] 🎭 User role type:', typeof user?.role);
+    console.log('[Sidebar] 🚪 Sidebar isOpen:', isOpen);
+    console.log('[Sidebar] 📍 Current location:', location.pathname);
+  }, [user, isOpen, location.pathname]);
+
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
-    if (user?.role === 'manager') {
+    if (isManager(user)) {
       fetchPendingReviewsCount();
-    } else if (user?.role === 'employee') {
+    } else if (isEmployee(user)) {
       fetchEmployeeCounts();
     }
   }, [user]);
 
   // Refresh count when navigating to/from relevant pages
   useEffect(() => {
-    if (user?.role === 'manager' && location.pathname === '/manager/reviews') {
+    if (isManager(user) && location.pathname === '/manager/reviews') {
       fetchPendingReviewsCount();
-    } else if (user?.role === 'employee' && (
+    } else if (isEmployee(user) && (
       location.pathname === '/employee/acknowledge' || 
       location.pathname === '/employee/reviews'
     )) {
@@ -153,14 +180,35 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/super-admin/dashboard', label: 'Dashboard', icon: FiHome },
     { path: '/super-admin/company-management', label: 'Company Management', icon: FiHome },
     { path: '/super-admin/user-management', label: 'User Management', icon: FiUsers },
+    { path: '/super-admin/calculation-settings', label: 'Calculation Settings', icon: FiSliders },
     { path: '/onboard', label: 'Onboard Company', icon: FiUsers },
   ];
 
   const getNavItems = () => {
-    if (user?.role === 'super_admin') return superAdminNavItems;
-    if (user?.role === 'manager') return managerNavItems;
-    if (user?.role === 'employee') return employeeNavItems;
-    if (user?.role === 'hr') return hrNavItems;
+    console.log('[Sidebar] 📋 getNavItems() called');
+    console.log('[Sidebar] 👤 User in getNavItems:', user);
+    console.log('[Sidebar] 🎭 role_id:', user?.role_id);
+    
+    if (isSuperAdmin(user)) {
+      console.log('[Sidebar] ✅ Matched SUPER ADMIN');
+      return superAdminNavItems;
+    }
+    if (isManager(user)) {
+      console.log('[Sidebar] ✅ Matched MANAGER');
+      return managerNavItems;
+    }
+    if (isEmployee(user)) {
+      console.log('[Sidebar] ✅ Matched EMPLOYEE');
+      return employeeNavItems;
+    }
+    if (isHR(user)) {
+      console.log('[Sidebar] ✅ Matched HR!');
+      console.log('[Sidebar] 📄 HR nav items count:', hrNavItems.length);
+      return hrNavItems;
+    }
+    
+    console.log('[Sidebar] ❌ NO ROLE MATCHED!');
+    console.log('[Sidebar] 🔍 User object:', JSON.stringify(user));
     return [];
   };
 
@@ -200,7 +248,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
                 MAIN
               </p>
-              {getNavItems().map((item) => {
+              {(() => {
+                const navItems = getNavItems();
+                console.log('[Sidebar] 🗂️ Rendering nav items:', navItems.length, 'items');
+                return navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
                 return (
@@ -229,13 +280,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     )}
                   </Link>
                 );
-              })}
+              })})()}
             </div>
 
           </nav>
 
           {/* Logout - Only for HR and Super Admin */}
-          {(user?.role === 'hr' || user?.role === 'super_admin') && (
+          {(isHR(user) || isSuperAdmin(user)) && (
             <div className="p-4 border-t border-gray-200">
               <button
                 onClick={handleLogout}
