@@ -47,6 +47,13 @@ interface UseManagerKPISettingReturn {
   selectedPeriodSetting: any;
   textModal: TextModalState;
   confirmState: any;
+  // Template mode state
+  isTemplateMode: boolean;
+  templateId: number | null;
+  employees: any[];
+  departments: any[];
+  employeesLoading: boolean;
+  selectedEmployeeIds: number[];
   
   // Actions
   setKpiRows: (rows: KPIRow[]) => void;
@@ -68,13 +75,25 @@ interface UseManagerKPISettingReturn {
   handleConfirm: () => void;
   handleCancel: () => void;
   getMinRowsForPeriod: () => number;
+  // Template mode handlers
+  handleSubmitToEmployees: (selectedEmployeeIds: number[]) => Promise<void>;
+  handleEmployeeSelectionChange: (employeeIds: number[]) => void;
 }
 
 export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
-  const { employeeId } = useParams<{ employeeId: string }>();
+  console.log('🔵🔵🔵 [useManagerKPISetting] HOOK CALLED!');
+  const { employeeId, templateId } = useParams<{ employeeId?: string; templateId?: string }>();
+  console.log('🔵 [useManagerKPISetting] URL params:', { employeeId, templateId });
+  console.log('🔵 [useManagerKPISetting] Current pathname:', window.location.pathname);
   const navigate = useNavigate();
   const toast = useToast();
   const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
+  
+  // Determine mode
+  const isTemplateMode = !!templateId;
+  console.log('🔵 [useManagerKPISetting] isTemplateMode:', isTemplateMode);
+  console.log('🔵 [useManagerKPISetting] templateId raw:', templateId);
+  console.log('🔵 [useManagerKPISetting] employeeId raw:', employeeId);
   
   const [employee, setEmployee] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,15 +111,35 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     title: '',
     value: '',
   });
+  
+  // Template mode state
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
 
-  // Load draft FIRST before fetching periods
+  // Load template data or employee data based on mode
   useEffect(() => {
-    if (employeeId) {
+    console.log('🔵🔵 [useManagerKPISetting] useEffect triggered!');
+    console.log('🔵 [useManagerKPISetting] isTemplateMode:', isTemplateMode);
+    console.log('🔵 [useManagerKPISetting] templateId:', templateId);
+    console.log('🔵 [useManagerKPISetting] employeeId:', employeeId);
+    
+    if (isTemplateMode && templateId) {
+      console.log('✅ [useManagerKPISetting] TEMPLATE MODE - Loading template:', templateId);
+      loadTemplate(parseInt(templateId));
+      fetchEmployeesForTemplate();
+      fetchAvailablePeriods();
+    } else if (employeeId) {
+      console.log('✅ [useManagerKPISetting] EMPLOYEE MODE - Loading employee:', employeeId);
       loadDraft();
       fetchEmployee();
       fetchAvailablePeriods();
+    } else {
+      console.warn('⚠️ [useManagerKPISetting] NO MODE DETECTED - no templateId or employeeId!');
+      console.warn('⚠️ [useManagerKPISetting] This might cause redirect to homepage');
     }
-  }, [employeeId]);
+  }, [employeeId, templateId, isTemplateMode]);
 
   // Auto-save draft whenever form data changes
   useEffect(() => {
@@ -333,6 +372,147 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     return getMinRows(period);
   };
 
+  // Template mode functions
+  const loadTemplate = async (tid: number) => {
+    console.log('🔵 [loadTemplate] Fetching template:', tid);
+    try {
+      const response = await api.get(`/templates/${tid}`);
+      const template = response.data.data || response.data;
+      
+      console.log('✅ [loadTemplate] Template loaded:', template);
+      
+      // Auto-populate form with template data
+      if (template.period) {
+        setPeriod(template.period);
+      }
+      if (template.quarter) {
+        setQuarter(template.quarter);
+      }
+      if (template.year) {
+        setYear(template.year);
+      }
+      
+      // Load template items into kpiRows
+      if (template.items && Array.isArray(template.items)) {
+        const templateRows: KPIRow[] = template.items.map((item: any) => ({
+          title: item.title || '',
+          description: item.description || '',
+          current_performance_status: item.current_performance_status || '',
+          target_value: item.target_value || '',
+          expected_completion_date: item.expected_completion_date || '',
+          measure_unit: item.measure_unit || '',
+          goal_weight: item.goal_weight || '',
+          is_qualitative: item.is_qualitative || false,
+        }));
+        setKpiRows(templateRows);
+        console.log('✅ [loadTemplate] Loaded KPI items:', templateRows.length);
+      }
+    } catch (error) {
+      console.error('❌ [loadTemplate] Error:', error);
+      toast.error('Failed to load template');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployeesForTemplate = async () => {
+    console.log('🔵 [fetchEmployeesForTemplate] Fetching employees and departments');
+    setEmployeesLoading(true);
+    try {
+      const response = await api.get('/users/managers/employees-for-template');
+      console.log('✅ [fetchEmployeesForTemplate] Response:', response.data);
+      
+      setEmployees(response.data.employees || []);
+      setDepartments(response.data.departments || []);
+      
+      console.log('✅ [fetchEmployeesForTemplate] Loaded employees:', response.data.employees?.length, 'departments:', response.data.departments?.length);
+    } catch (error) {
+      console.error('❌ [fetchEmployeesForTemplate] Error:', error);
+      toast.error('Failed to load employees');
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+  const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
+    console.log('🔵 [handleSubmitToEmployees] Selected employees:', selectedEmployeeIds);
+    
+    if (selectedEmployeeIds.length === 0) {
+      toast.error('Please select at least one employee');
+      return;
+    }
+
+    // Basic validation
+    const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
+    if (!basicValidation.isValid) {
+      toast.error(basicValidation.error!);
+      return;
+    }
+
+    // Goal weights validation
+    const weightValidation = validateGoalWeights(kpiRows);
+    if (!weightValidation.isValid) {
+      toast.error(weightValidation.error!);
+      return;
+    }
+
+    // Ask for confirmation if no goal weights
+    if (weightValidation.needsConfirmation) {
+      const confirmProceed = await confirm({
+        title: 'Continue without goal weights?',
+        message: 'Do you want to continue without entering goal weight?',
+        variant: 'warning',
+        confirmText: 'Continue',
+        cancelText: 'Cancel'
+      });
+      if (!confirmProceed) {
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const validKpiRows = getValidKPIRows(kpiRows);
+      
+      // Send KPIs to all selected employees
+      const promises = selectedEmployeeIds.map(empId =>
+        api.post('/kpis/create', {
+          employee_id: empId,
+          period,
+          quarter: period === 'quarterly' ? quarter : undefined,
+          year,
+          meeting_date: meetingDate?.toISOString().split('T')[0],
+          manager_signature: managerSignature,
+          kpi_items: validKpiRows.map(kpi => ({
+            title: kpi.title,
+            description: kpi.description,
+            current_performance_status: kpi.current_performance_status,
+            target_value: kpi.target_value,
+            expected_completion_date: kpi.expected_completion_date || null,
+            measure_unit: kpi.measure_unit,
+            goal_weight: kpi.goal_weight,
+            is_qualitative: kpi.is_qualitative || false,
+          })),
+        })
+      );
+
+      await Promise.all(promises);
+
+      toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
+      navigate('/manager/dashboard');
+    } catch (error: any) {
+      console.error('❌ [handleSubmitToEmployees] Error:', error);
+      toast.error(error.response?.data?.error || 'Failed to send KPIs to employees');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEmployeeSelectionChange = (employeeIds: number[]) => {
+    console.log('🔵 [handleEmployeeSelectionChange] Employee selection changed:', employeeIds);
+    setSelectedEmployeeIds(employeeIds);
+  };
+
   return {
     // State
     employee,
@@ -348,6 +528,13 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     selectedPeriodSetting,
     textModal,
     confirmState,
+    // Template mode state
+    isTemplateMode,
+    templateId: templateId ? parseInt(templateId) : null,
+    employees,
+    departments,
+    employeesLoading,
+    selectedEmployeeIds,
     
     // Actions
     setKpiRows,
@@ -369,5 +556,8 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     handleConfirm,
     handleCancel,
     getMinRowsForPeriod,
+    // Template mode handlers
+    handleSubmitToEmployees,
+    handleEmployeeSelectionChange,
   };
 };

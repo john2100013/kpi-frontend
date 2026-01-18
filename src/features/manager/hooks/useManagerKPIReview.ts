@@ -70,6 +70,7 @@ interface UseManagerKPIReviewReturn {
   targetValues: Record<number, string>;
   goalWeights: Record<number, string>;
   currentPerformanceStatuses: Record<number, string>;
+  managerRatingPercentages: Record<number, string>;
   textModal: TextModalState;
   employeeAvg: number;
   managerAvg: number;
@@ -92,6 +93,7 @@ interface UseManagerKPIReviewReturn {
   setTargetValues: (values: Record<number, string>) => void;
   setGoalWeights: (values: Record<number, string>) => void;
   setCurrentPerformanceStatuses: (values: Record<number, string>) => void;
+  setManagerRatingPercentages: (values: Record<number, string>) => void;
   setTextModal: (modal: TextModalState) => void;
   handleRatingChange: (itemId: number, value: number) => void;
   handleCommentChange: (itemId: number, value: string) => void;
@@ -138,6 +140,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   const [targetValues, setTargetValues] = useState<Record<number, string>>({});
   const [goalWeights, setGoalWeights] = useState<Record<number, string>>({});
   const [currentPerformanceStatuses, setCurrentPerformanceStatuses] = useState<Record<number, string>>({});
+  const [managerRatingPercentages, setManagerRatingPercentages] = useState<Record<number, string>>({});
   const [textModal, setTextModal] = useState<TextModalState>({
     isOpen: false,
     title: '',
@@ -657,10 +660,16 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         ? (parseFloat(actualValue) / targetValueNum) * 100
         : null;
       
-      // Calculate manager rating percentage: Percentage Obtained * Goal Weight
-      const managerRatingPercentage = percentageValueObtained && goalWeightNum > 0
+      // Calculate manager rating percentage: Use manual value if provided, otherwise calculate
+      const manualRatingPercentage = managerRatingPercentages[item.id];
+      const calculatedRatingPercentage = percentageValueObtained && goalWeightNum > 0
         ? percentageValueObtained * goalWeightNum
         : null;
+      
+      // Use manual value if provided, otherwise use calculated value
+      const managerRatingPercentage = manualRatingPercentage && manualRatingPercentage.trim() !== ''
+        ? parseFloat(manualRatingPercentage.replace('%', ''))
+        : calculatedRatingPercentage;
       
       return {
         item_id: item.id,
@@ -829,6 +838,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     targetValues,
     goalWeights,
     currentPerformanceStatuses,
+    managerRatingPercentages,
     textModal,
     employeeAvg,
     managerAvg,
@@ -851,6 +861,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     setTargetValues,
     setGoalWeights,
     setCurrentPerformanceStatuses,
+    setManagerRatingPercentages,
     setTextModal,
     handleRatingChange,
     handleCommentChange,

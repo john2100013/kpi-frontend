@@ -24,7 +24,6 @@ interface UseManagerKPITemplatesReturn {
   loading: boolean;
   confirmState: any;
   handleDelete: (id: number, name: string) => Promise<void>;
-  handleUseTemplate: (id: number) => void;
   handleCreateTemplate: () => void;
   handleEditTemplate: (id: number) => void;
   handleBack: () => void;
@@ -45,10 +44,12 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await api.get('/kpi-templates');
+      console.log('📥 [useManagerKPITemplates] Fetching templates from /templates');
+      const response = await api.get('/templates');
+      console.log('✅ [useManagerKPITemplates] Templates received:', response.data.templates?.length || 0);
       setTemplates(response.data.templates || []);
     } catch (error) {
-      console.error('Error fetching templates:', error);
+      console.error('❌ [useManagerKPITemplates] Error fetching templates:', error);
     } finally {
       setLoading(false);
     }
@@ -66,25 +67,15 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
     }
 
     try {
-      await api.delete(`/kpi-templates/${id}`);
+      console.log('🗑️ [useManagerKPITemplates] Deleting template:', id);
+      await api.delete(`/templates/${id}`);
+      console.log('✅ [useManagerKPITemplates] Template deleted successfully');
       toast.success('Template deleted successfully!');
       fetchTemplates();
     } catch (error: any) {
-      console.error('Error deleting template:', error);
+      console.error('❌ [useManagerKPITemplates] Error deleting template:', error);
       toast.error(error.response?.data?.error || 'Failed to delete template');
     }
-  };
-
-  const handleUseTemplate = (templateId: number) => {
-    console.log('🚀 handleUseTemplate called with template ID:', templateId);
-    console.log('📍 Current location:', window.location.pathname);
-    
-    const targetUrl = `/manager/kpi-templates/${templateId}/apply`;
-    console.log('🔗 Target URL:', targetUrl);
-    
-    navigate(targetUrl);
-    
-    console.log('✅ Navigation called');
   };
 
   const handleCreateTemplate = () => {
@@ -104,7 +95,6 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
     loading,
     confirmState,
     handleDelete,
-    handleUseTemplate,
     handleCreateTemplate,
     handleEditTemplate,
     handleBack,

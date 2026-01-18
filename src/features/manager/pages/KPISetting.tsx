@@ -2,6 +2,7 @@ import React from 'react';
 import { FiArrowLeft, FiSave, FiSend, FiEye } from 'react-icons/fi';
 import { Button, ConfirmDialog } from '../../../components/common';
 import { KPIFormTable } from '../components/KPIFormTable';
+import { EmployeeSelectionModal } from '../components/EmployeeSelectionModal';
 import { useManagerKPISetting } from '../hooks';
 
 const ManagerKPISetting: React.FC = () => {
@@ -19,6 +20,13 @@ const ManagerKPISetting: React.FC = () => {
     selectedPeriodSetting,
     textModal,
     confirmState,
+    // Template mode state
+    isTemplateMode,
+    employees,
+    departments,
+    employeesLoading,
+    selectedEmployeeIds,
+    //
     setKpiRows,
     setPeriod,
     setQuarter,
@@ -38,9 +46,16 @@ const ManagerKPISetting: React.FC = () => {
     handleConfirm,
     handleCancel,
     getMinRowsForPeriod,
+    // Template mode handlers
+    handleSubmitToEmployees,
+    handleEmployeeSelectionChange,
   } = useManagerKPISetting();
 
   // Debug logging
+  console.log('🏗️🏗️🏗️ [KPISetting] COMPONENT RENDERED!');
+  console.log('🏗️ [KPISetting] Current URL:', window.location.pathname);
+  console.log('🏗️ [KPISetting] Current search:', window.location.search);
+  console.log('🏗️ [KPISetting] isTemplateMode:', isTemplateMode);
   console.log('🏗️ [KPISetting] Component state:', {
     period,
     quarter,
@@ -48,6 +63,9 @@ const ManagerKPISetting: React.FC = () => {
     selectedPeriodSetting,
     availablePeriodsCount: availablePeriods?.length || 0,
     availablePeriods,
+    isTemplateMode,
+    employeesCount: employees?.length || 0,
+    loading,
   });
 
   if (loading) {
@@ -55,24 +73,43 @@ const ManagerKPISetting: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-6">{/* Changed from space-y-6 to flex layout */}
+      {/* Main Form - Left Side */}
+      <div className={`flex-1 space-y-6 ${isTemplateMode ? 'pr-6' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button onClick={handleBack} variant="ghost" icon={FiArrowLeft} className="p-2" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Set KPI for Employee</h1>
-            <p className="text-sm text-gray-600 mt-1">Create new performance objective</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isTemplateMode ? 'Use KPI Template' : 'Set KPI for Employee'}
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              {isTemplateMode 
+                ? 'Review template and select employees to assign KPIs' 
+                : 'Create new performance objective'}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <Button onClick={handleSaveDraft} variant="outline" icon={FiSave}>Save as Draft</Button>
-          <Button onClick={handleSubmit} disabled={saving} variant="primary" icon={FiSend} loading={saving}>Submit KPI</Button>
+          {!isTemplateMode && (
+            <Button onClick={handleSaveDraft} variant="outline" icon={FiSave}>Save as Draft</Button>
+          )}
+          <Button 
+            onClick={isTemplateMode ? () => handleSubmitToEmployees(selectedEmployeeIds) : handleSubmit} 
+            disabled={saving || (isTemplateMode && selectedEmployeeIds.length === 0)} 
+            variant="primary" 
+            icon={FiSend} 
+            loading={saving}
+          >
+            {isTemplateMode ? `Send to ${selectedEmployeeIds.length} Employee${selectedEmployeeIds.length !== 1 ? 's' : ''}` : 'Submit KPI'}
+          </Button>
         </div>
       </div>
 
-      {/* Employee Information */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      {/* Employee Information - Only show in single employee mode */}
+      {!isTemplateMode && employee && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Employee Information</h2>
           <Button onClick={handleViewEmployeeKPIs} variant="primary" icon={FiEye} size="sm">View KPIs</Button>
@@ -97,6 +134,7 @@ const ManagerKPISetting: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Shared KPI Form */}
       <KPIFormTable
@@ -164,6 +202,22 @@ const ManagerKPISetting: React.FC = () => {
         message={confirmState.message}
         variant={confirmState.variant}
       />
+      </div>
+
+      {/* Employee Selection Panel - Right Side (only in template mode) */}
+      {isTemplateMode && (
+        <div className="w-96 sticky top-6 h-fit">
+          <EmployeeSelectionModal
+            isOpen={true}
+            onClose={() => {}} // No close in inline mode
+            employees={employees || []}
+            departments={departments || []}
+            onConfirm={handleEmployeeSelectionChange}
+            loading={employeesLoading || saving}
+            inline={true} // New prop to render as inline panel instead of modal
+          />
+        </div>
+      )}
     </div>
   );
 };

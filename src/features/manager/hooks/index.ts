@@ -9,6 +9,7 @@ export { useManagerEmployeeKPIs } from './useManagerEmployeeKPIs';
 export { useManagerKPISetting } from './useManagerKPISetting';
 export { useManagerKPIReview } from './useManagerKPIReview';
 export { useManagerKPITemplates } from './useManagerKPITemplates';
+export { useTemplateApplication } from './useTemplateApplication';
 export { useManagerEmployeeSelection } from './useManagerEmployeeSelection';
 export { useManagerReviewsList } from './useManagerReviewsList';
 export { useManagerApplyKPITemplate } from './useManagerApplyKPITemplate';

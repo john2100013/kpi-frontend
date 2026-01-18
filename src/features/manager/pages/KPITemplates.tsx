@@ -1,21 +1,38 @@
 import React from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiCopy, FiFileText, FiArrowLeft } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { Button, ConfirmDialog } from '../../../components/common';
 import { useManagerKPITemplates } from '../hooks';
 
 const ManagerKPITemplates: React.FC = () => {
+  const navigate = useNavigate();
   const {
     templates,
     loading,
     confirmState,
     handleDelete,
-    handleUseTemplate,
     handleCreateTemplate,
     handleEditTemplate,
     handleBack,
     handleConfirm,
     handleCancel,
   } = useManagerKPITemplates();
+
+  console.log('🏗️ [KPITemplates] Component state:', {
+    templatesCount: templates.length,
+    loading,
+  });
+
+  const handleUseTemplate = (templateId: number) => {
+    console.log('🚀🚀🚀 [KPITemplates] Use Template clicked!');
+    console.log('🚀 [KPITemplates] Template ID:', templateId);
+    console.log('🚀 [KPITemplates] Current location:', window.location.pathname);
+    const targetPath = `/manager/kpi-setting/template/${templateId}`;
+    console.log('🚀 [KPITemplates] Target path:', targetPath);
+    console.log('🚀 [KPITemplates] Calling navigate...');
+    navigate(targetPath);
+    console.log('🚀 [KPITemplates] Navigate called successfully');
+  };
 
   if (loading) {
     return (

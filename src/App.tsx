@@ -86,6 +86,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
   const currentUser = user || contextUser;
   const loading = isLoading || contextLoading;
 
+  console.log('[ProtectedRoute] 🛡️ Route protection check:', {
+    path: window.location.pathname,
+    userRoleId: currentUser?.role_id,
+    allowedRoles,
+    hasUser: !!currentUser,
+    isLoading: loading
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -95,10 +103,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
   }
 
   if (!currentUser) {
+    console.log('[ProtectedRoute] ❌ No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role_id)) {
+    console.log('[ProtectedRoute] 🚫 Role check failed:', {
+      userRoleId: currentUser.role_id,
+      allowedRoles,
+      currentPath: window.location.pathname
+    });
     // Redirect to user's appropriate dashboard instead of causing a loop
     let redirectPath = '/login';
     if (isSuperAdmin(currentUser)) {
@@ -110,6 +124,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
     } else if (isEmployee(currentUser)) {
       redirectPath = '/employee/dashboard';
     }
+    console.log('[ProtectedRoute] ➡️ Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 
@@ -258,6 +273,17 @@ function AppRoutes() {
               <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
                 <Layout>
                   <ManagerDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* KPI Setting from Template - MUST come before :employeeId route */}
+          <Route
+            path="/manager/kpi-setting/template/:templateId"
+            element={
+              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
+                <Layout>
+                  <KPISetting />
                 </Layout>
               </ProtectedRoute>
             }

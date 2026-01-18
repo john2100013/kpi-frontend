@@ -33,6 +33,7 @@ const ManagerKPIReview: React.FC = () => {
     targetValues,
     goalWeights,
     currentPerformanceStatuses,
+    managerRatingPercentages,
     textModal,
     employeeAvg,
     managerAvg,
@@ -50,6 +51,7 @@ const ManagerKPIReview: React.FC = () => {
     setTargetValues,
     setGoalWeights,
     setCurrentPerformanceStatuses,
+    setManagerRatingPercentages,
     setTextModal,
     handleRatingChange,
     handleCommentChange,
@@ -555,19 +557,29 @@ const ManagerKPIReview: React.FC = () => {
                       </td>
                       {/* Manager Rating % */}
                       <td className="px-6 py-4">
-                        <span className={`text-sm font-semibold ${
-                          isActualValueMethod ? (
-                            percentageValueObtainedNum >= 100 ? 'text-green-600' :
-                            percentageValueObtainedNum >= 70 ? 'text-orange-600' :
-                            percentageValueObtainedNum > 0 ? 'text-red-600' : 'text-gray-400'
-                          ) : (
-                            mgrRating >= 1.5 ? 'text-green-600' : 
-                            mgrRating >= 1.25 ? 'text-orange-600' : 
-                            mgrRating > 0 ? 'text-red-600' : 'text-gray-400'
-                          )
-                        }`}>
-                          {managerRatingPercentage}
-                        </span>
+                        <input
+                          type="text"
+                          value={managerRatingPercentages[item.id] || managerRatingPercentage.replace('%', '')}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setManagerRatingPercentages({ 
+                              ...managerRatingPercentages, 
+                              [item.id]: value 
+                            });
+                          }}
+                          placeholder="0.00"
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-semibold ${
+                            isActualValueMethod ? (
+                              percentageValueObtainedNum >= 100 ? 'text-green-600' :
+                              percentageValueObtainedNum >= 70 ? 'text-orange-600' :
+                              percentageValueObtainedNum > 0 ? 'text-red-600' : 'text-gray-400'
+                            ) : (
+                              mgrRating >= 1.5 ? 'text-green-600' : 
+                              mgrRating >= 1.25 ? 'text-orange-600' : 
+                              mgrRating > 0 ? 'text-red-600' : 'text-gray-400'
+                            )
+                          }`}
+                        />
                       </td>
                       {/* Manager Comment */}
                       <td className="px-6 py-4">

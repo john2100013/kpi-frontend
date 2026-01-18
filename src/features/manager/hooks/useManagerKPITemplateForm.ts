@@ -101,7 +101,9 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
 
   const fetchTemplate = async () => {
     try {
-      const response = await api.get(`/kpi-templates/${id}`);
+      console.log('📥 [useManagerKPITemplateForm] Fetching template:', id);
+      const response = await api.get(`/templates/${id}`);
+      console.log('✅ [useManagerKPITemplateForm] Template fetched:', response.data);
       const template = response.data.template;
       
       setTemplateName(template.template_name);
@@ -210,7 +212,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
   const handlePeriodChange = (newPeriod: 'quarterly' | 'yearly') => {
     setPeriod(newPeriod);
     
-    const backendPeriodType = newPeriod === 'yearly' ? 'annual' : 'quarterly';
+    const backendPeriodType = newPeriod; // Use the same value - no mapping needed
     const periodsOfType = availablePeriods.filter((p: any) => p.period_type === backendPeriodType && p.is_active);
     if (periodsOfType.length > 0) {
       const firstPeriod = periodsOfType[0];
@@ -241,7 +243,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     setYear(selectedYear);
     
     const periodSetting = availablePeriods.find(
-      (p: any) => p.period_type === 'annual' && 
+      (p: any) => p.period_type === 'yearly' && 
                   p.year === selectedYear &&
                   p.is_active
     );
@@ -264,7 +266,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     if (validation.needsConfirmation) {
       const confirmProceed = await confirm({
         title: 'Continue without goal weights?',
-        message: 'Do you want to continue without entering goal weights for quantitative items?',
+        message: 'Do you want to continue without entering goal weight?',
         variant: 'warning',
         confirmText: 'Continue',
         cancelText: 'Cancel'
@@ -293,17 +295,24 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
         })),
       };
 
+      console.log('📤 [Template Submit] Payload:', payload);
+      console.log('📤 [Template Submit] IsEditMode:', isEditMode);
+      console.log('📤 [Template Submit] Template ID:', id);
+
       if (isEditMode) {
-        await api.put(`/kpi-templates/${id}`, payload);
+        console.log('📤 [Template Submit] PUT /templates/' + id);
+        await api.put(`/templates/${id}`, payload);
         toast.success('Template updated successfully!');
       } else {
-        await api.post('/kpi-templates', payload);
+        console.log('📤 [Template Submit] POST /templates');
+        await api.post('/templates', payload);
         toast.success('Template created successfully!');
       }
 
       navigate('/manager/kpi-templates');
     } catch (error: any) {
-      console.error('Error saving template:', error);
+      console.error('❌ [Template Submit] Error saving template:', error);
+      console.error('❌ [Template Submit] Error response:', error.response);
       toast.error(error.response?.data?.error || 'Failed to save template');
     } finally {
       setSaving(false);

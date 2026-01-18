@@ -64,6 +64,18 @@ export const getManagerRoutes = (
         }
       />
 
+      {/* KPI Setting from Template - MUST come before :employeeId route */}
+      <Route
+        path="/manager/kpi-setting/template/:templateId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPISetting />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* KPI Setting */}
       <Route
         path="/manager/kpi-setting/:employeeId"

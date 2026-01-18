@@ -115,13 +115,13 @@ const KPITemplateForm: React.FC = () => {
         setTextModal={setTextModal}
       />
 
-      {/* Goal Weight Summary - Only for Quantitative Items */}
+      {/* Goal Weight Summary - For All Items */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium text-gray-700">Total Goal Weight (Quantitative Items Only)</h3>
+            <h3 className="text-sm font-medium text-gray-700">Total Goal Weight (All Items)</h3>
             <p className="text-xs text-gray-500 mt-1">
-              {kpiItems.filter(item => !item.is_qualitative && item.title && item.description).length} quantitative items
+              {kpiItems.filter(item => !item.is_qualitative && item.title && item.description).length} quantitative + {kpiItems.filter(item => item.is_qualitative && item.title && item.description).length} qualitative items
             </p>
           </div>
           <div className={`text-2xl font-bold ${totalGoalWeight === 100 ? 'text-green-600' : totalGoalWeight === 0 ? 'text-gray-400' : 'text-orange-600'}`}>
@@ -130,12 +130,12 @@ const KPITemplateForm: React.FC = () => {
         </div>
         {totalGoalWeight > 0 && totalGoalWeight !== 100 && (
           <p className="text-sm text-orange-600 mt-2">
-            ⚠️ Goal weights should total 100% for quantitative items. Currently: {totalGoalWeight.toFixed(2)}%
+            ⚠️ Goal weights should total 100% for all items. Currently: {totalGoalWeight.toFixed(2)}%
           </p>
         )}
         {totalGoalWeight === 0 && (
           <p className="text-sm text-gray-500 mt-2">
-            💡 You can leave goal weights empty, or ensure they add up to 100% for quantitative items.
+            💡 You can leave goal weights empty, or ensure they add up to 100% for all items.
           </p>
         )}
       </div>

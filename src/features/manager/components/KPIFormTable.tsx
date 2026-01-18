@@ -428,9 +428,6 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
       <TextModal
         isOpen={textModal.isOpen}
         onClose={() => {
-          if (textModal.onChange && textModal.rowIndex !== undefined) {
-            textModal.onChange(textModal.value);
-          }
           setTextModal({ isOpen: false, title: '', value: '' });
         }}
         title={textModal.title}
