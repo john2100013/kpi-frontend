@@ -838,6 +838,7 @@ const ManagerKPIReview: React.FC = () => {
             <div className={isSelfRatingDisabled || calculationMethodName.includes('Actual vs Target') ? 'col-span-2' : ''}>
               {calculationMethodName.includes('Actual vs Target') ? (
                 // Actual vs Target: Sum of all Manager Rating % values (exclude items with exclude_from_calculation = 1)
+                // Updated: Prioritize manually entered managerRatingPercentages over auto-calculated values
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-1">Manager Final Rating Percentage</p>
                   <p className="text-4xl font-bold text-purple-600">
@@ -846,23 +847,32 @@ const ManagerKPIReview: React.FC = () => {
                       // Filter out items excluded from calculation
                       const includedItems = kpi?.items?.filter(item => !item.exclude_from_calculation || item.exclude_from_calculation === 0) || [];
                       includedItems.forEach(item => {
-                        const actualValue = actualValues[item.id];
-                        const targetValue = targetValues[item.id] || item.target_value;
-                        const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
-                        const targetValueNum = targetValue ? parseFloat(String(targetValue)) : 0;
-                        const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                        // ⭐ PRIORITY 1: Check if manager has manually entered a rating percentage
+                        const manualRatingPercentage = managerRatingPercentages[item.id];
                         
-                        if (actualValue && targetValueNum > 0 && goalWeightNum > 0) {
-                          const percentageObtained = (parseFloat(actualValue) / targetValueNum) * 100;
-                          const ratingPercentage = percentageObtained * goalWeightNum;
-                          totalRatingPercentage += ratingPercentage;
+                        if (manualRatingPercentage && parseFloat(manualRatingPercentage) > 0) {
+                          // Use manually entered Manager Rating % directly
+                          totalRatingPercentage += parseFloat(manualRatingPercentage);
+                        } else {
+                          // ⭐ PRIORITY 2: Auto-calculate from Actual/Target values
+                          const actualValue = actualValues[item.id];
+                          const targetValue = targetValues[item.id] || item.target_value;
+                          const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+                          const targetValueNum = targetValue ? parseFloat(String(targetValue)) : 0;
+                          const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                          
+                          if (actualValue && targetValueNum > 0 && goalWeightNum > 0) {
+                            const percentageObtained = (parseFloat(actualValue) / targetValueNum) * 100;
+                            const ratingPercentage = percentageObtained * goalWeightNum;
+                            totalRatingPercentage += ratingPercentage;
+                          }
                         }
                       });
                       return totalRatingPercentage > 0 ? `${totalRatingPercentage.toFixed(2)}%` : 'Not calculated';
                     })()}
                   </p>
                   <p className="text-xs text-gray-500 mt-2">
-                    Sum of (Actual/Target × 100) × Goal Weight for all items
+                    Sum of Manager Rating % values (auto-calculated or manually entered)
                   </p>
                 </div>
               ) : calculationMethodName.includes('Goal Weight') ? (
@@ -953,43 +963,46 @@ const ManagerKPIReview: React.FC = () => {
         </div>
       </div>
 
-      {/* Overall Manager Comments */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Manager Comments</h2>
-        <textarea
-          value={overallComment}
-          onChange={(e) => setOverallComment(e.target.value)}
-          placeholder="Provide your overall assessment of the employee's performance for this review period..."
-          rows={6}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-        />
-        <p className="text-xs text-gray-500 mt-2">
-          Summarize the employee's overall performance, highlighting strengths and areas for improvement.
-        </p>
-      </div>
+      {/* Overall Manager Comments & Signature Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Overall Manager Comments */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Manager Comments</h2>
+          <textarea
+            value={overallComment}
+            onChange={(e) => setOverallComment(e.target.value)}
+            placeholder="Provide your overall assessment of the employee's performance for this review period..."
+            rows={6}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            Summarize the employee's overall performance, highlighting strengths and areas for improvement.
+          </p>
+        </div>
 
-      {/* Signature Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="space-y-6">
-          <div>
-            <DatePicker
-              label="Review Date *"
-              value={reviewDate || undefined}
-              onChange={setReviewDate}
-              required
-            />
-          </div>
-          <div>
-            <SignatureField
-              label="Manager Digital Signature *"
-              value={managerSignature}
-              onChange={setManagerSignature}
-              required
-              placeholder="Click and drag to sign"
-            />
-            <p className="text-sm text-gray-600 mt-2">
-              By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
-            </p>
+        {/* Signature Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="space-y-6">
+            <div>
+              <DatePicker
+                label="Review Date *"
+                value={reviewDate || undefined}
+                onChange={setReviewDate}
+                required
+              />
+            </div>
+            <div>
+              <SignatureField
+                label="Manager Digital Signature *"
+                value={managerSignature}
+                onChange={setManagerSignature}
+                required
+                placeholder="Click and drag to sign"
+              />
+              <p className="text-sm text-gray-600 mt-2">
+                By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
+              </p>
+            </div>
           </div>
         </div>
       </div>
