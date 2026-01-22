@@ -63,17 +63,14 @@ export const useEmployeeReviews = () => {
         // 3. Awaiting Your Confirmation - review with status 'manager_submitted' or 'awaiting_employee_confirmation'
         
         if (kpi.status === 'acknowledged' && !review) {
-          console.log(`📋 [Review Pending] KPI ${kpi.id}: ${kpi.title}`);
           return true; // Review Pending
         }
         
         if (review && reviewStatus === 'pending') {
-          console.log(`✍️ [Self-Rating Required] KPI ${kpi.id}: ${kpi.title}`);
           return true; // Self-Rating Required
         }
         
         if (review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation')) {
-          console.log(`🔔 [Awaiting Confirmation] KPI ${kpi.id}: ${kpi.title}`);
           return true; // Awaiting Your Confirmation
         }
 

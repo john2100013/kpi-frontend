@@ -37,12 +37,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   // Debug logging
   useEffect(() => {
-    console.log('[Sidebar] 🔍 Component mounted/updated');
-    console.log('[Sidebar] 👤 User object:', user);
-    console.log('[Sidebar] 🎭 User role:', user?.role);
-    console.log('[Sidebar] 🎭 User role type:', typeof user?.role);
-    console.log('[Sidebar] 🚪 Sidebar isOpen:', isOpen);
-    console.log('[Sidebar] 📍 Current location:', location.pathname);
   }, [user, isOpen, location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
@@ -174,30 +168,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   ];
 
   const getNavItems = () => {
-    console.log('[Sidebar] 📋 getNavItems() called');
-    console.log('[Sidebar] 👤 User in getNavItems:', user);
-    console.log('[Sidebar] 🎭 role_id:', user?.role_id);
-    
     if (isSuperAdmin(user)) {
-      console.log('[Sidebar] ✅ Matched SUPER ADMIN');
       return superAdminNavItems;
     }
     if (isManager(user)) {
-      console.log('[Sidebar] ✅ Matched MANAGER');
       return managerNavItems;
     }
     if (isEmployee(user)) {
-      console.log('[Sidebar] ✅ Matched EMPLOYEE');
       return employeeNavItems;
     }
     if (isHR(user)) {
-      console.log('[Sidebar] ✅ Matched HR!');
-      console.log('[Sidebar] 📄 HR nav items count:', hrNavItems.length);
       return hrNavItems;
     }
     
-    console.log('[Sidebar] ❌ NO ROLE MATCHED!');
-    console.log('[Sidebar] 🔍 User object:', JSON.stringify(user));
     return [];
   };
 
@@ -239,7 +222,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </p>
               {(() => {
                 const navItems = getNavItems();
-                console.log('[Sidebar] 🗂️ Rendering nav items:', navItems.length, 'items');
                 return navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);

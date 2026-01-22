@@ -49,7 +49,6 @@ export const useEmployeeSelfRating = () => {
   const { getCalculationMethodName } = useCompanyFeatures(Number(kpiId));
 
   useEffect(() => {
-    console.log('🔄 [useEmployeeSelfRating] useEffect triggered with kpiId:', kpiId);
     if (kpiId) {
       fetchKPIDetails();
     } else {
@@ -59,7 +58,6 @@ export const useEmployeeSelfRating = () => {
 
   // Fetch rating options when KPI period is known
   useEffect(() => {
-    console.log('🔄 [useEmployeeSelfRating] KPI period useEffect triggered:', { hasPeriod: !!kpi?.period, period: kpi?.period });
     if (kpi && kpi.period) {
       fetchRatingOptions(kpi.period);
     }
@@ -72,15 +70,12 @@ export const useEmployeeSelfRating = () => {
     }
 
     try {
-      console.log('🔍 [useEmployeeSelfRating] fetchKPIDetails started for kpiId:', kpiId);
       setLoading(true);
       
       const url = `/kpis/${kpiId}`;
-      console.log('🔍 [useEmployeeSelfRating] Making API call to:', url);
       
       const response = await api.get(url);
       
-      console.log('✅ [useEmployeeSelfRating] Raw API response:', response.data);
       
       
       // FIXED: Handle nested response structure (response.data.data or response.data.kpi)
@@ -93,11 +88,9 @@ export const useEmployeeSelfRating = () => {
       }
       
       setKpi(data);
-      console.log('✅ [useEmployeeSelfRating] KPI state set successfully');
 
       // Fetch existing review data if status indicates employee has submitted
       if (data.status === 'employee_submitted' || data.status === 'manager_submitted' || data.status === 'completed') {
-        console.log('🔍 [useEmployeeSelfRating] Status indicates submitted - fetching review data');
         try {
           const reviewResponse = await api.get(`/kpi-review/kpi/${kpiId}`);
           const review = reviewResponse.data.review || reviewResponse.data;
@@ -109,7 +102,6 @@ export const useEmployeeSelfRating = () => {
             const ratingsResponse = await api.get(`/kpi-review/${review.id}/ratings`);
             const itemRatings = ratingsResponse.data.ratings || ratingsResponse.data.item_ratings || [];
             
-            console.log('✅ [useEmployeeSelfRating] Item ratings fetched:', itemRatings.length);
 
             const initialRatings: Record<number, number> = {};
             const initialComments: Record<number, string> = {};
@@ -134,7 +126,6 @@ export const useEmployeeSelfRating = () => {
             
             // Load accomplishments (now included in the review response)
             if (review.accomplishments && Array.isArray(review.accomplishments) && review.accomplishments.length > 0) {
-              console.log('📊 [useEmployeeSelfRating] Loading accomplishments from review:', review.accomplishments.length);
               setAccomplishments(review.accomplishments);
             }
           }
@@ -142,31 +133,22 @@ export const useEmployeeSelfRating = () => {
           console.warn('⚠️ [useEmployeeSelfRating] Could not fetch review data (may not exist yet):', reviewError.message);
           // It's okay if review doesn't exist yet - user might be doing first-time rating
         }
-      } else {
-        console.log('📊 [useEmployeeSelfRating] Status is draft/pending - no review data to load');
-      }
+      } 
       
-      console.log('✅ [useEmployeeSelfRating] All KPI data loaded successfully');
     } catch (error: any) {
     
       toast.error(error.response?.data?.error || 'Failed to load KPI details');
-      console.log('🔄 [useEmployeeSelfRating] Navigating back to dashboard');
       navigate('/employee/dashboard');
     } finally {
-      console.log('🏁 [useEmployeeSelfRating] fetchKPIDetails completed, setting loading to false');
       setLoading(false);
     }
   };
 
   const fetchRatingOptions = async (period?: string) => {
-    console.log('📋 [useEmployeeSelfRating] fetchRatingOptions started for period:', period);
     try {
       const response = await api.get('/rating-options');
       const allOptions = response.data?.rating_options || [];
       
-      console.log('📋 [useEmployeeSelfRating] Fetched rating options:', allOptions.length);
-      
-      // Filter numeric options based on KPI period (yearly or quarterly)
       const periodType = period || 'quarterly'; // Default to quarterly if not specified
       const numericOptions = allOptions.filter((opt: RatingOption) => 
         opt.rating_type === periodType
@@ -402,13 +384,10 @@ export const useEmployeeSelfRating = () => {
    
     
     if (maxRating === 0) {
-      console.error('❌ [employeeRatingPercentage] ERROR: maxRating is 0! Cannot calculate percentage.');
       return 0;
     }
     
     if (calculationMethodName.includes('Goal Weight')) {
-      // Goal Weight Calculation: Sum of (rating / max_rating * 100) × weight
-      console.log('⚖️ [Goal Weight Calculation] Starting calculation with maxRating:', maxRating);
       let totalWeightedScore = 0;
       
       // Calculate for items

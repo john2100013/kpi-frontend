@@ -80,22 +80,17 @@ const EmployeePerformance: React.FC = () => {
 
   const fetchPerformanceData = async () => {
     try {
-      console.log('🚀 [EmployeePerformance] Fetching performance data for employeeId:', employeeId);
       
       const response = await api.get(`/kpis/employee-performance/${employeeId}`);
-      console.log('📦 [EmployeePerformance] API Response:', response.data);
       
       const data = response.data.performance || response.data.data?.performance || [];
-      console.log('📊 [EmployeePerformance] Extracted performance data:', data);
       
       if (!Array.isArray(data)) {
-        console.error('❌ [EmployeePerformance] Performance data is not an array:', data);
         setPerformanceData([]);
         setLoading(false);
         return;
       }
       
-      console.log('✅ [EmployeePerformance] Found', data.length, 'performance records');
       
       // Ensure all rating values are numbers
       const normalizedData = data.map((period: any) => {
@@ -114,21 +109,10 @@ const EmployeePerformance: React.FC = () => {
           item_calculations: period.item_calculations || [],
         };
         
-        console.log('📋 [EmployeePerformance] Normalized period:', {
-          id: normalized.id,
-          period: normalized.period,
-          quarter: normalized.quarter,
-          year: normalized.year,
-          average_rating: normalized.average_rating,
-          final_rating: normalized.final_rating,
-          average_type: typeof normalized.average_rating,
-          final_type: typeof normalized.final_rating
-        });
         
         return normalized;
       });
       
-      console.log('✅ [EmployeePerformance] Normalized data:', normalizedData.length, 'records');
       setPerformanceData(normalizedData);
       
       if (normalizedData.length > 0) {
@@ -137,18 +121,10 @@ const EmployeePerformance: React.FC = () => {
           department: normalizedData[0].employee_department,
           payroll_number: normalizedData[0].employee_payroll_number,
         };
-        console.log('👤 [EmployeePerformance] Employee info:', empInfo);
         setEmployeeInfo(empInfo);
-      } else {
-        console.warn('⚠️ [EmployeePerformance] No performance data available');
-      }
+      } 
     } catch (error: any) {
       console.error('❌ [EmployeePerformance] Error fetching performance data:', error);
-      console.error('❌ [EmployeePerformance] Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
     } finally {
       setLoading(false);
     }

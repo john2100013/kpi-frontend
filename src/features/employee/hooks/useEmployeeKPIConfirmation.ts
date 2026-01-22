@@ -39,14 +39,10 @@ export const useEmployeeKPIConfirmation = () => {
     try {
       setLoading(true);
       const reviewData = await employeeService.fetchReviewById(parseInt(reviewId!));
-      console.log('📥 [useEmployeeKPIConfirmation] fetched reviewData:', reviewData);
-      setReview(reviewData);
 
       // Fetch the full KPI details with items
       if (reviewData?.kpi_id) {
         const kpiData = await employeeService.fetchKPIById(reviewData.kpi_id);
-        console.log('📥 [useEmployeeKPIConfirmation] fetched kpiData:', kpiData);
-        console.log('✅ Using items from kpiData:', kpiData);
         setKpi(kpiData);
       }
     } catch (error: any) {
@@ -67,16 +63,8 @@ export const useEmployeeKPIConfirmation = () => {
   };
 
   const handleSubmit = async () => {
-    console.log('🚀 [handleSubmit] START', {
-      action,
-      rejectionNote,
-      signature,
-      reviewId,
-      hasReviewId: !!reviewId
-    });
     
     const validation = validateConfirmation(action, rejectionNote, signature);
-    console.log('✅ [handleSubmit] Validation result:', validation);
     
     if (!validation.valid) {
       console.error('❌ [handleSubmit] Validation FAILED:', validation.error);
@@ -84,7 +72,6 @@ export const useEmployeeKPIConfirmation = () => {
       return;
     }
 
-    console.log('📤 [handleSubmit] Setting submitting to true...');
     setSubmitting(true);
     setError('');
 
@@ -124,12 +111,6 @@ export const useEmployeeKPIConfirmation = () => {
   const parsedRatings = review ? parseItemRatingsFromReview(review) : null;
   const ratingSummary = review ? calculateRatingSummary(review, kpi) : null;
 
-  // Log parsed ratings and review for debugging
-  useEffect(() => {
-    if (review) {
-      console.log('🔍 [useEmployeeKPIConfirmation] review object:', review);
-    }
-  }, [review, parsedRatings, ratingSummary]);
 
   return {
     reviewId,

@@ -88,14 +88,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
   const currentUser = user || contextUser;
   const loading = isLoading || contextLoading;
 
-  console.log('[ProtectedRoute] 🛡️ Route protection check:', {
-    path: window.location.pathname,
-    userRoleId: currentUser?.role_id,
-    allowedRoles,
-    hasUser: !!currentUser,
-    isLoading: loading
-  });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -105,16 +97,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
   }
 
   if (!currentUser) {
-    console.log('[ProtectedRoute] ❌ No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role_id)) {
-    console.log('[ProtectedRoute] 🚫 Role check failed:', {
-      userRoleId: currentUser.role_id,
-      allowedRoles,
-      currentPath: window.location.pathname
-    });
     // Redirect to user's appropriate dashboard instead of causing a loop
     let redirectPath = '/login';
     if (isSuperAdmin(currentUser)) {
@@ -126,7 +112,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
     } else if (isEmployee(currentUser)) {
       redirectPath = '/employee/dashboard';
     }
-    console.log('[ProtectedRoute] ➡️ Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 
@@ -155,60 +140,31 @@ function AppRoutes() {
 
   // Log location changes for debugging
   useEffect(() => {
-    console.log('🗺️ [AppRoutes] Location changed:', {
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash,
-      state: location.state,
-      timestamp: new Date().toISOString()
-    });
   }, [location]);
 
   // Sync Redux user to AuthContext whenever it changes
   useEffect(() => {
-    console.log('[AppRoutes] Syncing Redux user to AuthContext:', user);
     setAuthContextUser(user);
   }, [user, setAuthContextUser]);
 
   // Root route handler - redirect based on auth state
   const RootRedirect = () => {
-    console.log('🔀 [RootRedirect] Triggered!');
-    console.log('👤 [RootRedirect] Current user:', user);
-    console.log('📍 [RootRedirect] Current location:', window.location.href);
-    console.log('🛤️ [RootRedirect] Current pathname:', window.location.pathname);
-    
     if (!user) {
-      console.log('❌ [RootRedirect] No user, redirecting to /login');
       return <Navigate to="/login" replace />;
     }
     
     // User is logged in, redirect to their dashboard
-    console.log('✅ [RootRedirect] User logged in, determining dashboard...');
-    console.log('🔍 [RootRedirect] User roles:', {
-      isSuperAdmin: isSuperAdmin(user),
-      isManager: isManager(user),
-      isHR: isHR(user),
-      isEmployee: isEmployee(user),
-      userRole: user.role,
-      userRoleId: user.role_id
-    });
-    
     if (isSuperAdmin(user)) {
-      console.log('👨‍💼 [RootRedirect] Redirecting to Super Admin dashboard');
       return <Navigate to="/super-admin/dashboard" replace />;
     } else if (isManager(user)) {
-      console.log('👔 [RootRedirect] Redirecting to Manager dashboard');
       return <Navigate to="/manager/dashboard" replace />;
     } else if (isHR(user)) {
-      console.log('👥 [RootRedirect] Redirecting to HR dashboard');
       return <Navigate to="/hr/dashboard" replace />;
     } else if (isEmployee(user)) {
-      console.log('👤 [RootRedirect] Redirecting to Employee dashboard');
       return <Navigate to="/employee/dashboard" replace />;
     }
     
     // Fallback - should never happen but prevents loops
-    console.warn('⚠️ [RootRedirect] Fallback redirect to /login (unexpected)');
     return <Navigate to="/login" replace />;
   };
 
