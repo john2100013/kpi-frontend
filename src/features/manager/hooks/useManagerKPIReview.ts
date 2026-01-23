@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 import type { KPI, KPIReview, Accomplishment } from '../../../types';
 import {
   parseEmployeeData,
@@ -143,6 +144,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     title: '',
     value: '',
   });
+
+  // Get calculation method from department features
+  const { getCalculationMethodName } = useCompanyFeatures(kpi?.id);
 
   useEffect(() => {
  
@@ -556,17 +560,28 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       return;
     }
 
-    // Validate all accomplishments have manager ratings
-    if (accomplishments && accomplishments.length > 0) {
-      const unratedAccomplishments = accomplishments.some(acc => {
-        const isUnrated = acc.manager_rating === null || 
-          acc.manager_rating === undefined;
-        return isUnrated;
-      });
-      
-      if (unratedAccomplishments) {
-        toast.error('Please provide ratings for all major accomplishments');
-        return;
+    // Check if Performance Reflection should be hidden (Quarterly + Goal Weight + Self Rating Enabled)
+    const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+    const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+    const shouldHidePerformanceReflection = 
+      kpiPeriod === 'quarterly' && 
+      calculationMethodName.includes('Goal Weight');
+
+    // Only validate accomplishments if Performance Reflection section is visible
+    if (!shouldHidePerformanceReflection) {
+      // Validate all accomplishments have manager ratings
+      if (accomplishments && accomplishments.length > 0) {
+        const unratedAccomplishments = accomplishments.some(acc => {
+          const isUnrated = acc.manager_rating === null || 
+            acc.manager_rating === undefined;
+          return isUnrated;
+        });
+        
+        if (unratedAccomplishments) {
+          toast.error('Please provide ratings for all major accomplishments');
+          return;
+        }
+        console.log('✅ All accomplishments validated');
       }
 
     }

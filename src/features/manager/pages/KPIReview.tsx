@@ -75,6 +75,11 @@ const ManagerKPIReview: React.FC = () => {
   // Get calculation method name based on KPI period
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
 
+  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  const shouldHidePerformanceReflection = 
+    kpiPeriod === 'quarterly' && 
+    calculationMethodName.includes('Goal Weight') && 
+    !isSelfRatingDisabled;
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -242,33 +247,33 @@ const ManagerKPIReview: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: isSelfRatingDisabled ? '2200px' : '2400px' }}>
             <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>KPI TITLE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '250px' }}>KPI DESCRIPTION</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>TARGET VALUE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
+              <tr className="border-b-2 border-gray-400">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>KPI TITLE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '250px' }}>KPI DESCRIPTION</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>TARGET VALUE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
                 {/* Percentage Value Obtained - Only for Actual vs Target */}
                 {calculationMethodName.includes('Actual vs Target') && (
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>PERCENTAGE VALUE OBTAINED</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>PERCENTAGE VALUE OBTAINED</th>
                 )}
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
                 {/* Goal Weight - Show for all methods but emphasize when needed */}
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '120px' }}>
                   GOAL WEIGHT{(calculationMethodName.includes('Goal Weight') || calculationMethodName.includes('Actual vs Target')) && <span className="text-red-600">*</span>}
                 </th>
                 {/* Employee Self Rating - Only when enabled */}
                 {!isSelfRatingDisabled && (
                   <>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EMPLOYEE SELF RATING</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>EMPLOYEE COMMENT</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>EMPLOYEE SELF RATING</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>EMPLOYEE COMMENT</th>
                   </>
                 )}
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>MANAGER RATING</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>MANAGER RATING</th>
                 {/* Manager Rating % - Only for Actual vs Target and Goal Weight */}
                 {(calculationMethodName.includes('Actual vs Target') || calculationMethodName.includes('Goal Weight')) && (
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>MANAGER RATING %</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>MANAGER RATING %</th>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>MANAGER COMMENT</th>
               </tr>
@@ -333,7 +338,19 @@ const ManagerKPIReview: React.FC = () => {
                             onClick={() => setTextModal({ isOpen: true, title: 'KPI Title', value: item.title || 'N/A' })}
                             className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors"
                           >
-                            <p className="truncate max-w-[200px]" title={item.title}>{item.title}</p>
+                            <p 
+                              className="line-clamp-2 max-w-[200px]" 
+                              title={item.title}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                minHeight: '2.5rem'
+                              }}
+                            >
+                              {item.title}
+                            </p>
                           </button>
                           <p className="text-xs text-gray-500">KPI-{review.review_quarter}-{String(index + 1).padStart(3, '0')}</p>
                         </div>
@@ -344,7 +361,19 @@ const ManagerKPIReview: React.FC = () => {
                           onClick={() => setTextModal({ isOpen: true, title: 'KPI Description', value: item.description || 'N/A' })}
                           className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
                         >
-                          <p className="truncate max-w-[250px]" title={item.description || 'N/A'}>{item.description || 'N/A'}</p>
+                          <p 
+                            className="line-clamp-2 max-w-[250px]" 
+                            title={item.description || 'N/A'}
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              minHeight: '2.5rem'
+                            }}
+                          >
+                            {item.description || 'N/A'}
+                          </p>
                         </button>
                       </td>
                       {/* Current Performance Status */}
@@ -703,7 +732,8 @@ const ManagerKPIReview: React.FC = () => {
       </div>
 
       {/* Employee Accomplishments & Disappointments - Hide when self-rating is disabled */}
-      {!isSelfRatingDisabled && (
+      {/* Also hide when Quarterly + Goal Weight + Self Rating Enabled */}
+      {!isSelfRatingDisabled && !shouldHidePerformanceReflection && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
         
@@ -727,48 +757,72 @@ const ManagerKPIReview: React.FC = () => {
 
           {/* Disappointments */}
           {review.disappointments && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Challenges & Disappointments</h3>
-              <div className="bg-orange-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Challenges & Disappointments</h3>
               </div>
-              
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Guidance</h3>
-              <textarea
-                value={disappointmentsManagerComment}
-                onChange={(e) => setDisappointmentsManagerComment(e.target.value)}
-                placeholder="Provide guidance on addressing challenges..."
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Response</p>
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Guidance</p>
+                    <textarea
+                      value={disappointmentsManagerComment}
+                      onChange={(e) => setDisappointmentsManagerComment(e.target.value)}
+                      placeholder="Provide guidance on addressing challenges..."
+                      rows={5}
+                      className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Improvement Needed */}
           {review.improvement_needed && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Suggestions for Organizational Improvement</h3>
-              <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.improvement_needed}</p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Suggestions for Organizational Improvement</h3>
               </div>
-              
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Response</h3>
-              <textarea
-                value={improvementNeededManagerComment}
-                onChange={(e) => setImprovementNeededManagerComment(e.target.value)}
-                placeholder="Acknowledge employee's suggestions and provide response..."
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Suggestions</p>
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.improvement_needed}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Response</p>
+                    <textarea
+                      value={improvementNeededManagerComment}
+                      onChange={(e) => setImprovementNeededManagerComment(e.target.value)}
+                      placeholder="Acknowledge employee's suggestions and provide response..."
+                      rows={5}
+                      className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Future Plan */}
           {review.future_plan && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Future Plans & Goals</h3>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Future Plans & Goals</h3>
+              </div>
+              <div className="p-5">
+                <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
+                </div>
               </div>
             </div>
           )}
@@ -946,53 +1000,99 @@ const ManagerKPIReview: React.FC = () => {
       {/* Overall Manager Comments & Signature Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Overall Manager Comments */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Manager Comments</h2>
-          <textarea
-            value={overallComment}
-            onChange={(e) => setOverallComment(e.target.value)}
-            placeholder="Provide your overall assessment of the employee's performance for this review period..."
-            rows={6}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            Summarize the employee's overall performance, highlighting strengths and areas for improvement.
-          </p>
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Overall Manager Comments</h2>
+              <p className="text-sm text-gray-600">Summary of performance evaluation</p>
+            </div>
+          </div>
+          <div className="relative">
+            <textarea
+              value={overallComment}
+              onChange={(e) => setOverallComment(e.target.value)}
+              placeholder="Provide your overall assessment of the employee's performance for this review period..."
+              rows={6}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 resize-none shadow-sm hover:border-gray-400"
+            />
+            <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+              {overallComment.length} characters
+            </div>
+          </div>
+          <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-xs text-purple-800 leading-relaxed">
+              <strong>💡 Tip:</strong> Summarize the employee's overall performance, highlighting key strengths and areas for improvement. Be specific and constructive.
+            </p>
+          </div>
         </div>
 
         {/* Signature Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="space-y-6">
+        <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <div>
+              <h2 className="text-xl font-bold text-gray-900">Review Completion</h2>
+              <p className="text-sm text-gray-600">Date and signature</p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="relative">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Review Date <span className="text-red-500">*</span>
+              </label>
               <DatePicker
-                label="Review Date *"
+                label=""
                 value={reviewDate || undefined}
                 onChange={setReviewDate}
                 required
               />
+              <p className="text-xs text-gray-500 mt-2">Select the date of this performance review</p>
             </div>
-            <div>
-              <SignatureField
-                label="Manager Digital Signature *"
-                value={managerSignature}
-                onChange={setManagerSignature}
-                required
-                placeholder="Click and drag to sign"
-              />
-              <p className="text-sm text-gray-600 mt-2">
-                By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
-              </p>
+            
+            <div className="pt-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Manager Digital Signature <span className="text-red-500">*</span>
+              </label>
+              <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-1 hover:border-blue-400 transition-colors duration-200">
+                <SignatureField
+                  label=""
+                  value={managerSignature}
+                  onChange={setManagerSignature}
+                  required
+                  placeholder="Click and drag to sign"
+                />
+              </div>
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs text-blue-800 leading-relaxed">
+                    <strong>Confirmation:</strong> By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
         <Button
           onClick={handleBack}
           variant="ghost"
           icon={FiArrowLeft}
+          className="hover:bg-gray-100"
         >
           Back
         </Button>
@@ -1001,6 +1101,7 @@ const ManagerKPIReview: React.FC = () => {
             onClick={handleSaveDraft}
             variant="outline"
             icon={FiSave}
+            className="border-2 hover:bg-gray-50"
           >
             Save as Draft
           </Button>
@@ -1010,6 +1111,7 @@ const ManagerKPIReview: React.FC = () => {
             variant="primary"
             icon={FiSend}
             loading={saving}
+            className="shadow-lg hover:shadow-xl transition-shadow duration-200"
           >
             Submit Review
           </Button>

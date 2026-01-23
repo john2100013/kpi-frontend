@@ -26,6 +26,7 @@ interface AddUserModalProps {
 interface FormData {
   name: string;
   email: string;
+  phone_number: string;
   payroll_number: string;
   national_id: string;
   position: string;
@@ -42,6 +43,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
+    phone_number: '',
     payroll_number: '',
     national_id: '',
     position: '',
@@ -181,6 +183,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
         company_id: companyId,
         name: formData.name.trim(),
         email: formData.email.trim(),
+        phone_number: formData.phone_number.trim() || null,
         payroll_number: formData.payroll_number.trim(),
         national_id: formData.national_id.trim() || null,
         position: formData.position.trim() || null,
@@ -203,6 +206,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
       setFormData({
         name: '',
         email: '',
+        phone_number: '',
         payroll_number: '',
         national_id: '',
         position: '',
@@ -230,6 +234,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
       setFormData({
         name: '',
         email: '',
+        phone_number: '',
         payroll_number: '',
         national_id: '',
         position: '',
@@ -319,6 +324,24 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
                       disabled={loading}
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="0712345678 or +254712345678"
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Format: 0712345678 or +254712345678 (for SMS notifications)
+                    </p>
                   </div>
 
                   <div>

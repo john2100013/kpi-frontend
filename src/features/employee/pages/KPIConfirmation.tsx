@@ -63,6 +63,13 @@ const KPIConfirmation: React.FC = () => {
   // 2. AND calculation method is NOT Actual vs Target (!isActualValueMethod = true)
   const shouldShowEmployeeColumns = !isSelfRatingDisabled && !isActualValueMethod;
 
+  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  const reviewPeriodNormalized = reviewPeriod?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+  const shouldHidePerformanceReflection = 
+    reviewPeriodNormalized === 'quarterly' && 
+    calculationMethodName.includes('Goal Weight') && 
+    !isSelfRatingDisabled;
+
   
 
   // Fetch ratings data with actual values and percentages
@@ -242,39 +249,39 @@ const KPIConfirmation: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: isActualValueMethod ? '2200px' : '1800px' }}>
             <thead className="bg-gray-50">
-              <tr>
+              <tr className="border-b-2 border-gray-400">
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase sticky left-0 bg-gray-50 z-10"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase sticky left-0 bg-gray-50 z-10 border-r border-gray-300"
                   style={{ minWidth: '50px' }}
                 >
                   #
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                   style={{ minWidth: '200px' }}
                 >
                   KPI TITLE
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                   style={{ minWidth: '250px' }}
                 >
                   DESCRIPTION
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                   style={{ minWidth: '150px' }}
                 >
                   TARGET VALUE
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                   style={{ minWidth: '120px' }}
                 >
                   MEASURE UNIT
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                   style={{ minWidth: '120px' }}
                 >
                   GOAL WEIGHT
@@ -283,25 +290,25 @@ const KPIConfirmation: React.FC = () => {
                 {isActualValueMethod && (
                   <>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '150px' }}
                     >
                       ACTUAL VALUE
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '180px' }}
                     >
                       CURRENT PERFORMANCE STATUS
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '150px' }}
                     >
                       PERCENTAGE OBTAINED
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '150px' }}
                     >
                       MANAGER RATING %
@@ -312,13 +319,13 @@ const KPIConfirmation: React.FC = () => {
                 {shouldShowEmployeeColumns && (
                   <>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '150px' }}
                     >
                       EMPLOYEE RATING
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                       style={{ minWidth: '200px' }}
                     >
                       EMPLOYEE COMMENT
@@ -328,7 +335,7 @@ const KPIConfirmation: React.FC = () => {
                 {/* Manager Rating - shown for all methods except Actual vs Target */}
                 {!isActualValueMethod && (
                   <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
                     style={{ minWidth: '150px' }}
                   >
                     MANAGER RATING
@@ -355,21 +362,31 @@ const KPIConfirmation: React.FC = () => {
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 sticky left-0 bg-white z-10">
+                      <td className="px-4 py-4 sticky left-0 bg-white z-10 border-r border-gray-200">
                         <span className="font-semibold text-gray-900">{index + 1}</span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 border-r border-gray-200">
                         <Button
                           onClick={() => openTextModal('KPI Title', item.title || 'N/A')}
                           variant="link"
                           className="text-left font-semibold"
                         >
-                          <p className="truncate max-w-[200px]" title={item.title}>
+                          <p 
+                            className="line-clamp-2 max-w-[200px]" 
+                            title={item.title}
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              minHeight: '2.5rem'
+                            }}
+                          >
                             {item.title}
                           </p>
                         </Button>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 border-r border-gray-200">
                         <Button
                           onClick={() =>
                             openTextModal('Description', item.description || 'N/A')
@@ -378,33 +395,40 @@ const KPIConfirmation: React.FC = () => {
                           className="text-left"
                         >
                           <p
-                            className="truncate max-w-[250px]"
+                            className="line-clamp-2 max-w-[250px]"
                             title={item.description || 'N/A'}
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              minHeight: '2.5rem'
+                            }}
                           >
                             {item.description || 'N/A'}
                           </p>
                         </Button>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 border-r border-gray-200">
                         <p className="text-sm text-gray-900">{item.target_value || 'N/A'}</p>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 border-r border-gray-200">
                         <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-sm">
                           {item.measure_unit || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 border-r border-gray-200">
                         <p className="text-sm text-gray-700">{item.goal_weight || 'N/A'}</p>
                       </td>
                       {/* Actual vs Target columns */}
                       {isActualValueMethod && (
                         <>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             <p className="text-sm font-semibold text-blue-600">
                               {actualValues[item.id] || 'N/A'}
                             </p>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             <Button
                               onClick={() =>
                                 openTextModal(
@@ -423,14 +447,14 @@ const KPIConfirmation: React.FC = () => {
                               </p>
                             </Button>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             <span className="text-sm font-semibold text-green-600">
                               {typeof percentageValuesObtained[item.id] === 'number' 
                                 ? percentageValuesObtained[item.id].toFixed(2) 
                                 : '0.00'}%
                             </span>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             <span className="text-sm font-semibold text-yellow-600">
                               {typeof managerRatingPercentages[item.id] === 'number'
                                 ? managerRatingPercentages[item.id].toFixed(2)
@@ -442,7 +466,7 @@ const KPIConfirmation: React.FC = () => {
                       {/* Employee Rating columns - only if enabled AND NOT using Actual vs Target */}
                       {shouldShowEmployeeColumns && (
                         <>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
                                 <span className="text-sm font-semibold text-purple-600">
@@ -457,7 +481,7 @@ const KPIConfirmation: React.FC = () => {
                               </p>
                             </div>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 border-r border-gray-200">
                             {empComment ? (
                               <Button
                                 onClick={() => openTextModal('Employee Comment', empComment)}
@@ -478,7 +502,7 @@ const KPIConfirmation: React.FC = () => {
                       )}
                       {/* Manager Rating - for Normal/Goal Weight methods */}
                       {!isActualValueMethod && (
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-gray-200">
                           <div className="space-y-1">
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-semibold text-yellow-600">
@@ -587,7 +611,8 @@ const KPIConfirmation: React.FC = () => {
       </div>
 
       {/* Employee Performance Reflection Section - Show only if self-rating was enabled AND NOT using Actual vs Target calculation */}
-      {shouldShowEmployeeColumns && (
+      {/* Also hide when Quarterly + Goal Weight + Self Rating Enabled */}
+      {shouldShowEmployeeColumns && !shouldHidePerformanceReflection && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
           
@@ -598,27 +623,27 @@ const KPIConfirmation: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Title</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Description</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee Rating</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee Comment</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Manager Rating</th>
+                    <tr className="border-b-2 border-gray-400">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">#</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">Title</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">Description</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">Employee Rating</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">Employee Comment</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">Manager Rating</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Manager Comment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {(review as any).accomplishments.map((acc: any, index: number) => (
                       <tr key={acc.id || index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{acc.title || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{acc.description || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-purple-600">
+                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{index + 1}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">{acc.title || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">{acc.description || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-purple-600 border-r border-gray-200">
                           {acc.employee_rating ? parseFloat(acc.employee_rating).toFixed(2) : 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{acc.employee_comment || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-yellow-600">
+                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">{acc.employee_comment || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-yellow-600 border-r border-gray-200">
                           {acc.manager_rating ? parseFloat(acc.manager_rating).toFixed(2) : 'Not rated'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">{acc.manager_comment || 'N/A'}</td>
@@ -639,41 +664,73 @@ const KPIConfirmation: React.FC = () => {
           {/* Disappointments */}
           {(review as any).disappointments && (
             <div className="mb-6">
-              <h3 className="text-md font-semibold text-gray-900 mb-2">Challenges & Disappointments</h3>
-              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mb-2">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).disappointments}</p>
-              </div>
-              {(review as any).disappointments_comment && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm font-medium text-yellow-900">Manager's Guidance:</p>
-                  <p className="text-sm text-yellow-700 mt-1">{(review as any).disappointments_comment}</p>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                  <h3 className="text-md font-semibold text-gray-900">Challenges & Disappointments</h3>
                 </div>
-              )}
+                <div className="p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Response</p>
+                      <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).disappointments}</p>
+                      </div>
+                    </div>
+                    {(review as any).disappointments_comment && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Guidance</p>
+                        <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).disappointments_comment}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Improvement Needed */}
           {(review as any).improvement_needed && (
             <div className="mb-6">
-              <h3 className="text-md font-semibold text-gray-900 mb-2">Suggestions for Organizational Improvement</h3>
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-2">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).improvement_needed}</p>
-              </div>
-              {(review as any).improvement_needed_manager_comment && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm font-medium text-yellow-900">Manager's Response:</p>
-                  <p className="text-sm text-yellow-700 mt-1">{(review as any).improvement_needed_manager_comment}</p>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                  <h3 className="text-md font-semibold text-gray-900">Suggestions for Organizational Improvement</h3>
                 </div>
-              )}
+                <div className="p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Suggestions</p>
+                      <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).improvement_needed}</p>
+                      </div>
+                    </div>
+                    {(review as any).improvement_needed_manager_comment && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Response</p>
+                        <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).improvement_needed_manager_comment}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Future Plan */}
           {(review as any).future_plan && (
             <div>
-              <h3 className="text-md font-semibold text-gray-900 mb-2">Future Plans & Goals</h3>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).future_plan}</p>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                  <h3 className="text-md font-semibold text-gray-900">Future Plans & Goals</h3>
+                </div>
+                <div className="p-5">
+                  <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{(review as any).future_plan}</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -9,6 +9,7 @@ import Header from './components/Header';
 
 // Auth Pages
 import { Login } from './features/auth';
+import ForgotPassword from './features/auth/pages/ForgotPassword';
 
 // Manager Pages
 import {
@@ -74,6 +75,7 @@ import {
   DepartmentManagement,
   DepartmentCalculationSettings,
   AssignManagerDepartments,
+  SMSConfiguration,
 } from './features/superadmin';
 
 // Protected Route Component (Using Redux)
@@ -171,6 +173,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/select-company" element={<CompanySelection />} />
       
       {/* Super Admin Routes */}
@@ -240,6 +243,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <DepartmentCalculationSettings />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/sms-configuration"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.SUPER_ADMIN]}>
+            <Layout>
+              <SMSConfiguration />
             </Layout>
           </ProtectedRoute>
         }
