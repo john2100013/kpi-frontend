@@ -24,12 +24,8 @@ const KPIAcknowledgement: React.FC = () => {
     value: '',
   });
 
-  console.log('📄 [KPIAcknowledgement] Component mounted/rendered');
-  console.log('📄 [KPIAcknowledgement] kpiId from URL params:', kpiId);
-  console.log('📄 [KPIAcknowledgement] Current state:', { loading, kpiExists: !!kpi, kpiId: kpi?.id });
 
   useEffect(() => {
-    console.log('🔄 [KPIAcknowledgement] useEffect triggered with kpiId:', kpiId);
     if (kpiId) {
       fetchKPI();
     } else {
@@ -45,34 +41,16 @@ const KPIAcknowledgement: React.FC = () => {
       
       const response = await api.get(url);
       
-      console.log('✅ [KPIAcknowledgement] Raw API response:', response.data);
-      console.log('✅ [KPIAcknowledgement] Response structure:', {
-        success: response.data.success,
-        hasKpi: !!response.data.kpi,
-        hasData: !!response.data.data,
-        dataKeys: Object.keys(response.data)
-      });
-      
+     
       // Check if data is in response.data.data (nested) or response.data.kpi
       const kpiData = response.data.data || response.data.kpi || response.data;
       
-      console.log('✅ [KPIAcknowledgement] Extracted KPI data:', {
-        id: kpiData.id,
-        title: kpiData.title,
-        status: kpiData.status,
-        employee_id: kpiData.employee_id,
-        itemsCount: kpiData.items?.length
-      });
+   
       
       setKpi(kpiData);
       console.log('✅ [KPIAcknowledgement] KPI state set successfully');
     } catch (error: any) {
-      console.error('❌ [KPIAcknowledgement] Error fetching KPI:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url
-      });
+    
       toast.error(error.response?.data?.error || 'Failed to load KPI');
     } finally {
       console.log('🏁 [KPIAcknowledgement] fetchKPI completed, setting loading to false');
@@ -81,16 +59,9 @@ const KPIAcknowledgement: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    console.log('🚀 [KPIAcknowledgement] handleSubmit started');
-    console.log('🚀 [KPIAcknowledgement] Submission data:', {
-      kpiId,
-      hasSignature: !!employeeSignature,
-      signatureLength: employeeSignature?.length,
-      acknowledgementDate
-    });
+   
 
     if (!employeeSignature) {
-      console.log('❌ [KPIAcknowledgement] Validation failed: No signature');
       toast.error('Please provide your digital signature');
       return;
     }
@@ -99,10 +70,7 @@ const KPIAcknowledgement: React.FC = () => {
     try {
       // CORRECT ENDPOINT: /kpis/:kpiId/acknowledge (not /kpi-acknowledgement/:kpiId)
       const url = `/kpis/${kpiId}/acknowledge`;
-      console.log('📤 [KPIAcknowledgement] Sending POST request to:', url);
-      console.log('📤 [KPIAcknowledgement] Request payload:', {
-        employee_signature: employeeSignature.substring(0, 50) + '...'
-      });
+      
 
       const response = await api.post(url, {
         employee_signature: employeeSignature,
@@ -114,13 +82,7 @@ const KPIAcknowledgement: React.FC = () => {
       console.log('🔄 [KPIAcknowledgement] Navigating to employee dashboard');
       navigate('/employee/dashboard');
     } catch (error: any) {
-      console.error('❌ [KPIAcknowledgement] Submission error:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: error.config?.url
-      });
+      
       toast.error(error.response?.data?.error || 'Failed to acknowledge KPI');
     } finally {
       console.log('🏁 [KPIAcknowledgement] handleSubmit completed, setting submitting to false');
@@ -136,7 +98,6 @@ const KPIAcknowledgement: React.FC = () => {
   }
   
   if (!kpi) {
-    console.log('❌ [KPIAcknowledgement] No KPI data - showing error state');
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -152,7 +113,6 @@ const KPIAcknowledgement: React.FC = () => {
     );
   }
   
-  console.log('✅ [KPIAcknowledgement] Rendering main content for KPI:', kpi.id);
 
   return (
     <div className="space-y-6">
@@ -197,13 +157,13 @@ const KPIAcknowledgement: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: '1600px' }}>
             <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '50px' }}>#</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>KPI TITLE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '250px' }}>DESCRIPTION</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>TARGET VALUE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
+              <tr className="border-b-2 border-gray-400">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '50px' }}>#</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>KPI TITLE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '250px' }}>DESCRIPTION</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>TARGET VALUE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>GOAL WEIGHT</th>
               </tr>
             </thead>
@@ -211,28 +171,52 @@ const KPIAcknowledgement: React.FC = () => {
               {kpi.items && kpi.items.length > 0 ? (
                 kpi.items.map((item, index) => (
                   <tr key={item.id}>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <span className="font-semibold text-gray-900">{index + 1}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <Button
                         onClick={() => setTextModal({ isOpen: true, title: 'KPI Title', value: item.title || 'N/A' })}
                         variant="link"
                         className="text-left font-semibold"
                       >
-                        <p className="truncate max-w-[200px]" title={item.title}>{item.title}</p>
+                        <p 
+                          className="line-clamp-2 max-w-[200px]" 
+                          title={item.title}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            minHeight: '2.5rem'
+                          }}
+                        >
+                          {item.title}
+                        </p>
                       </Button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <Button
                         onClick={() => setTextModal({ isOpen: true, title: 'KPI Description', value: item.description || 'N/A' })}
                         variant="link"
                         className="text-left"
                       >
-                        <p className="truncate max-w-[250px]" title={item.description || 'N/A'}>{item.description || 'N/A'}</p>
+                        <p 
+                          className="line-clamp-2 max-w-[250px]" 
+                          title={item.description || 'N/A'}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            minHeight: '2.5rem'
+                          }}
+                        >
+                          {item.description || 'N/A'}
+                        </p>
                       </Button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <Button
                         onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A' })}
                         variant="link"
@@ -241,10 +225,10 @@ const KPIAcknowledgement: React.FC = () => {
                         <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>{item.target_value || 'N/A'}</p>
                       </Button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <p className="text-sm text-gray-700 whitespace-nowrap">{item.measure_unit || 'N/A'}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-200">
                       <p className="text-sm text-gray-700 whitespace-nowrap">
                         {item.expected_completion_date 
                           ? new Date(item.expected_completion_date).toLocaleDateString() 
@@ -259,28 +243,52 @@ const KPIAcknowledgement: React.FC = () => {
               ) : (
                 // Fallback for legacy single KPI format
                 <tr>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <span className="font-semibold text-gray-900">1</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <Button
                       onClick={() => setTextModal({ isOpen: true, title: 'KPI Title', value: kpi.title || 'N/A' })}
                       variant="link"
                       className="text-left font-semibold"
                     >
-                      <p className="truncate max-w-[200px]" title={kpi.title}>{kpi.title}</p>
+                      <p 
+                        className="line-clamp-2 max-w-[200px]" 
+                        title={kpi.title}
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          minHeight: '2.5rem'
+                        }}
+                      >
+                        {kpi.title}
+                      </p>
                     </Button>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <Button
                       onClick={() => setTextModal({ isOpen: true, title: 'KPI Description', value: kpi.description || 'N/A' })}
                       variant="link"
                       className="text-left"
                     >
-                      <p className="truncate max-w-[250px]" title={kpi.description || 'N/A'}>{kpi.description || 'N/A'}</p>
+                      <p 
+                        className="line-clamp-2 max-w-[250px]" 
+                        title={kpi.description || 'N/A'}
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          minHeight: '2.5rem'
+                        }}
+                      >
+                        {kpi.description || 'N/A'}
+                      </p>
                     </Button>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <Button
                       onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: kpi.target_value || 'N/A' })}
                       variant="link"
@@ -289,10 +297,10 @@ const KPIAcknowledgement: React.FC = () => {
                       <p className="truncate max-w-[150px]" title={kpi.target_value || 'N/A'}>{kpi.target_value || 'N/A'}</p>
                     </Button>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <p className="text-sm text-gray-700 whitespace-nowrap">{kpi.measure_unit || 'N/A'}</p>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r border-gray-200">
                     <p className="text-sm text-gray-700 whitespace-nowrap">N/A</p>
                   </td>
                   <td className="px-6 py-4">
@@ -357,9 +365,6 @@ const KPIAcknowledgement: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">Description</p>
               <p className="text-gray-700">{kpi.description}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Period</p>

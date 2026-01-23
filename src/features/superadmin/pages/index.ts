@@ -11,4 +11,5 @@ export { default as UserManagement } from './UserManagement';
 export { default as DepartmentManagement } from './DepartmentManagement';
 export { default as DepartmentCalculationSettings } from './DepartmentCalculationSettings';
 export { default as AssignManagerDepartments } from './AssignManagerDepartments';
+export { default as SMSConfiguration } from './SMSConfiguration';
 

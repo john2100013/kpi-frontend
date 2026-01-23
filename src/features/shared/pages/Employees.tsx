@@ -19,6 +19,7 @@ interface Employee {
   id: number;
   name: string;
   email?: string;
+  phone_number?: string;
   payroll_number: string;
   national_id?: string;
   department?: string;
@@ -32,6 +33,7 @@ interface Employee {
 interface EmployeeFormData {
   name: string;
   email: string;
+  phoneNumber: string;
   payrollNumber: string;
   nationalId: string;
   department: string;
@@ -75,6 +77,7 @@ const Employees: React.FC = () => {
   const [formData, setFormData] = useState<EmployeeFormData>({
     name: '',
     email: '',
+    phoneNumber: '',
     payrollNumber: '',
     nationalId: '',
     department: '',
@@ -157,6 +160,7 @@ const Employees: React.FC = () => {
     const employeeData = {
       name: formData.name,
       email: formData.email,
+      phone_number: formData.phoneNumber || undefined,
       payroll_number: formData.payrollNumber,
       department_id: formData.departmentId ? Number(formData.departmentId) : 0,
       position: formData.position,
@@ -187,6 +191,7 @@ const Employees: React.FC = () => {
     const employeeData = {
       name: formData.name,
       email: formData.email,
+      phone_number: formData.phoneNumber || undefined,
       payroll_number: formData.payrollNumber,
       department_id: formData.departmentId ? Number(formData.departmentId) : undefined,
       position: formData.position,
@@ -256,6 +261,7 @@ const Employees: React.FC = () => {
     setFormData({
       name: '',
       email: '',
+      phoneNumber: '',
       payrollNumber: '',
       nationalId: '',
       department: '',
@@ -273,6 +279,7 @@ const Employees: React.FC = () => {
     setFormData({
       name: employee.name,
       email: employee.email || '',
+      phoneNumber: employee.phone_number || '',
       payrollNumber: employee.payroll_number,
       nationalId: employee.national_id || '',
       department: employee.department || '',
@@ -493,6 +500,17 @@ const Employees: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Employee will use this for login. Default password: Africa.1</p>
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="0712345678 or +254712345678"
+                />
+                <p className="text-xs text-gray-500 mt-1">For SMS notifications (e.g., password reset OTP)</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Payroll Number *</label>
                 <input
                   type="text"
@@ -612,6 +630,17 @@ const Employees: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="0712345678 or +254712345678"
+                />
+                <p className="text-xs text-gray-500 mt-1">For SMS notifications (e.g., password reset OTP)</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Payroll Number *</label>

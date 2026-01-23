@@ -58,6 +58,12 @@ const SelfRating: React.FC = () => {
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
   const isSelfRatingEnabled = kpi?.period ? isEmployeeSelfRatingEnabled(kpiPeriod) : false;
 
+  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  const shouldHidePerformanceReflection = 
+    kpiPeriod === 'quarterly' && 
+    calculationMethodName.includes('Goal Weight') && 
+    isSelfRatingEnabled;
+
   console.log('🎨 [SelfRating] Component render:', { 
     loading, 
     hasKpi: !!kpi, 
@@ -569,6 +575,8 @@ const SelfRating: React.FC = () => {
       </div>
 
       {/* Major Accomplishments & Disappointments */}
+      {/* Hide when Quarterly + Goal Weight + Self Rating Enabled */}
+      {!shouldHidePerformanceReflection && (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance Reflection</h2>
         <p className="text-sm text-gray-600 mb-6">
@@ -657,6 +665,7 @@ const SelfRating: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Summary Section - Moved before Employee Confirmation */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

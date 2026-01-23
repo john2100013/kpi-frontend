@@ -227,22 +227,32 @@ export const useEmployeeSelfRating = () => {
   const handleSubmit = async () => {
     if (!kpiId || !kpi) return;
 
-    // Validate accomplishments (minimum 2)
-    if (accomplishments.length < 2) {
-      toast.error('Please add at least 2 major accomplishments');
-      return;
-    }
+    // Check if Performance Reflection should be hidden (Quarterly + Goal Weight + Self Rating Enabled)
+    const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+    const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+    const shouldHidePerformanceReflection = 
+      kpiPeriod === 'quarterly' && 
+      calculationMethodName.includes('Goal Weight');
 
-    // Validate all accomplishments have titles and ratings
-    const incompleteAccomplishments = accomplishments.some(acc => 
-      !acc.title || acc.title.trim() === '' || 
-      acc.employee_rating === null || 
-      acc.employee_rating === undefined
-    );
+    // Only validate accomplishments if Performance Reflection section is visible
+    if (!shouldHidePerformanceReflection) {
+      // Validate accomplishments (minimum 2)
+      if (accomplishments.length < 2) {
+        toast.error('Please add at least 2 major accomplishments');
+        return;
+      }
 
-    if (incompleteAccomplishments) {
-      toast.error('Please complete all accomplishment titles and ratings');
-      return;
+      // Validate all accomplishments have titles and ratings
+      const incompleteAccomplishments = accomplishments.some(acc => 
+        !acc.title || acc.title.trim() === '' || 
+        acc.employee_rating === null || 
+        acc.employee_rating === undefined
+      );
+
+      if (incompleteAccomplishments) {
+        toast.error('Please complete all accomplishment titles and ratings');
+        return;
+      }
     }
 
     // Validate all KPIs have ratings (excluding qualitative ones)

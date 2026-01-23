@@ -58,6 +58,12 @@ const SelfRating: React.FC = () => {
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
   const isSelfRatingEnabled = kpi?.period ? isEmployeeSelfRatingEnabled(kpiPeriod) : false;
 
+  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  const shouldHidePerformanceReflection = 
+    kpiPeriod === 'quarterly' && 
+    calculationMethodName.includes('Goal Weight') && 
+    isSelfRatingEnabled;
+
   console.log('🎨 [SelfRating] Component render:', { 
     loading, 
     hasKpi: !!kpi, 
@@ -187,51 +193,51 @@ const SelfRating: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: '1800px' }}>
             <thead className="bg-gray-50">
-              <tr>
+              <tr className="border-b-2 border-gray-400">
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '200px' }}
                 >
                   KPI TITLE
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '250px' }}
                 >
                   KPI DESCRIPTION
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '180px' }}
                 >
                   CURRENT PERFORMANCE STATUS
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '150px' }}
                 >
                   TARGET VALUE
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '120px' }}
                 >
                   MEASURE UNIT
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '150px' }}
                 >
                   EXPECTED COMPLETION DATE
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '120px' }}
                 >
                   GOAL WEIGHT
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300"
                   style={{ minWidth: '150px' }}
                 >
                   SELF RATING *
@@ -252,7 +258,7 @@ const SelfRating: React.FC = () => {
                   const isQualitative = item.is_qualitative;
                   return (
                     <tr key={item.id} className={isQualitative ? 'bg-purple-50' : ''}>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <div>
                           <Button
                             onClick={() =>
@@ -261,7 +267,17 @@ const SelfRating: React.FC = () => {
                             variant="ghost"
                             className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors p-0 justify-start"
                           >
-                            <p className="truncate max-w-[200px]" title={item.title}>
+                            <p 
+                              className="max-w-[200px] line-clamp-2" 
+                              style={{ 
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                minHeight: '2.5rem'
+                              }}
+                              title={item.title}
+                            >
                               {item.title}
                             </p>
                           </Button>
@@ -275,7 +291,7 @@ const SelfRating: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <Button
                           onClick={() =>
                             openTextModal(
@@ -287,14 +303,21 @@ const SelfRating: React.FC = () => {
                           className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors p-0 justify-start"
                         >
                           <p
-                            className="truncate max-w-[250px]"
+                            className="max-w-[250px] line-clamp-2"
+                            style={{ 
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              minHeight: '2.5rem'
+                            }}
                             title={item.description || 'N/A'}
                           >
                             {item.description || 'N/A'}
                           </p>
                         </Button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <Button
                           onClick={() =>
                             openTextModal(
@@ -313,7 +336,7 @@ const SelfRating: React.FC = () => {
                           </p>
                         </Button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <Button
                           onClick={() =>
                             openTextModal('Target Value', item.target_value || 'N/A')
@@ -329,24 +352,24 @@ const SelfRating: React.FC = () => {
                           </p>
                         </Button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-sm whitespace-nowrap">
                           {item.measure_unit || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <p className="text-sm text-gray-700 whitespace-nowrap">
                           {item.expected_completion_date
                             ? new Date(item.expected_completion_date).toLocaleDateString()
                             : 'N/A'}
                         </p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <p className="text-sm text-gray-700 whitespace-nowrap">
                           {item.goal_weight || item.measure_criteria || 'N/A'}
                         </p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-gray-200">
                         <div className="space-y-2">
                           {isQualitative ? (
                             <>
@@ -569,6 +592,8 @@ const SelfRating: React.FC = () => {
       </div>
 
       {/* Major Accomplishments & Disappointments */}
+      {/* Hide when Quarterly + Goal Weight + Self Rating Enabled */}
+      {!shouldHidePerformanceReflection && (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance Reflection</h2>
         <p className="text-sm text-gray-600 mb-6">
@@ -606,61 +631,61 @@ const SelfRating: React.FC = () => {
           </div>
 
           {/* Disappointments / Challenges */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Challenges & Disappointments
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Share any obstacles, setbacks, or areas where you faced difficulties.
-            </p>
-            <textarea
-              value={disappointments}
-              onChange={(e) => setDisappointments(e.target.value)}
-              placeholder="Example: Faced delays in project X due to resource constraints. Needed more training on the new system..."
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+              <h3 className="text-md font-semibold text-gray-900">Challenges & Disappointments</h3>
+              <p className="text-xs text-gray-600 mt-1">Share any obstacles, setbacks, or areas where you faced difficulties</p>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={disappointments}
+                onChange={(e) => setDisappointments(e.target.value)}
+                placeholder="Example: Faced delays in project X due to resource constraints. Needed more training on the new system..."
+                rows={6}
+                className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
           </div>
 
           {/* Organizational Improvement Needed */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              What should the organization improve to help you in your operation to ensure you can improve?
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Share suggestions on what the organization can do to support your growth and performance.
-            </p>
-            <textarea
-              value={improvementNeeded}
-              onChange={(e) => setImprovementNeeded(e.target.value)}
-              placeholder="Example: Better access to training resources, improved communication tools, additional team support..."
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+              <h3 className="text-md font-semibold text-gray-900">Suggestions for Organizational Improvement</h3>
+              <p className="text-xs text-gray-600 mt-1">Share suggestions on what the organization can do to support your growth and performance</p>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={improvementNeeded}
+                onChange={(e) => setImprovementNeeded(e.target.value)}
+                placeholder="Example: Better access to training resources, improved communication tools, additional team support..."
+                rows={6}
+                className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
           </div>
 
           {/* Future Plan */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Future Plans & Goals
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              What are your goals and plans for the next review period? How do you plan to grow and improve?
-            </p>
-            <textarea
-              value={futurePlan}
-              onChange={(e) => setFuturePlan(e.target.value)}
-              placeholder="Example: Plan to complete certification in X, improve skills in Y, take on leadership role in Z project..."
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+              <h3 className="text-md font-semibold text-gray-900">Future Plans & Goals</h3>
+              <p className="text-xs text-gray-600 mt-1">What are your goals and plans for the next review period? How do you plan to grow and improve?</p>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={futurePlan}
+                onChange={(e) => setFuturePlan(e.target.value)}
+                placeholder="Example: Plan to complete certification in X, improve skills in Y, take on leadership role in Z project..."
+                rows={6}
+                className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
           </div>
         </div>
       </div>
+      )}
 
       {/* Summary Section - Moved before Employee Confirmation */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Self-Rating Summary</h2>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">\n        <h2 className="text-lg font-semibold text-gray-900 mb-4">Self-Rating Summary</h2>
         <div className="p-6 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-8">
@@ -704,48 +729,56 @@ const SelfRating: React.FC = () => {
       {/* Employee Confirmation */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Confirmation</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          By signing below, I confirm that the self-ratings provided are accurate to the best of my
-          knowledge.
+        <p className="text-sm text-gray-600 mb-6">
+          By signing below, I confirm that the self-ratings provided are accurate to the best of my knowledge.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <SignatureField
-              label="Digital Signature *"
-              value={employeeSignature}
-              onChange={setEmployeeSignature}
-              required
-              placeholder="Click and drag to sign"
-            />
-            <Button
-              onClick={() => setEmployeeSignature('')}
-              variant="link"
-              size="sm"
-              className="text-sm text-red-600 hover:text-red-700 mt-2 p-0"
-            >
-              Clear Signature
-            </Button>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-gray-100 px-4 py-2 border-b border-gray-300">
+            <p className="font-semibold text-gray-900 text-sm">Digital Signature *</p>
           </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <SignatureField
+                  label=""
+                  value={employeeSignature}
+                  onChange={setEmployeeSignature}
+                  required
+                  placeholder="Click and drag to sign"
+                />
+                <Button
+                  onClick={() => setEmployeeSignature('')}
+                  variant="link"
+                  size="sm"
+                  className="text-sm text-red-600 hover:text-red-700 mt-2 p-0"
+                >
+                  Clear Signature
+                </Button>
+              </div>
 
-          <div className="space-y-4">
-            <DatePicker
-              label="Self-Review Date *"
-              value={reviewDate}
-              onChange={setReviewDate}
-              required
-            />
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Employee Name</p>
-              <p className="font-semibold text-gray-900">{user?.name || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Payroll Number</p>
-              <p className="font-semibold text-gray-900">{user?.payroll_number || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Date & Time</p>
-              <p className="font-semibold text-gray-900">{new Date().toLocaleString()}</p>
+              <div className="space-y-4">
+                <DatePicker
+                  label="Self-Review Date *"
+                  value={reviewDate}
+                  onChange={setReviewDate}
+                  required
+                />
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Employee Name</p>
+                    <p className="font-semibold text-gray-900">{user?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Payroll Number</p>
+                    <p className="font-semibold text-gray-900">{user?.payroll_number || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Date & Time</p>
+                    <p className="text-sm text-gray-700">{new Date().toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

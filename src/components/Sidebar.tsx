@@ -170,6 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/super-admin/company-management', label: 'Company Management', icon: FiHome },
     { path: '/super-admin/user-management', label: 'User Management', icon: FiUsers },
     { path: '/super-admin/calculation-settings', label: 'Calculation Settings', icon: FiSliders },
+    { path: '/super-admin/sms-configuration', label: 'SMS Configuration', icon: FiMail },
     { path: '/onboard', label: 'Onboard Company', icon: FiUsers },
   ];
 
