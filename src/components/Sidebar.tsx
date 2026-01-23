@@ -29,16 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
-
-  // Debug logging
-  useEffect(() => {
- 
-  }, [user, isOpen]);
-
-  // Debug logging
-  useEffect(() => {
-  }, [user, isOpen, location.pathname]);
-
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
