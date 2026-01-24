@@ -22,37 +22,25 @@ export interface Company {
 export const superAdminDashboardService = {
   fetchDashboardStats: async (): Promise<DashboardStats> => {
     try {
-
-      const response = await api.get('/companies/list');
-
-      
+      const response = await api.get('/companies/list'); 
       const companies = response.data.companies || response.data.data?.companies || [];
-
-
-      
-      // Convert string values to numbers before summing
-      // Convert string values to numbers before summing
       const totalHRUsers = companies.reduce((sum: number, c: Company) => {
         const val = Number(c.total_hr) || 0;
-
         return sum + val;
       }, 0);
       
       const totalManagers = companies.reduce((sum: number, c: Company) => {
         const val = Number(c.total_managers) || 0;
-
         return sum + val;
       }, 0);
       
       const totalEmployees = companies.reduce((sum: number, c: Company) => {
         const val = Number(c.total_employees) || 0;
-
         return sum + val;
       }, 0);
       
       const totalDepartments = companies.reduce((sum: number, c: Company) => {
         const val = Number(c.total_departments) || 0;
-
         return sum + val;
       }, 0);
       
@@ -74,20 +62,13 @@ export const superAdminDashboardService = {
 
   fetchRecentCompanies: async (limit: number = 5): Promise<Company[]> => {
     try {
-
       const response = await api.get('/companies/list');
-
-      
       const companies = response.data.companies || response.data.data?.companies || [];
-
-      
       const sorted = companies
         .sort((a: Company, b: Company) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
         .slice(0, limit);
-      
-
       return sorted;
     } catch (error: any) {
       console.error('[superAdminDashboardService] Error fetching recent companies:', error);

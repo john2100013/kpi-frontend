@@ -29,16 +29,11 @@ export const useSuperAdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-
       setLoading(true);
       const [statsData, companiesData] = await Promise.all([
         superAdminDashboardService.fetchDashboardStats(),
         superAdminDashboardService.fetchRecentCompanies(5),
       ]);
-      
-
-
-      
       setStats(statsData);
       setRecentCompanies(companiesData);
     } catch (err: any) {

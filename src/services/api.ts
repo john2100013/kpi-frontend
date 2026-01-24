@@ -1,65 +1,120 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+interface ApiErrorResponse {
+  message: string;
+  error?: string;
+}
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
+  timeout: 15000,
 });
 
-// Request interceptor: Dynamically add auth token and provide logging
-// SECURITY FIX: Token is now retrieved on each request, not set once at module load
-api.interceptors.request.use(
-  (config) => {
-    // Dynamically retrieve token from localStorage for each request
-    // This ensures the token is always up-to-date after login/logout/token refresh
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+let csrfToken: string | null = null;
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
     } else {
-      // Explicitly remove Authorization header if no token exists
-      delete config.headers.Authorization;
+      prom.resolve(token);
     }
+  });
+  failedQueue = [];
+};
 
-    // Debug logging for rating-options endpoint
-    if (config.url?.includes('rating-options')) {
+export const setCSRFToken = (token: string | null) => {
+  csrfToken = token;
+};
 
+export const getCSRFToken = (): string | null => {
+  return csrfToken;
+};
 
+export const clearAuthCookies = () => {
+  setCSRFToken(null);
+};
 
-
-
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    if (csrfToken && config.headers && config.method !== 'get') {
+      config.headers['X-CSRF-Token'] = csrfToken;
     }
     return config;
   },
-  (error) => {
-    console.error('❌ [api] Request interceptor error:', error);
+  (error: AxiosError) => {
+    console.error('Request configuration error:', error.message);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => {
-    if (response.config.url?.includes('rating-options')) {
-
-
-
+  (response) => response,
+  async (error: AxiosError<ApiErrorResponse>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    if (
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/refresh-token') ||
+      originalRequest.url?.includes('/auth/logout')
+    ) {
+      return Promise.reject(error);
     }
-    return response;
-  },
-  (error) => {
-    if (error.config?.url?.includes('rating-options')) {
-      console.error('❌ [api] Response interceptor - rating-options error');
-      console.error('❌ [api] Error response:', error.response);
-      console.error('❌ [api] Error status:', error.response?.status);
-      console.error('❌ [api] Error data:', error.response?.data);
+
+    // Handle 401 with token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // If already refreshing, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post('/auth/refresh-token');
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        
+        // Only redirect if not already on login page
+        if (!window.location.pathname.includes('/login')) {
+          setCSRFToken(null);
+          window.dispatchEvent(new CustomEvent('auth:logout'));
+          window.location.href = '/login';
+        }
+        
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
-    if (error.response?.status === 401) {
-      // Unauthorized - clear auth and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+
+    if (error.response?.status === 403) {
+      console.error('CSRF validation failed');
     }
+
+    if (!error.response) {
+      console.error('Network error:', error.message);
+    }
+
     return Promise.reject(error);
   }
 );

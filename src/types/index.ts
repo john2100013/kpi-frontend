@@ -14,6 +14,7 @@ export interface User {
   manager_id?: number;
   company_id?: number;
   signature?: string;
+  requires_password_change?: boolean;
 }
 
 export interface KPIItem {
