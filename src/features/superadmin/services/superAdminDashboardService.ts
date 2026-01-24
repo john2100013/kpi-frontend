@@ -19,60 +19,50 @@ export interface Company {
   total_departments: number;
 }
 
+export interface DashboardData {
+  stats: DashboardStats;
+  companies: Company[];
+}
+
+let cachedRequest: Promise<DashboardData> | null = null;
+
+function calculateStats(companies: Company[]): DashboardStats {
+  return {
+    totalCompanies: companies.length,
+    totalHRUsers: companies.reduce((sum, c) => sum + (Number(c.total_hr) || 0), 0),
+    totalManagers: companies.reduce((sum, c) => sum + (Number(c.total_managers) || 0), 0),
+    totalEmployees: companies.reduce((sum, c) => sum + (Number(c.total_employees) || 0), 0),
+    totalDepartments: companies.reduce((sum, c) => sum + (Number(c.total_departments) || 0), 0),
+  };
+}
+
+function getRecentCompanies(companies: Company[], limit: number = 5): Company[] {
+  return companies
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
+}
+
+async function loadDashboardData(): Promise<DashboardData> {
+  const response = await api.get('/companies/list');
+  const companies = response.data.companies || response.data.data?.companies || [];
+  
+  return {
+    stats: calculateStats(companies),
+    companies: getRecentCompanies(companies),
+  };
+}
+
 export const superAdminDashboardService = {
-  fetchDashboardStats: async (): Promise<DashboardStats> => {
-    try {
-      const response = await api.get('/companies/list'); 
-      const companies = response.data.companies || response.data.data?.companies || [];
-      const totalHRUsers = companies.reduce((sum: number, c: Company) => {
-        const val = Number(c.total_hr) || 0;
-        return sum + val;
-      }, 0);
-      
-      const totalManagers = companies.reduce((sum: number, c: Company) => {
-        const val = Number(c.total_managers) || 0;
-        return sum + val;
-      }, 0);
-      
-      const totalEmployees = companies.reduce((sum: number, c: Company) => {
-        const val = Number(c.total_employees) || 0;
-        return sum + val;
-      }, 0);
-      
-      const totalDepartments = companies.reduce((sum: number, c: Company) => {
-        const val = Number(c.total_departments) || 0;
-        return sum + val;
-      }, 0);
-      
-      const stats: DashboardStats = {
-        totalCompanies: companies.length,
-        totalHRUsers,
-        totalManagers,
-        totalEmployees,
-        totalDepartments,
-      };
-      
-
-      return stats;
-    } catch (error: any) {
-      console.error('[superAdminDashboardService] Error fetching stats:', error);
-      throw error;
+  fetchDashboardData: async (): Promise<DashboardData> => {
+    // If there's already a request happening, return that instead of making a new one
+    if (cachedRequest) {
+      return cachedRequest;
     }
-  },
-
-  fetchRecentCompanies: async (limit: number = 5): Promise<Company[]> => {
+    cachedRequest = loadDashboardData();
     try {
-      const response = await api.get('/companies/list');
-      const companies = response.data.companies || response.data.data?.companies || [];
-      const sorted = companies
-        .sort((a: Company, b: Company) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .slice(0, limit);
-      return sorted;
-    } catch (error: any) {
-      console.error('[superAdminDashboardService] Error fetching recent companies:', error);
-      throw error;
+      return await cachedRequest;
+    } finally {
+      cachedRequest = null;
     }
   },
 };

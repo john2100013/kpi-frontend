@@ -30,12 +30,9 @@ export const useSuperAdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsData, companiesData] = await Promise.all([
-        superAdminDashboardService.fetchDashboardStats(),
-        superAdminDashboardService.fetchRecentCompanies(5),
-      ]);
-      setStats(statsData);
-      setRecentCompanies(companiesData);
+      const { stats, companies } = await superAdminDashboardService.fetchDashboardData();
+      setStats(stats);
+      setRecentCompanies(companies);
     } catch (err: any) {
       console.error('[useSuperAdminDashboard] Error fetching dashboard data:', err);
       setError(err.response?.data?.error || 'Failed to load dashboard data');
