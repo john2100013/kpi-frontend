@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { EmployeeDataProvider, useEmployeeData } from './context/EmployeeDataContext';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { initializeAuth } from './store/slices/authSlice';
 import { ROLE_IDS, isManager, isSuperAdmin, isHR, isEmployee } from './utils/roleUtils';
@@ -120,10 +121,50 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
   return <>{children}</>;
 };
 
-// Layout Component
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Layout Component with shared data from context for employees
+const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sharedKpis, sharedReviews, sharedDepartmentFeatures, dataFetched } = useEmployeeData();
 
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+        initialKpis={dataFetched ? sharedKpis : undefined}
+        initialReviews={dataFetched ? sharedReviews : undefined}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-64">
+        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <main className="flex-1 overflow-y-auto p-6">
+          {React.isValidElement(children) && dataFetched
+            ? React.cloneElement(children, {
+                sharedKpis,
+                sharedReviews,
+                sharedDepartmentFeatures,
+              } as any)
+            : children}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// Main Layout - wraps employee users with data provider
+const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Wrap employees with data provider for shared state
+  if (isEmployee(user)) {
+    return (
+      <EmployeeDataProvider>
+        <LayoutWithSharedData>{children}</LayoutWithSharedData>
+      </EmployeeDataProvider>
+    );
+  }
+  
+  // Simple layout for non-employee roles
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

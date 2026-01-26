@@ -70,7 +70,7 @@ const SMSConfiguration: React.FC = () => {
     await Promise.all(
       companiesList.map(async (company) => {
         try {
-          const response = await api.get('/settings/sms-config', {
+          const response = await api.get('/settings-sms/sms-config', {
             params: { companyId: company.id }
           });
           
@@ -92,7 +92,7 @@ const SMSConfiguration: React.FC = () => {
     }
 
     try {
-      const response = await api.get('/settings/sms-config', {
+      const response = await api.get('/settings-sms/sms-config', {
         params: { companyId: selectedCompanyId }
       });
       
@@ -138,7 +138,7 @@ const SMSConfiguration: React.FC = () => {
 
     try {
       setSaving(true);
-      const response = await api.post('/settings/sms-config', formData, {
+      const response = await api.post('/settings-sms/sms-config', formData, {
         params: { companyId: selectedCompanyId }
       });
 
@@ -160,7 +160,7 @@ const SMSConfiguration: React.FC = () => {
 
     try {
       const newStatus = !config.is_active;
-      const response = await api.put('/settings/sms-config/toggle', {
+      const response = await api.put('/settings-sms/sms-config/toggle', {
         is_active: newStatus
       }, {
         params: { companyId: selectedCompanyId }
@@ -189,7 +189,7 @@ const SMSConfiguration: React.FC = () => {
 
     try {
       setTesting(true);
-      const response = await api.post('/settings/sms-config/test', {
+      const response = await api.post('/settings-sms/sms-config/test', {
         phone_number: testPhone
       }, {
         params: { companyId: selectedCompanyId }
@@ -216,7 +216,7 @@ const SMSConfiguration: React.FC = () => {
     }
 
     try {
-      const response = await api.delete('/settings/sms-config', {
+      const response = await api.delete('/settings-sms/sms-config', {
         params: { companyId: selectedCompanyId }
       });
 
