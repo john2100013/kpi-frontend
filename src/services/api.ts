@@ -47,7 +47,7 @@ export const clearAuthCookies = () => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (csrfToken && config.headers && config.method !== 'get') {
-      config.headers['X-CSRF-Token'] = csrfToken;
+      config.headers['x-csrf-token'] = csrfToken;
     }
     return config;
   },

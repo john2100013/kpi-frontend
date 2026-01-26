@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiSave } from 'react-icons/fi';
 import { Modal } from '../../../components/common';
+import { useToast } from '../../../context/ToastContext';
 
 interface AddDepartmentModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const AddDepartmentModal: React.FC<AddDepartmentModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
 
