@@ -43,6 +43,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Define CSS variables for sidebar width */
+:root {
+  --sidebar-width-expanded: 256px; /* 64 * 4 = 256px (w-64) */
+  --sidebar-width-collapsed: 80px;  /* 20 * 4 = 80px (w-20) */
+}
+
+/* Apply sidebar width based on state - desktop only */
+@media (min-width: 1024px) {
+  body.sidebar-expanded {
+    --sidebar-width: var(--sidebar-width-expanded);
+  }
+
+  body.sidebar-collapsed {
+    --sidebar-width: var(--sidebar-width-collapsed);
+  }
+}
+
+/* On mobile and tablets, no body margin */
+@media (max-width: 1023px) {
+  body {
+    --sidebar-width: 0px;
+  }
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

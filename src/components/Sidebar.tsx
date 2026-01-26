@@ -15,7 +15,11 @@ import {
   FiSettings,
   FiAlertTriangle,
   FiSliders,
+  FiCheck,
+  FiClipboard,
+  FiFlag,
 } from 'react-icons/fi';
+import { RiMenuFold3Fill, RiMenuFold2Line } from 'react-icons/ri';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -31,9 +35,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initial
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
   const isActive = (path: string) => location.pathname === path;
 
-
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
+    if (isCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+      document.body.classList.remove('sidebar-expanded');
+    } else {
+      document.body.classList.add('sidebar-expanded');
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [isCollapsed]);
 
   useEffect(() => {
     if (isManager(user)) {
@@ -130,13 +147,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initial
     { 
       path: '/manager/reviews', 
       label: 'Reviews', 
-      icon: FiFileText, 
+      icon: FiClipboard, 
       badge: pendingReviewsCount > 0 ? pendingReviewsCount : undefined 
     },
     { path: '/manager/schedule-meeting', label: 'Schedule Meeting', icon: FiCalendar },
-    { path: '/manager/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
+    { path: '/manager/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiFlag },
     { path: '/manager/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
-    { path: '/manager/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
+    { path: '/manager/completed-reviews', label: 'Completed Reviews', icon: FiCheck },
   ];
 
   const employeeNavItems: NavItem[] = [
@@ -150,11 +167,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initial
     { 
       path: '/employee/reviews', 
       label: 'Reviews', 
-      icon: FiFileText,
+      icon: FiClipboard,
       badge: pendingEmployeeReviewsCount > 0 ? pendingEmployeeReviewsCount : undefined
     },
-    { path: '/employee/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
-    { path: '/employee/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
+    { path: '/employee/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiFlag },
+    { path: '/employee/completed-reviews', label: 'Completed Reviews', icon: FiCheck },
   ];
 
   const hrNavItems: NavItem[] = [
@@ -163,9 +180,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initial
     { path: '/hr/departments', label: 'Departments', icon: FiUsers },
     { path: '/hr/kpi-list', label: 'KPI Overview', icon: FiTarget },
     { path: '/hr/rejected-kpis', label: 'Rejected KPIs', icon: FiAlertTriangle },
-    { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
+    { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiFlag },
     { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
-    { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
+    { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheck },
     { path: '/hr/review-report', label: 'Review Report', icon: FiFileText },
     { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },
     { path: '/hr/settings', label: 'Settings', icon: FiSettings },
@@ -209,76 +226,147 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initial
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 z-50 transition-transform duration-300 ${
+        className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 w-64`}
+        } lg:translate-x-0 ${isCollapsed ? 'w-24' : 'w-64'}`}
+        style={{ zIndex: 50 }}
       >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Logo & Toggle */}
+          <div className={`${isCollapsed ? 'p-4' : 'p-6'} bg-gray-50 border-b border-gray-200 flex items-center transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {!isCollapsed && (
+              <div className="flex items-center space-x-2 min-w-0">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <img src="/ICTA.jpeg" alt="ICTA Logo" className="w-full h-full object-contain" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-gray-800 font-bold text-lg truncate">KPI Manager</h1>
+                  <p className="text-gray-500 text-xs truncate">Performance System</p>
+                </div>
+              </div>
+            )}
+            {isCollapsed && (
+              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                 <img src="/ICTA.jpeg" alt="ICTA Logo" className="w-full h-full object-contain" />
               </div>
-              <div>
-                <h1 className="text-white font-bold text-lg">KPI Manager</h1>
-                <p className="text-purple-100 text-xs">Performance System</p>
-              </div>
-            </div>
+            )}
+            
+            {/* Toggle Button */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-gray-600 hover:bg-gray-200 p-2 rounded-lg transition-colors flex-shrink-0 hidden lg:flex items-center justify-center"
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? (
+                <RiMenuFold2Line className="text-xl" />
+              ) : (
+                <RiMenuFold3Fill className="text-xl" />
+              )}
+            </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
-                MAIN
-              </p>
+          <nav className={`flex-1 overflow-y-auto overflow-x-visible ${isCollapsed ? 'px-2 py-3' : 'p-4'}`}>
+            <div>
+              {!isCollapsed && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
+                  MAIN
+                </p>
+              )}
               {(() => {
                 const navItems = getNavItems();
                 return navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
-                      active
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className={`text-lg ${active ? 'text-purple-600' : ''}`} />
-                    <span className="flex-1 font-medium">{item.label}</span>
-                    {item.badge && (
-                      <span
-                        className={`px-2 py-0.5 text-xs rounded-full ${
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  return (
+                    <div key={item.path} className="relative">
+                      <Link
+                        to={item.path}
+                        onClick={onClose}
+                        title={isCollapsed ? item.label : ''}
+                        className={`flex items-center ${
+                          isCollapsed 
+                            ? 'justify-center w-14 h-14 mx-auto' 
+                            : 'justify-between px-3 py-2.5'
+                        } rounded-lg mb-1 transition-colors relative group ${
                           active
-                            ? 'bg-purple-200 text-purple-700'
-                            : 'bg-gray-200 text-gray-600'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })})()}
+                        {isCollapsed ? (
+                          <>
+                            <Icon className={`text-xl flex-shrink-0 ${active ? 'text-purple-600' : ''}`} />
+                            {item.badge && (
+                              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <Icon className={`text-lg flex-shrink-0 ${active ? 'text-purple-600' : ''}`} />
+                              <span className="font-medium truncate">{item.label}</span>
+                            </div>
+                            {item.badge && (
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ${
+                                  active
+                                    ? 'bg-purple-200 text-purple-700'
+                                    : 'bg-gray-200 text-gray-600'
+                                }`}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Link>
+                      
+                      {/* Tooltip - Positioned outside the link */}
+                      {isCollapsed && (
+                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[9999] shadow-lg">
+                          {item.label}
+                          {item.badge && <span className="ml-2 text-xs">({item.badge})</span>}
+                          {/* Arrow */}
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
           </nav>
 
           {/* Logout - Only for HR and Super Admin */}
           {(isHR(user) || isSuperAdmin(user)) && (
-            <div className="p-4 border-t border-gray-200">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <FiLogOut className="text-lg" />
-                <span className="font-medium">Logout</span>
-              </button>
+            <div className={`${isCollapsed ? 'px-2 py-3' : 'p-4'} border-t border-gray-200 flex-shrink-0`}>
+              <div className="relative">
+                <button
+                  onClick={handleLogout}
+                  title={isCollapsed ? 'Logout' : ''}
+                  className={`flex items-center ${
+                    isCollapsed 
+                      ? 'justify-center w-14 h-14 mx-auto' 
+                      : 'w-full space-x-3 px-3 py-2.5'
+                  } rounded-lg text-red-600 hover:bg-red-50 transition-colors relative group`}
+                >
+                  <FiLogOut className={`${isCollapsed ? 'text-xl' : 'text-lg'} flex-shrink-0`} />
+                  {!isCollapsed && (
+                    <span className="font-medium">Logout</span>
+                  )}
+                </button>
+                
+                {/* Tooltip for Logout */}
+                {isCollapsed && (
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[9999] shadow-lg">
+                    Logout
+                    {/* Arrow */}
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

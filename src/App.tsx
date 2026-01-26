@@ -134,7 +134,12 @@ const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ childre
         initialKpis={dataFetched ? sharedKpis : undefined}
         initialReviews={dataFetched ? sharedReviews : undefined}
       />
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-64">
+      <div 
+        className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+        style={{
+          marginLeft: 'var(--sidebar-width, 0px)'
+        }}
+      >
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-6">
           {React.isValidElement(children) && dataFetched
@@ -168,7 +173,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-64">
+      <div 
+        className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+        style={{
+          marginLeft: 'var(--sidebar-width, 0px)'
+        }}
+      >
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
