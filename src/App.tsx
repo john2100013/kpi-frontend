@@ -124,7 +124,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: numbe
 // Layout Component with shared data from context for employees
 const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
   const { sharedKpis, sharedReviews, sharedDepartmentFeatures, dataFetched } = useEmployeeData();
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    if (sidebarCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+      document.body.classList.remove('sidebar-expanded');
+    } else {
+      document.body.classList.add('sidebar-expanded');
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [sidebarCollapsed]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -133,6 +147,8 @@ const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ childre
         onClose={() => setSidebarOpen(false)} 
         initialKpis={dataFetched ? sharedKpis : undefined}
         initialReviews={dataFetched ? sharedReviews : undefined}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div 
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
@@ -140,7 +156,11 @@ const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ childre
           marginLeft: 'var(--sidebar-width, 0px)'
         }}
       >
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          isSidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
         <main className="flex-1 overflow-y-auto p-6">
           {React.isValidElement(children) && dataFetched
             ? React.cloneElement(children, {
@@ -159,6 +179,21 @@ const LayoutWithSharedData: React.FC<{ children: React.ReactNode }> = ({ childre
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    if (sidebarCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+      document.body.classList.remove('sidebar-expanded');
+    } else {
+      document.body.classList.add('sidebar-expanded');
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [sidebarCollapsed]);
   
   // Wrap employees with data provider for shared state
   if (isEmployee(user)) {
@@ -172,14 +207,23 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Simple layout for non-employee roles
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
       <div 
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
         style={{
           marginLeft: 'var(--sidebar-width, 0px)'
         }}
       >
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header 
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+          isSidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

@@ -26,7 +26,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 createRoot(document.getElementById('root')!).render(
-  // <StrictMode>
+  <StrictMode>
     <Provider store={store}>
       <ToastProvider>
         <AuthProvider>
@@ -34,5 +34,5 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </ToastProvider>
     </Provider>
-  // </StrictMode>,
+  </StrictMode>,
 )
