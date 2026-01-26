@@ -208,16 +208,21 @@ export const managerService = {
    */
   fetchEmployeeKPIs: async (employeeId: string): Promise<any[]> => {
     try {
-
+      
       const response = await api.get('/kpis');
       const allKPIs = response.data.data?.kpis || response.data.kpis || [];
-      // Filter KPIs for this specific employee
-      const filteredKPIs = allKPIs.filter((kpi: any) => kpi.employee_id === parseInt(employeeId));
-
+      const employeeIdNum = parseInt(employeeId);
+      const filteredKPIs = allKPIs.filter((kpi: any) => {
+        const kpiEmployeeId = typeof kpi.employee_user_id === 'string' 
+          ? parseInt(kpi.employee_user_id) 
+          : kpi.employee_user_id;
+        return kpiEmployeeId === employeeIdNum;
+      });
+      
       return filteredKPIs;
     } catch (error) {
       if (toast) toast.error('Server error. Please try reloading or try later.');
-      throw error;
+      return [];
     }
   },
 };
