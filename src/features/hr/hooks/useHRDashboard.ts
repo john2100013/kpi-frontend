@@ -43,18 +43,10 @@ export const useHRDashboard = () => {
 
   const loading = kpisLoading || statsLoading;
 
-  // Log notifications state changes
-  useEffect(() => {
-    console.log('[Dashboard] 📊 Notifications state updated:', {
-      count: notifications.length,
-      ids: notifications.map(n => n.id),
-      types: notifications.map(n => n.type)
-    });
-  }, [notifications]);
 
   // Initial data fetch
   useEffect(() => {
-    console.log('[Dashboard] 🚀 Component mounted, fetching initial data...');
+
     dispatch(fetchKPIs({}));
     dispatch(fetchDepartmentStatistics(filters));
     dispatch(fetchDepartments());
@@ -86,35 +78,32 @@ export const useHRDashboard = () => {
       const data = await hrService.fetchReviews();
       setReviews(data);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch reviews.');
+      }
     }
   };
 
   const fetchNotificationsData = async () => {
     try {
-      console.log('[Dashboard] 📬 Fetching notifications (limit: 5)...');
       const data = await hrService.fetchNotifications(5);
-      console.log('[Dashboard] ✅ Notifications fetched:', {
-        count: data.length,
-        notifications: data
-      });
       setNotifications(data);
     } catch (error) {
-      console.error('[Dashboard] ❌ Error fetching notifications:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch notifications.');
+      }
     }
   };
 
   const fetchRecentActivityData = async () => {
     try {
-      console.log('[Dashboard] 📋 Fetching recent activity...');
+
       const data = await hrService.fetchRecentActivity();
-      console.log('[Dashboard] ✅ Recent activity fetched:', {
-        count: data.length,
-        activities: data.slice(0, 3) // Log first 3
-      });
       setRecentActivity(data);
     } catch (error) {
-      console.error('[Dashboard] ❌ Error fetching activity:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch activity.');
+      }
     }
   };
 
@@ -123,7 +112,9 @@ export const useHRDashboard = () => {
       const data = await hrService.fetchEmployeesByCategory(department, category);
       setEmployees(data);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch employees.');
+      }
       setEmployees([]);
     }
   };
@@ -133,7 +124,9 @@ export const useHRDashboard = () => {
       const data = await hrService.fetchManagers();
       setManagers(data);
     } catch (error) {
-      console.error('Error fetching managers:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch managers.');
+      }
     }
   };
 
@@ -153,7 +146,9 @@ export const useHRDashboard = () => {
         setDefaultPeriod(period);
         resolve(true);
       } catch (error) {
-        console.error('Error saving default period:', error);
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.error('Could not save default period.');
+        }
         resolve(false);
       } finally {
         setSavingDefault(false);
@@ -168,32 +163,28 @@ export const useHRDashboard = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    console.log('[Dashboard] 🔔 Notification clicked:', {
-      id: notification.id,
-      type: notification.type,
-      message: notification.message,
-      related_kpi_id: notification.related_kpi_id
-    });
     if (notification.related_kpi_id) {
-      console.log(`[Dashboard] 🔗 Navigating to KPI details: ${notification.related_kpi_id}`);
+
       navigate(`/hr/kpi-details/${notification.related_kpi_id}`);
     } else {
-      console.log('[Dashboard] ⚠️ No related KPI ID found for this notification');
+
     }
   };
 
   const handleMarkNotificationRead = async (id: number) => {
     try {
-      console.log(`[Dashboard] 📨 Marking notification ${id} as read...`);
+
       await hrService.markNotificationRead(id);
-      console.log(`[Dashboard] ✅ Notification ${id} marked as read`);
+
       setNotifications(prev => {
         const updated = prev.filter(n => n.id !== id);
-        console.log(`[Dashboard] 📬 Notifications remaining: ${updated.length}`);
+
         return updated;
       });
     } catch (error) {
-      console.error(`[Dashboard] ❌ Error marking notification ${id} as read:`, error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not mark notification as read.');
+      }
     }
   };
 

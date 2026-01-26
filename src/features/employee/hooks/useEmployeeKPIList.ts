@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { KPI, KPIReview } from '../../../types';
@@ -13,6 +14,7 @@ export const useEmployeeKPIList = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
+  const toast = useToast();
   useEffect(() => {
     fetchData();
   }, []);
@@ -28,7 +30,7 @@ export const useEmployeeKPIList = () => {
       setKpis(kpisRes.data.kpis || []);
       setReviews(reviewsRes.data.reviews || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Could not fetch your KPIs. Please try again.');
     } finally {
       setLoading(false);
     }

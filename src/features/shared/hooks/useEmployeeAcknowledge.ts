@@ -20,7 +20,9 @@ export const useEmployeeAcknowledge = () => {
       const pendingKPIs = await employeeService.fetchPendingKPIs();
       setKpis(pendingKPIs);
     } catch (err) {
-      console.error('Error fetching pending KPIs:', err);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Failed to load pending KPIs. Please try again.');
+      }
       setError('Failed to load pending KPIs');
     } finally {
       setLoading(false);

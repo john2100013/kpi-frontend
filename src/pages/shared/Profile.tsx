@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import SignatureCanvas from 'react-signature-canvas';
-import { useToast } from '../../context/ToastContext';
 import { FiArrowLeft, FiSave, FiUpload, FiX, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiEdit } from 'react-icons/fi';
 import { Button } from '../../components/common';
+import { isHR, isManager, isEmployee, getRoleDisplayName } from '../../utils/roleUtils';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
-  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signature, setSignature] = useState<string>('');
@@ -47,6 +47,7 @@ const Profile: React.FC = () => {
     }
   }, [user?.signature]);
 
+  const toast = useToast();
   const fetchUserProfile = async () => {
     try {
       const response = await api.get('/auth/me');
@@ -60,7 +61,7 @@ const Profile: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      toast.error('Could not fetch your profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -227,7 +228,7 @@ const Profile: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">User Information</h2>
-          {(user?.role === 'hr' || user?.role === 'manager') && (
+          {(isHR(user) || isManager(user)) && (
             <Button
               onClick={() => navigate('/profile/edit')}
               variant="primary"
@@ -248,7 +249,7 @@ const Profile: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Role</p>
-            <p className="font-semibold text-gray-900 capitalize">{user?.role}</p>
+            <p className="font-semibold text-gray-900">{getRoleDisplayName(user?.role_id)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Payroll Number</p>
@@ -379,7 +380,7 @@ const Profile: React.FC = () => {
           </div>
           <p className="text-sm text-gray-600 mb-6">
             Update your account password. Make sure to use a strong password.
-            {user?.role === 'employee' && (
+            {isEmployee(user) && (
               <span className="block mt-1 text-purple-600">
                 If you're using the default password (Africa.1), please change it immediately for security.
               </span>

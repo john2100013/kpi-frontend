@@ -30,13 +30,13 @@ export const fetchDepartments = createAsyncThunk(
   'departments/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      // Backend doesn't have a dedicated /departments endpoint
-      // Departments are fetched from employees
-      const response = await api.get('/employees');
-      // Extract unique departments from employees
-      const employees = response.data.employees || [];
-      const uniqueDepts = [...new Set(employees.map((emp: any) => emp.department as string).filter(Boolean))];
-      return { departments: uniqueDepts.map((name, id) => ({ id, name: name as string })) };
+
+      // Backend: GET /departments requires superadmin role (403 for HR)
+      // Use /departments/list instead which is accessible to all authenticated users
+      const response = await api.get('/departments/list');
+      // Backend returns: { success: true, data: { departments: [...] } }
+      const departments = response.data.data?.departments || response.data.departments || [];
+      return { departments };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch departments');
     }
@@ -47,7 +47,10 @@ export const fetchDepartmentById = createAsyncThunk(
   'departments/fetchById',
   async (id: number, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/departments/${id}`);
+
+      // Use /departments/list/:departmentId for fetching single department
+      const response = await api.get(`/departments/list/${id}`);
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch department');
@@ -112,7 +115,17 @@ const departmentSlice = createSlice({
       })
       .addCase(fetchDepartments.fulfilled, (state, action) => {
         state.loading = false;
-        state.departments = Array.isArray(action.payload) ? action.payload : action.payload.departments || [];
+
+        // action.payload is { departments: [...] }
+        if (action.payload.departments && Array.isArray(action.payload.departments)) {
+          state.departments = action.payload.departments;
+        } else if (Array.isArray(action.payload)) {
+          // Fallback for direct array format
+          state.departments = action.payload;
+        } else {
+          state.departments = [];
+        }
+
       })
       .addCase(fetchDepartments.rejected, (state, action) => {
         state.loading = false;

@@ -21,6 +21,7 @@ export interface ParsedReviewData {
 
 /**
  * Parse review data to extract item ratings and comments
+ * UPDATED: Now uses structured item_ratings data (same as KPIConfirmation)
  */
 export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
   const employeeItemRatings: ItemRatings = {};
@@ -29,10 +30,41 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
   const managerItemComments: ItemComments = {};
 
   if (!review) {
+
     return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
   }
 
-  // Parse employee ratings/comments
+ 
+
+  // PRIORITY 1: Use structured `item_ratings` data (same as KPIConfirmation.tsx)
+  if ((review as any).item_ratings) {
+    
+    // Parse employee ratings from structured data
+    if ((review as any).item_ratings.employee) {
+      Object.entries((review as any).item_ratings.employee).forEach(([itemId, ratingData]: [string, any]) => {
+        const id = parseInt(itemId);
+        employeeItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
+        employeeItemComments[id] = ratingData.comment || '';
+      });
+    }
+
+    // Parse manager ratings from structured data
+    if ((review as any).item_ratings.manager) {
+      Object.entries((review as any).item_ratings.manager).forEach(([itemId, ratingData]: [string, any]) => {
+        const id = parseInt(itemId);
+        managerItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
+        managerItemComments[id] = ratingData.comment || '';
+      });
+    }
+
+    
+
+    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
+  }
+
+  // FALLBACK: Try legacy JSON format in comment fields
+
+  // Parse employee ratings/comments from JSON in comment field
   try {
     const empData = JSON.parse(review.employee_comment || '{}');
     if (empData.items && Array.isArray(empData.items)) {
@@ -43,11 +75,11 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
         }
       });
     }
-  } catch {
-    // Not JSON, use legacy format
+  } catch (error) {
+
   }
 
-  // Parse manager ratings/comments
+  // Parse manager ratings/comments from JSON in comment field
   try {
     const mgrData = JSON.parse(review.manager_comment || '{}');
     if (mgrData.items && Array.isArray(mgrData.items)) {
@@ -57,11 +89,13 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
           managerItemComments[item.item_id] = item.comment || '';
         }
       });
+
     }
-  } catch {
-    // Not JSON, use legacy format
+  } catch (error) {
+
   }
 
+ 
   return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
 };
 

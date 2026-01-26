@@ -19,15 +19,10 @@ export const hrService = {
    * Fetch unread notifications
    */
   fetchNotifications: async (limit: number = 5): Promise<Notification[]> => {
-    console.log('[hrService] 📡 API call: GET /notifications', { limit, read: 'false' });
     const response = await api.get('/notifications', { 
       params: { limit, read: 'false' } 
     });
-    console.log('[hrService] 📥 Response:', {
-      status: response.status,
-      notificationsCount: response.data.notifications?.length || 0,
-      data: response.data
-    });
+   
     return response.data.notifications || [];
   },
 
@@ -35,12 +30,8 @@ export const hrService = {
    * Fetch recent activity
    */
   fetchRecentActivity: async (): Promise<Notification[]> => {
-    console.log('[hrService] 📡 API call: GET /notifications/activity');
     const response = await api.get('/notifications/activity');
-    console.log('[hrService] 📥 Response:', {
-      status: response.status,
-      activitiesCount: response.data.activities?.length || 0
-    });
+   
     return response.data.activities || [];
   },
 
@@ -54,7 +45,11 @@ export const hrService = {
     const response = await api.get(
       `/departments/statistics/${department}/${category}`
     );
-    return response.data.employees || [];
+   
+    
+    // Backend returns { success: true, data: { employees: [...] } }
+    const employees = response.data.data?.employees || response.data.employees || [];
+    return employees;
   },
 
   /**
@@ -62,16 +57,18 @@ export const hrService = {
    */
   fetchManagers: async (): Promise<Manager[]> => {
     const response = await api.get('/departments/managers');
-    return response.data.managers || [];
+    
+    
+    // Backend returns { success: true, data: { managers: [...] } }
+    const managers = response.data.data?.managers || response.data.managers || [];
+    return managers;
   },
 
   /**
    * Mark notification as read
    */
   markNotificationRead: async (id: number): Promise<void> => {
-    console.log(`[hrService] 📡 API call: PATCH /notifications/${id}/read`);
     const response = await api.patch(`/notifications/${id}/read`);
-    console.log(`[hrService] ✅ Notification ${id} marked as read:`, response.data);
   },
 
   /**
@@ -285,13 +282,22 @@ export const hrService = {
    * Fetch KPI by ID with its review
    */
   fetchKPIById: async (kpiId: string) => {
+    
     const [kpiRes, reviewsRes] = await Promise.all([
       api.get(`/kpis/${kpiId}`),
       api.get('/kpi-review'),
     ]);
 
-    const kpi = kpiRes.data.kpi;
-    const review = reviewsRes.data.reviews?.find((r: any) => r.kpi_id === parseInt(kpiId));
+    
+
+    // Handle both response structures: { data: {...} } or { success: true, data: {...} }
+    const kpi = kpiRes.data?.data || kpiRes.data?.kpi || kpiRes.data;
+    const reviews = reviewsRes.data?.reviews || reviewsRes.data?.data || reviewsRes.data;
+    const review = Array.isArray(reviews) 
+      ? reviews.find((r: any) => r.kpi_id === parseInt(kpiId))
+      : null;
+
+  
 
     return { kpi, review };
   },

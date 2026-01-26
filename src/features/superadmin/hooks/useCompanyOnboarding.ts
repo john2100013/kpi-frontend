@@ -21,8 +21,8 @@ export const useCompanyOnboarding = () => {
   const [companyName, setCompanyName] = useState('');
   const [companyDomain, setCompanyDomain] = useState('');
   const [departments, setDepartments] = useState<string[]>(['']);
-  const [hrUsers, setHrUsers] = useState<HRUser[]>([{ name: '', email: '', password: '' }]);
-  const [managers, setManagers] = useState<Manager[]>([{ name: '', email: '', password: '', departments: [] }]);
+  const [hrUsers, setHrUsers] = useState<HRUser[]>([{ name: '', email: '', password: '', payrollNumber: '' }]);
+  const [managers, setManagers] = useState<Manager[]>([{ name: '', email: '', password: '', payrollNumber: '', departments: [] }]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [showHRPasswords, setShowHRPasswords] = useState<boolean[]>([false]);
@@ -45,7 +45,7 @@ export const useCompanyOnboarding = () => {
 
   // HR User handlers
   const addHRUser = () => {
-    setHrUsers([...hrUsers, { name: '', email: '', password: '' }]);
+    setHrUsers([...hrUsers, { name: '', email: '', password: '', payrollNumber: '' }]);
     setShowHRPasswords([...showHRPasswords, false]);
   };
 
@@ -68,7 +68,7 @@ export const useCompanyOnboarding = () => {
 
   // Manager handlers
   const addManager = () => {
-    setManagers([...managers, { name: '', email: '', password: '', departments: [] }]);
+    setManagers([...managers, { name: '', email: '', password: '', payrollNumber: '', departments: [] }]);
     setShowManagerPasswords([...showManagerPasswords, false]);
   };
 
@@ -150,8 +150,15 @@ export const useCompanyOnboarding = () => {
         return;
       }
 
-      if (hrUsers.length === 0 || !hrUsers[0].name || !hrUsers[0].email || !hrUsers[0].password) {
-        setError('At least one HR user with name, email, and password is required');
+      if (hrUsers.length === 0 || !hrUsers[0].name?.trim() || !hrUsers[0].email?.trim() || !hrUsers[0].password || !hrUsers[0].payrollNumber?.trim()) {
+        setError('At least one HR user with name, email, password, and payroll number is required');
+        setLoading(false);
+        return;
+      }
+
+      const managerMissingPayroll = managers.some(m => (m.name || m.email || m.password || m.departments.length) && !m.payrollNumber?.trim());
+      if (managerMissingPayroll) {
+        setError('Payroll number is required for each manager');
         setLoading(false);
         return;
       }
@@ -163,16 +170,32 @@ export const useCompanyOnboarding = () => {
         emp.nationalId && emp.nationalId.trim()
       );
 
+      const validHrUsers = hrUsers
+        .filter(hr => hr.name?.trim() && hr.email?.trim() && hr.password && hr.payrollNumber?.trim())
+        .map(hr => ({
+          ...hr,
+          name: hr.name.trim(),
+          email: hr.email.trim(),
+          payrollNumber: hr.payrollNumber.trim(),
+        }));
+
+      const validManagers = managers
+        .filter(m => m.name?.trim() && m.email?.trim() && m.password && m.payrollNumber?.trim())
+        .map(m => ({
+          ...m,
+          name: m.name.trim(),
+          email: m.email.trim(),
+          payrollNumber: m.payrollNumber.trim(),
+          departments: m.departments.filter(d => d.trim()),
+        }));
+
       // Prepare data
       const onboardingData: OnboardingFormData = {
         companyName: companyName.trim(),
         companyDomain: companyDomain.trim(),
         departments: departments.filter(d => d.trim()),
-        hrUsers: hrUsers.filter(hr => hr.name && hr.email && hr.password),
-        managers: managers.filter(m => m.name && m.email && m.password).map(m => ({
-          ...m,
-          departments: m.departments.filter(d => d.trim())
-        })),
+        hrUsers: validHrUsers,
+        managers: validManagers,
         employees: validEmployees,
       };
 

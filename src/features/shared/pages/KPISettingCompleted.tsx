@@ -42,23 +42,52 @@ const KPISettingCompleted: React.FC = () => {
         setSelectedPeriodId(periods[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch available periods.');
+      }
     }
   };
 
   const fetchData = async () => {
     try {
-      // Use the dedicated endpoint for setting-completed KPIs
-      const kpisRes = await api.get('/kpis/setting-completed').catch(err => {
-        console.error('Error fetching setting-completed KPIs:', err);
+
+
+      
+      // Fetch acknowledged KPIs (status = 'acknowledged')
+
+      const kpisRes = await api.get('/kpis/setting-completed', {
+        params: {
+          status: 'acknowledged', // Filter for acknowledged status
+        }
+      }).catch(err => {
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.error('Could not fetch acknowledged KPIs.');
+        }
         return { data: { kpis: [] } };
       });
 
-      setKpis(kpisRes.data.kpis || []);
+
+
+      // Filter for acknowledged status on frontend as well (double-check)
+      const allKpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
+      
+      // if (allKpis.length > 0) {
+      // } else {
+      //   // No KPIs returned from API
+      // }
+
+      const acknowledgedKPIs = allKpis.filter((kpi: KPI) => kpi.status === 'acknowledged');
+
+      
+      setKpis(acknowledgedKPIs);
+
     } catch (error) {
-      console.error('Error fetching data:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch acknowledged KPIs.');
+      }
     } finally {
       setLoading(false);
+
     }
   };
 
@@ -75,6 +104,12 @@ const KPISettingCompleted: React.FC = () => {
     
     return matchesType && matchesPeriod && matchesSearch;
   });
+
+  // Add logging for filtered results
+
+  // if (kpis.length > 0 && settingCompletedKPIs.length === 0) {
+  //   // Sample KPI for comparison and current filters (developer log removed)
+  // }
 
   // UPDATED: Check if KPI was ever rejected
   const getStatus = (): { status: string; color: string } => {
@@ -108,7 +143,6 @@ const KPISettingCompleted: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Error downloading PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to download PDF');
     } finally {
       setDownloading(null);
@@ -179,7 +213,7 @@ const KPISettingCompleted: React.FC = () => {
     const periodLabel = kpiType === 'quarterly' && selectedPeriodId
       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''}_${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
       : kpiType;
-    const fileName = `KPI_Setting_Completed_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`;
+    const fileName = `KPI_Acknowledged_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`;
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
@@ -202,9 +236,9 @@ const KPISettingCompleted: React.FC = () => {
           <FiArrowLeft className="text-xl" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">KPI Setting Completed</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Acknowledged KPIs</h1>
           <p className="text-sm text-gray-600 mt-1">
-            View all KPIs where the setting phase has been fully completed and signed
+            View all KPIs that have been acknowledged and signed by employees
           </p>
         </div>
         {(user?.role === 'hr' || user?.role === 'manager') && (
@@ -270,12 +304,12 @@ const KPISettingCompleted: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            KPI Setting Completed ({settingCompletedKPIs.length})
+            Acknowledged KPIs ({settingCompletedKPIs.length})
           </h2>
           <p className="text-sm text-gray-600 mt-1">
             {kpiType === 'quarterly' && selectedPeriodId
               ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
-              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that were acknowledged and fully signed off
+              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that have been acknowledged by employees
           </p>
         </div>
 
@@ -296,7 +330,7 @@ const KPISettingCompleted: React.FC = () => {
               {settingCompletedKPIs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No KPI setting records found for {kpiType === 'quarterly' && selectedPeriodId
+                    No acknowledged KPIs found for {kpiType === 'quarterly' && selectedPeriodId
                       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
                       : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} period
                   </td>
@@ -348,15 +382,8 @@ const KPISettingCompleted: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => {
-                              let path: string;
-                              if (user?.role === 'hr') {
-                                path = `/hr/kpi-details/${kpi.id}`;
-                              } else if (user?.role === 'manager') {
-                                path = `/manager/kpi-details/${kpi.id}`;
-                              } else {
-                                path = `/employee/kpi-details/${kpi.id}`;
-                              }
-                              navigate(path);
+                              // Navigate to KPI acknowledgement sign page
+                              navigate(`/kpi-acknowledgement/${kpi.id}`);
                             }}
                             className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
                           >

@@ -18,12 +18,18 @@ const AcknowledgeList: React.FC = () => {
     try {
       const response = await api.get('/kpis');
       // Filter only pending KPIs (need acknowledgement)
+      // Defensive: Log and fallback if kpis is undefined
+      if (!response.data || !Array.isArray(response.data.kpis)) {
+        toast.error('Invalid KPI data received. Please try again.');
+        setKpis([]);
+        return;
+      }
       const pendingKPIs = response.data.kpis.filter(
         (kpi: KPI) => kpi.status === 'pending'
       );
       setKpis(pendingKPIs);
     } catch (error) {
-      console.error('Error fetching pending KPIs:', error);
+      toast.error('Failed to fetch pending KPIs. Please try again.');
     } finally {
       setLoading(false);
     }

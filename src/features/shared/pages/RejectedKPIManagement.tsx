@@ -40,7 +40,7 @@ const RejectedKPIManagement: React.FC = () => {
         setSelectedPeriodId(periods[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      toast.error('Failed to fetch available periods. Please try again.');
     }
   };
 
@@ -59,7 +59,7 @@ const RejectedKPIManagement: React.FC = () => {
       // KPIs are already filtered by status=rejected in the backend
       setKpis(allKpis);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch KPI data. Please try again.');
     } finally {
       setLoading(false);
     }

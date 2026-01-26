@@ -47,6 +47,17 @@ interface UseManagerKPISettingReturn {
   selectedPeriodSetting: any;
   textModal: TextModalState;
   confirmState: any;
+  // Template mode state
+  isTemplateMode: boolean;
+  templateId: number | null;
+  employees: any[];
+  departments: any[];
+  employeesLoading: boolean;
+  selectedEmployeeIds: number[];
+  // Template titles state
+  templateTitles: any[];
+  isDepartmentTemplateEnabled: boolean;
+  employeeDepartmentId: number | null;
   
   // Actions
   setKpiRows: (rows: KPIRow[]) => void;
@@ -57,7 +68,7 @@ interface UseManagerKPISettingReturn {
   setManagerSignature: (signature: string) => void;
   setSelectedPeriodSetting: (setting: any) => void;
   setTextModal: (modal: TextModalState) => void;
-  handleKpiChange: (index: number, field: string, value: string | boolean) => void; // Changed to accept boolean
+  handleKpiChange: (index: number, field: string, value: string | boolean | number) => void; // Changed to accept boolean and number
   handleQualitativeToggle: (index: number, checked: boolean) => void;
   handleAddRow: () => void;
   handleRemoveRow: (index: number) => void;
@@ -68,13 +79,19 @@ interface UseManagerKPISettingReturn {
   handleConfirm: () => void;
   handleCancel: () => void;
   getMinRowsForPeriod: () => number;
+  // Template mode handlers
+  handleSubmitToEmployees: (selectedEmployeeIds: number[]) => Promise<void>;
+  handleEmployeeSelectionChange: (employeeIds: number[]) => void;
 }
 
 export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
-  const { employeeId } = useParams<{ employeeId: string }>();
+  const { employeeId, templateId } = useParams<{ employeeId?: string; templateId?: string }>();
   const navigate = useNavigate();
   const toast = useToast();
   const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
+  
+  // Determine mode
+  const isTemplateMode = !!templateId;
   
   const [employee, setEmployee] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,15 +109,33 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     title: '',
     value: '',
   });
+  
+  // Template mode state
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  
+  // Template titles state
+  const [templateTitles, setTemplateTitles] = useState<any[]>([]);
+  const [isDepartmentTemplateEnabled, setIsDepartmentTemplateEnabled] = useState(false);
+  const [employeeDepartmentId, setEmployeeDepartmentId] = useState<number | null>(null);
 
-  // Load draft FIRST before fetching periods
+  // Load template data or employee data based on mode
   useEffect(() => {
-    if (employeeId) {
+   
+    
+    if (isTemplateMode && templateId) {
+      loadTemplate(parseInt(templateId));
+      fetchEmployeesForTemplate();
+      fetchAvailablePeriods();
+    } else if (employeeId) {
       loadDraft();
       fetchEmployee();
       fetchAvailablePeriods();
+    } else {
     }
-  }, [employeeId]);
+  }, [employeeId, templateId, isTemplateMode]);
 
   // Auto-save draft whenever form data changes
   useEffect(() => {
@@ -122,7 +157,6 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     
     const draftData = loadDraftFromStorage(employeeId);
     if (draftData) {
-      console.log('Loading draft for employee:', employeeId, draftData);
       
       if (draftData.period) {
         setPeriod(draftData.period);
@@ -157,16 +191,20 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
       const response = await api.get('/settings/available-periods');
       setAvailablePeriods(response.data.periods || []);
       
+      // DON'T set defaults in template mode - template will set its own period
+      if (isTemplateMode) {
+        return;
+      }
+      
       // Check if draft exists before setting defaults
       if (employeeId) {
         const draftData = loadDraftFromStorage(employeeId);
         if (draftData) {
-          console.log('Draft exists, skipping default period settings');
           return;
         }
       }
       
-      // Set default to first active quarterly period if available (only if no draft)
+      // Set default to first active quarterly period if available (only if no draft and not template mode)
       const quarterlyPeriods = response.data.periods?.filter((p: any) => p.period_type === 'quarterly' && p.is_active) || [];
       if (quarterlyPeriods.length > 0) {
         const firstPeriod = quarterlyPeriods[0];
@@ -179,25 +217,71 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
         setSelectedPeriodSetting(firstPeriod);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch available periods.');
+      }
     }
   };
 
   const fetchEmployee = async () => {
+    if (!employeeId) return;
+    
     try {
-      const response = await api.get(`/employees/${employeeId}`);
-      setEmployee(response.data.employee);
+      const response = await api.get('/users/list');
+      const users = response.data.data?.users || response.data.users || [];
+      const employee = users.find((u: any) => u.id === parseInt(employeeId));
+      if (employee) {
+        setEmployee(employee);
+        // Fetch template titles if department has feature enabled
+        if (employee.department_id) {
+          setEmployeeDepartmentId(employee.department_id);
+          await fetchDepartmentTemplateSettings(employee.department_id);
+        }
+      }
     } catch (error) {
-      console.error('Error fetching employee:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch employee.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKpiChange = (index: number, field: string, value: string | boolean) => {
+  const fetchDepartmentTemplateSettings = async (departmentId: number) => {
+    try {
+      // Check if department has template titles enabled
+      const checkResponse = await api.get(`/kpi-template-titles/department/${departmentId}/check`);
+      if (checkResponse.data.success && checkResponse.data.enabled) {
+        setIsDepartmentTemplateEnabled(true);
+        // Fetch template titles
+        await fetchTemplateTitles();
+      }
+    } catch (error) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not check department template settings.');
+      }
+    }
+  };
+
+  const fetchTemplateTitles = async () => {
+    try {
+      const response = await api.get('/kpi-template-titles');
+      if (response.data.success) {
+        setTemplateTitles(response.data.data || []);
+      }
+    } catch (error) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch template titles.');
+      }
+    }
+  };
+
+  const handleKpiChange = (index: number, field: string, value: string | boolean | number) => {
     const updated = [...kpiRows];
     if (field === 'is_qualitative' && typeof value === 'boolean') {
       updated[index] = { ...updated[index], is_qualitative: value };
+    } else if (field === 'exclude_from_calculation' && typeof value === 'number') {
+      updated[index] = { ...updated[index], exclude_from_calculation: value };
     } else if (typeof value === 'string') {
       updated[index] = { ...updated[index], [field]: value };
     }
@@ -281,7 +365,7 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     try {
       const validKpiRows = getValidKPIRows(kpiRows);
       
-      await api.post('/kpis', {
+      await api.post('/kpis/create', {
         employee_id: parseInt(employeeId!),
         period,
         quarter: period === 'quarterly' ? quarter : undefined,
@@ -326,6 +410,152 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     return getMinRows(period);
   };
 
+  // Template mode functions
+  const loadTemplate = async (tid: number) => {
+    try {
+      const response = await api.get(`/templates/${tid}`);
+      
+      // Backend returns: { success: true, template: {...}, items: [...] }
+      const templateData = response.data.template;
+      const templateItems = response.data.items;
+      
+      if (!templateData) {
+        toast.error('Failed to load template - no data');
+        return;
+      }
+      
+      
+      // Auto-populate form with template data
+      if (templateData.period) {
+        // Convert 'annual' to 'yearly' for frontend
+        const frontendPeriod = templateData.period === 'annual' ? 'yearly' : templateData.period;
+        setPeriod(frontendPeriod as 'quarterly' | 'yearly');
+      } else {
+      }
+      
+      if (templateData.quarter) {
+        setQuarter(templateData.quarter);
+      }
+      
+      if (templateData.year) {
+        setYear(templateData.year);
+      }
+      
+      // Load template items into kpiRows
+      if (templateItems && Array.isArray(templateItems)) {
+        const templateRows: KPIRow[] = templateItems.map((item: any) => ({
+          title: item.title || '',
+          description: item.description || '',
+          current_performance_status: item.current_performance_status || '',
+          target_value: item.target_value || '',
+          expected_completion_date: item.expected_completion_date || '',
+          measure_unit: item.measure_unit || '',
+          goal_weight: item.goal_weight || '',
+          is_qualitative: item.is_qualitative || false,
+          exclude_from_calculation: item.exclude_from_calculation || 0,
+        }));
+        setKpiRows(templateRows);
+      } else {
+      }
+    } catch (error) {
+      toast.error('Failed to load template');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployeesForTemplate = async () => {
+
+    setEmployeesLoading(true);
+    try {
+      const response = await api.get('/users/managers/employees-for-template');
+      
+      setEmployees(response.data.employees || []);
+      setDepartments(response.data.departments || []);
+      
+    } catch (error) {
+      toast.error('Failed to load employees');
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+  const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
+    
+    if (selectedEmployeeIds.length === 0) {
+      toast.error('Please select at least one employee');
+      return;
+    }
+
+    // Basic validation
+    const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
+    if (!basicValidation.isValid) {
+      toast.error(basicValidation.error!);
+      return;
+    }
+
+    // Goal weights validation
+    const weightValidation = validateGoalWeights(kpiRows);
+    if (!weightValidation.isValid) {
+      toast.error(weightValidation.error!);
+      return;
+    }
+
+    // Ask for confirmation if no goal weights
+    if (weightValidation.needsConfirmation) {
+      const confirmProceed = await confirm({
+        title: 'Continue without goal weights?',
+        message: 'Do you want to continue without entering goal weight?',
+        variant: 'warning',
+        confirmText: 'Continue',
+        cancelText: 'Cancel'
+      });
+      if (!confirmProceed) {
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const validKpiRows = getValidKPIRows(kpiRows);
+      
+      // Send KPIs to all selected employees
+      const promises = selectedEmployeeIds.map(empId =>
+        api.post('/kpis/create', {
+          employee_id: empId,
+          period,
+          quarter: period === 'quarterly' ? quarter : undefined,
+          year,
+          meeting_date: meetingDate?.toISOString().split('T')[0],
+          manager_signature: managerSignature,
+          kpi_items: validKpiRows.map(kpi => ({
+            title: kpi.title,
+            description: kpi.description,
+            current_performance_status: kpi.current_performance_status,
+            target_value: kpi.target_value,
+            expected_completion_date: kpi.expected_completion_date || null,
+            measure_unit: kpi.measure_unit,
+            goal_weight: kpi.goal_weight,
+            is_qualitative: kpi.is_qualitative || false,
+          })),
+        })
+      );
+
+      await Promise.all(promises);
+
+      toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
+      navigate('/manager/dashboard');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send KPIs to employees');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEmployeeSelectionChange = (employeeIds: number[]) => {
+    setSelectedEmployeeIds(employeeIds);
+  };
+
   return {
     // State
     employee,
@@ -341,6 +571,17 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     selectedPeriodSetting,
     textModal,
     confirmState,
+    // Template mode state
+    isTemplateMode,
+    templateId: templateId ? parseInt(templateId) : null,
+    employees,
+    departments,
+    employeesLoading,
+    selectedEmployeeIds,
+    // Template titles state
+    templateTitles,
+    isDepartmentTemplateEnabled,
+    employeeDepartmentId,
     
     // Actions
     setKpiRows,
@@ -362,5 +603,8 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     handleConfirm,
     handleCancel,
     getMinRowsForPeriod,
+    // Template mode handlers
+    handleSubmitToEmployees,
+    handleEmployeeSelectionChange,
   };
 };

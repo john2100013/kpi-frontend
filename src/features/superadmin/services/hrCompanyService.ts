@@ -27,16 +27,26 @@ export interface AssignHrData {
 
 export const hrCompanyService = {
   fetchHrUsers: async (): Promise<HrUser[]> => {
+
     const response = await api.get('/companies/hr-users');
-    return response.data.hrUsers || [];
+
+    const hrUsers = response.data?.data?.hrUsers || response.data?.hrUsers || [];
+
+    return hrUsers;
   },
 
   fetchAvailableCompaniesForHr: async (hrId: string): Promise<CompanyOption[]> => {
+
     const response = await api.get(`/companies/available-companies-for-hr/${hrId}`);
-    return response.data.companies || [];
+
+    const companies = response.data?.data?.companies || response.data?.companies || [];
+
+    return companies;
   },
 
   assignHrToCompany: async (data: AssignHrData): Promise<void> => {
+
     await api.post('/companies/assign-hr-to-company', data);
+
   },
 };

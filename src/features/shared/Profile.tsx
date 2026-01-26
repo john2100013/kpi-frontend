@@ -60,7 +60,7 @@ const Profile: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      toast.error('Failed to fetch profile. Please try again.');
     } finally {
       setLoading(false);
     }

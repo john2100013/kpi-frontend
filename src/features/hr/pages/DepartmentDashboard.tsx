@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { FiUsers, FiClock, FiCheckCircle, FiFileText, FiEye } from 'react-icons/fi';
@@ -27,6 +28,7 @@ interface Employee {
 }
 
 const DepartmentDashboard: React.FC = () => {
+  const toast = useToast();
   const navigate = useNavigate();
   const [statistics, setStatistics] = useState<DepartmentStatistic[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
@@ -51,7 +53,7 @@ const DepartmentDashboard: React.FC = () => {
       const response = await api.get('/departments/statistics');
       setStatistics(response.data.statistics || []);
     } catch (error) {
-      console.error('Error fetching statistics:', error);
+      toast.error('Failed to fetch department statistics. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,7 +64,7 @@ const DepartmentDashboard: React.FC = () => {
       const response = await api.get(`/departments/statistics/${department}/${category}`);
       setEmployees(response.data.employees || []);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      toast.error('Failed to fetch employees. Please try again.');
       setEmployees([]);
     }
   };

@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import EmployeeLayout from '../layouts/EmployeeLayout';
 import Dashboard from '../features/employee/pages/Dashboard';
 import AcknowledgeList from '../features/employee/pages/AcknowledgeList'; // RENAMED
-import KPIAcknowledgement from '../features/employee/pages/KPIAcknowledgementSign';
+import KPIAcknowledgement from '../features/shared/pages/KPIAcknowledgementSign';
 import Reviews from '../features/employee/pages/Reviews';
 import KPISettingCompleted from '../features/shared/pages/KPISettingCompleted';
 import CompletedReviews from '../features/shared/pages/CompletedReviews';

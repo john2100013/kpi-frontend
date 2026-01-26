@@ -5,12 +5,11 @@
  */
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import api, { setCSRFToken } from '../../services/api';
 import { User, Company } from '../../types';
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   companies: Company[];
   hasMultipleCompanies: boolean;
   selectedCompany: Company | null;
@@ -18,18 +17,19 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   passwordChangeRequired: boolean;
+  sessionExpiry: number | null;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
   companies: [],
   hasMultipleCompanies: false,
   selectedCompany: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
   error: null,
   passwordChangeRequired: false,
+  sessionExpiry: null,
 };
 
 // Async thunks
@@ -38,10 +38,14 @@ export const login = createAsyncThunk(
   async ({ payrollNumber, password }: { payrollNumber: string; password: string }, { rejectWithValue }) => {
     try {
       const response = await api.post('/auth/login', {
-        payrollNumber,
+        payroll_number: payrollNumber,
         password,
-        loginMethod: 'payroll',
       });
+
+      if (response.data.csrfToken) {
+        setCSRFToken(response.data.csrfToken);
+      }
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
@@ -56,11 +60,28 @@ export const loginWithEmail = createAsyncThunk(
       const response = await api.post('/auth/login', {
         email,
         password,
-        loginMethod: 'email',
       });
+
+      if (response.data.csrfToken) {
+        setCSRFToken(response.data.csrfToken);
+      }
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
+    }
+  }
+);
+
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await api.post('/auth/logout');
+      setCSRFToken(null);
+      return null;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Logout failed');
     }
   }
 );
@@ -77,6 +98,30 @@ export const selectCompany = createAsyncThunk(
   }
 );
 
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch user data');
+    }
+  }
+);
+
+export const refreshSession = createAsyncThunk(
+  'auth/refreshSession',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/refresh-token');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Session refresh failed');
+    }
+  }
+);
+
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (data: Partial<User>, { rejectWithValue }) => {
@@ -89,56 +134,47 @@ export const updateProfile = createAsyncThunk(
   }
 );
 
+export const initializeAuth = createAsyncThunk(
+  'auth/initializeAuth',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue('Not authenticated');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setUser: (state, action: PayloadAction<User | null>) => {
+    setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
+      state.isAuthenticated = true;
+      state.passwordChangeRequired = action.payload.requires_password_change || false;
     },
-    logout: (state) => {
+    clearAuth: (state) => {
       state.user = null;
-      state.token = null;
       state.companies = [];
       state.hasMultipleCompanies = false;
       state.selectedCompany = null;
       state.isAuthenticated = false;
       state.passwordChangeRequired = false;
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('companies');
-      localStorage.removeItem('selectedCompany');
-      localStorage.removeItem('passwordChangeRequired');
-      delete api.defaults.headers.common['Authorization'];
-    },
-    initializeAuth: (state) => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      const storedCompanies = localStorage.getItem('companies');
-      const storedSelectedCompany = localStorage.getItem('selectedCompany');
-      const storedPasswordChange = localStorage.getItem('passwordChangeRequired');
-
-      if (storedToken && storedUser) {
-        state.token = storedToken;
-        state.user = JSON.parse(storedUser);
-        state.isAuthenticated = true;
-        state.passwordChangeRequired = storedPasswordChange === 'true';
-        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-
-        if (storedCompanies) {
-          const parsedCompanies = JSON.parse(storedCompanies);
-          state.companies = parsedCompanies;
-          state.hasMultipleCompanies = parsedCompanies.length > 1;
-        }
-
-        if (storedSelectedCompany) {
-          state.selectedCompany = JSON.parse(storedSelectedCompany);
-        }
-      }
-      state.isLoading = false;
+      state.sessionExpiry = null;
+      state.error = null;
+      setCSRFToken(null);
     },
     clearError: (state) => {
       state.error = null;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+      state.isLoading = false;
+    },
+    setSessionExpiry: (state, action: PayloadAction<number>) => {
+      state.sessionExpiry = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -150,30 +186,23 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.token = action.payload.token;
         state.user = action.payload.user;
         state.companies = action.payload.companies || [];
         state.hasMultipleCompanies = action.payload.hasMultipleCompanies || false;
         state.passwordChangeRequired = action.payload.passwordChangeRequired || false;
         state.isAuthenticated = true;
+        state.sessionExpiry = action.payload.expiresAt || null;
 
-        // Set selected company
         if (action.payload.companies && action.payload.companies.length > 0) {
           const primary = action.payload.companies.find((c: Company) => c.is_primary) || action.payload.companies[0];
           state.selectedCompany = primary;
-          localStorage.setItem('selectedCompany', JSON.stringify(primary));
         }
-
-        // Store in localStorage
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
-        localStorage.setItem('companies', JSON.stringify(action.payload.companies || []));
-        localStorage.setItem('passwordChangeRequired', action.payload.passwordChangeRequired ? 'true' : 'false');
-        api.defaults.headers.common['Authorization'] = `Bearer ${action.payload.token}`;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+        state.isAuthenticated = false;
+        state.user = null;
       });
 
     // Login with email
@@ -184,28 +213,48 @@ const authSlice = createSlice({
       })
       .addCase(loginWithEmail.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.token = action.payload.token;
         state.user = action.payload.user;
         state.companies = action.payload.companies || [];
         state.hasMultipleCompanies = action.payload.hasMultipleCompanies || false;
         state.passwordChangeRequired = action.payload.passwordChangeRequired || false;
         state.isAuthenticated = true;
+        state.sessionExpiry = action.payload.expiresAt || null;
 
         if (action.payload.companies && action.payload.companies.length > 0) {
           const primary = action.payload.companies.find((c: Company) => c.is_primary) || action.payload.companies[0];
           state.selectedCompany = primary;
-          localStorage.setItem('selectedCompany', JSON.stringify(primary));
         }
-
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
-        localStorage.setItem('companies', JSON.stringify(action.payload.companies || []));
-        localStorage.setItem('passwordChangeRequired', action.payload.passwordChangeRequired ? 'true' : 'false');
-        api.defaults.headers.common['Authorization'] = `Bearer ${action.payload.token}`;
       })
       .addCase(loginWithEmail.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+        state.isAuthenticated = false;
+        state.user = null;
+      });
+
+    // Logout
+    builder
+      .addCase(logout.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.isLoading = false;
+        state.user = null;
+        state.companies = [];
+        state.hasMultipleCompanies = false;
+        state.selectedCompany = null;
+        state.isAuthenticated = false;
+        state.passwordChangeRequired = false;
+        state.sessionExpiry = null;
+        state.error = null;
+        setCSRFToken(null);
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.user = null;
+        state.isAuthenticated = false;
+        setCSRFToken(null);
       });
 
     // Select company
@@ -216,16 +265,52 @@ const authSlice = createSlice({
       })
       .addCase(selectCompany.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.token = action.payload.token;
-        state.user = action.payload.user;
-        state.selectedCompany = action.payload.selectedCompany;
-
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
-        localStorage.setItem('selectedCompany', JSON.stringify(action.payload.selectedCompany));
-        api.defaults.headers.common['Authorization'] = `Bearer ${action.payload.token}`;
+        state.user = { ...state.user!, company_id: action.payload.companyId };
+        state.selectedCompany = state.companies.find(c => c.id === action.payload.companyId) || state.selectedCompany;
+        state.sessionExpiry = action.payload.expiresAt || null;
       })
       .addCase(selectCompany.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch current user
+    builder
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.companies = action.payload.companies || [];
+        state.hasMultipleCompanies = action.payload.hasMultipleCompanies || false;
+        state.isAuthenticated = true;
+        state.passwordChangeRequired = action.payload.user.requires_password_change || false;
+        state.error = null;
+
+        if (action.payload.companies && action.payload.companies.length > 0) {
+          const primary = action.payload.companies.find((c: Company) => c.is_primary) || action.payload.companies[0];
+          state.selectedCompany = primary;
+        }
+      })
+      .addCase(fetchCurrentUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isAuthenticated = false;
+        state.user = null;
+      });
+
+    // Refresh session
+    builder
+      .addCase(refreshSession.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(refreshSession.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.sessionExpiry = action.payload.expiresAt || null;
+        state.error = null;
+      })
+      .addCase(refreshSession.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });
@@ -239,14 +324,38 @@ const authSlice = createSlice({
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.isLoading = false;
         state.user = action.payload.user;
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });
+
+    // Initialize auth
+    builder
+      .addCase(initializeAuth.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.companies = action.payload.companies || [];
+        state.hasMultipleCompanies = action.payload.hasMultipleCompanies || false;
+        state.isAuthenticated = true;
+        state.passwordChangeRequired = action.payload.user.requires_password_change || false;
+        state.error = null;
+
+        if (action.payload.companies && action.payload.companies.length > 0) {
+          const primary = action.payload.companies.find((c: Company) => c.is_primary) || action.payload.companies[0];
+          state.selectedCompany = primary;
+        }
+      })
+      .addCase(initializeAuth.rejected, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+      });
   },
 });
 
-export const { setUser, logout, initializeAuth, clearError } = authSlice.actions;
+export const { setUser, clearAuth, clearError, setError, setSessionExpiry } = authSlice.actions;
 export default authSlice.reducer;

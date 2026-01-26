@@ -76,36 +76,21 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
 
   const fetchTemplateAndEmployees = async () => {
     try {
-      console.log('🔍 [Frontend] Fetching template with ID:', templateId);
       setLoading(true);
       
       const templateResponse = await api.get(`/kpi-templates/${templateId}`);
       const fetchedTemplate = templateResponse.data.template;
-      
-      console.log('📋 [Frontend] Full Template Response:', JSON.stringify(templateResponse.data, null, 2));
-      console.log('📋 [Frontend] Template Data:', {
-        id: fetchedTemplate.id,
-        name: fetchedTemplate.template_name,
-        period: fetchedTemplate.period,
-        review_year: fetchedTemplate.review_year,
-        quarter: fetchedTemplate.quarter,
-        all_fields: fetchedTemplate
-      });
+     
       
       setTemplate(fetchedTemplate);
 
-      const employeesResponse = await api.get('/employees');
-      const fetchedEmployees = employeesResponse.data.employees || [];
-      console.log('👥 [Frontend] Fetched employees count:', fetchedEmployees.length);
+      const employeesResponse = await api.get('/users/list');
+      const users = employeesResponse.data.data || employeesResponse.data.users || [];
+      const fetchedEmployees = users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3);
       setEmployees(fetchedEmployees);
       
     } catch (error: any) {
-      console.error('❌ [Frontend] Error loading template:', error);
-      console.error('❌ [Frontend] Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
+    
       toast.error(error.response?.data?.error || 'Failed to load template');
       navigate('/manager/kpi-templates');
     } finally {
@@ -174,8 +159,6 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
   };
 
   const handleSubmit = async () => {
-    console.log('🚀 [Frontend] Submit initiated');
-    console.log('📊 [Frontend] Current template state:', template);
     
     if (selectedEmployees.length === 0) {
       toast.error('Please select at least one employee');
@@ -196,10 +179,8 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
 
     try {
       // Extract year from review_year string
-      console.log('🔍 [Frontend] Extracting year from review_year:', template?.review_year);
       const yearMatch = template?.review_year?.match(/(\d{4})/);
       const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-      console.log('📅 [Frontend] Extracted year:', year);
 
       const payload = {
         template_id: parseInt(templateId!),
@@ -211,19 +192,12 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
         quarter: template?.quarter || null,
       };
       
-      console.log('📤 [Frontend] Submitting payload to backend:', JSON.stringify(payload, null, 2));
-      console.log('🔗 [Frontend] API endpoint:', `/kpi-templates/${templateId}/apply`);
       
       const response = await api.post(`/kpi-templates/${templateId}/apply`, payload);
-      console.log('✅ [Frontend] Success response:', JSON.stringify(response.data, null, 2));
 
       toast.success(`KPIs assigned successfully to ${selectedEmployees.length} employee(s)!`);
       navigate('/manager/kpi-templates');
     } catch (error: any) {
-      console.error('❌ [Frontend] Error applying template');
-      console.error('❌ [Frontend] Error response:', error.response?.data);
-      console.error('❌ [Frontend] Error status:', error.response?.status);
-      console.error('❌ [Frontend] Full error:', error);
       toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to apply template');
     } finally {
       setSubmitting(false);

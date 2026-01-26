@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { isManager, isEmployee, isHR, isSuperAdmin } from '../utils/roleUtils';
 import {
   FiHome,
   FiTarget,
@@ -13,49 +14,76 @@ import {
   FiMail,
   FiSettings,
   FiAlertTriangle,
+  FiSliders,
 } from 'react-icons/fi';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  initialKpis?: any[];
+  initialReviews?: any[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initialReviews }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
-
   const isActive = (path: string) => location.pathname === path;
 
+
+
   useEffect(() => {
-    if (user?.role === 'manager') {
+    if (isManager(user)) {
       fetchPendingReviewsCount();
-    } else if (user?.role === 'employee') {
-      fetchEmployeeCounts();
+    } else if (isEmployee(user)) {
+      // Use initial data if provided, otherwise fetch
+      if (initialKpis && initialReviews) {
+        calculateEmployeeCounts(initialKpis, initialReviews);
+      } else {
+        fetchEmployeeCounts();
+      }
     }
-  }, [user]);
+  }, [user, initialKpis, initialReviews]);
 
   // Refresh count when navigating to/from relevant pages
   useEffect(() => {
-    if (user?.role === 'manager' && location.pathname === '/manager/reviews') {
+    if (isManager(user) && location.pathname === '/manager/reviews') {
       fetchPendingReviewsCount();
-    } else if (user?.role === 'employee' && (
+    } else if (isEmployee(user) && (
       location.pathname === '/employee/acknowledge' || 
       location.pathname === '/employee/reviews'
     )) {
-      fetchEmployeeCounts();
+      // Use initial data if available, otherwise fetch
+      if (initialKpis && initialReviews) {
+        calculateEmployeeCounts(initialKpis, initialReviews);
+      } else {
+        fetchEmployeeCounts();
+      }
     }
-  }, [location.pathname, user]);
+  }, [location.pathname, user, initialKpis, initialReviews]);
+
+  const calculateEmployeeCounts = (kpis: any[], reviews: any[]) => {
+    // Count pending acknowledgements
+    const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
+    setPendingAcknowledgementsCount(pendingAcknowledgements);
+
+    // Count KPIs needing employee review
+    const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
+    const needReview = acknowledgedKPIs.filter((kpi: any) => {
+      const review = reviews.find((r: any) => r.kpi_id === kpi.id);
+      return !review || review.review_status === 'pending';
+    }).length;
+    setPendingEmployeeReviewsCount(needReview);
+  };
 
   const fetchPendingReviewsCount = async () => {
     try {
       const response = await api.get('/kpi-review/pending/count');
       setPendingReviewsCount(response.data.count || 0);
     } catch (error) {
-      console.error('Error fetching pending reviews count:', error);
       setPendingReviewsCount(0);
     }
   };
@@ -70,28 +98,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       const kpis = kpisRes.data.kpis || [];
       const reviews = reviewsRes.data.reviews || [];
 
-      // Count pending acknowledgements
-      const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
-      setPendingAcknowledgementsCount(pendingAcknowledgements);
-
-      // Count KPIs needing employee review
-      const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
-      const needReview = acknowledgedKPIs.filter((kpi: any) => {
-        const review = reviews.find((r: any) => r.kpi_id === kpi.id);
-        return !review || review.review_status === 'pending';
-      }).length;
-      setPendingEmployeeReviewsCount(needReview);
+      calculateEmployeeCounts(kpis, reviews);
     } catch (error) {
-      console.error('Error fetching employee counts:', error);
       setPendingAcknowledgementsCount(0);
       setPendingEmployeeReviewsCount(0);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
     onClose();
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    navigate('/login');
   };
 
   interface NavItem {
@@ -145,6 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/hr/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiCheckCircle },
     { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
     { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheckCircle },
+    { path: '/hr/review-report', label: 'Review Report', icon: FiFileText },
     { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },
     { path: '/hr/settings', label: 'Settings', icon: FiSettings },
   ];
@@ -153,14 +175,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/super-admin/dashboard', label: 'Dashboard', icon: FiHome },
     { path: '/super-admin/company-management', label: 'Company Management', icon: FiHome },
     { path: '/super-admin/user-management', label: 'User Management', icon: FiUsers },
+    { path: '/super-admin/calculation-settings', label: 'Calculation Settings', icon: FiSliders },
+    { path: '/super-admin/sms-configuration', label: 'SMS Configuration', icon: FiMail },
     { path: '/onboard', label: 'Onboard Company', icon: FiUsers },
   ];
 
   const getNavItems = () => {
-    if (user?.role === 'super_admin') return superAdminNavItems;
-    if (user?.role === 'manager') return managerNavItems;
-    if (user?.role === 'employee') return employeeNavItems;
-    if (user?.role === 'hr') return hrNavItems;
+    if (isSuperAdmin(user)) {
+      return superAdminNavItems;
+    }
+    if (isManager(user)) {
+      return managerNavItems;
+    }
+    if (isEmployee(user)) {
+      return employeeNavItems;
+    }
+    if (isHR(user)) {
+      return hrNavItems;
+    }
+    
     return [];
   };
 
@@ -200,7 +233,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
                 MAIN
               </p>
-              {getNavItems().map((item) => {
+              {(() => {
+                const navItems = getNavItems();
+                return navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
                 return (
@@ -229,13 +264,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     )}
                   </Link>
                 );
-              })}
+              })})()}
             </div>
 
           </nav>
 
           {/* Logout - Only for HR and Super Admin */}
-          {(user?.role === 'hr' || user?.role === 'super_admin') && (
+          {(isHR(user) || isSuperAdmin(user)) && (
             <div className="p-4 border-t border-gray-200">
               <button
                 onClick={handleLogout}

@@ -21,7 +21,16 @@ export const KPIRejectionCard: React.FC<KPIRejectionCardProps> = ({
   onResolveNoteChange,
   onResolve,
 }) => {
-  if (review.review_status !== 'rejected' || !review.employee_rejection_note) {
+  // Check for rejection - use both field names for compatibility
+  const rejectionNote = review.rejection_note || review.employee_rejection_note;
+  const confirmationStatus = review.confirmation_status || review.employee_confirmation_status;
+  const signedAt = review.confirmation_signed_at || review.employee_confirmation_signed_at;
+  
+  if (review.review_status !== 'rejected' && review.status !== 'rejected') {
+    return null;
+  }
+  
+  if (!rejectionNote) {
     return null;
   }
 
@@ -29,18 +38,18 @@ export const KPIRejectionCard: React.FC<KPIRejectionCardProps> = ({
     <div className="mt-6 p-4 bg-red-50 rounded-lg border-2 border-red-300">
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-bold text-red-900">⚠️ Employee Rejection Reason:</p>
-        {review.employee_confirmation_status === 'rejected' && (
+        {confirmationStatus === 'rejected' && (
           <span className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-full font-semibold">
             REJECTED
           </span>
         )}
       </div>
       <p className="text-sm text-red-700 font-medium bg-white p-3 rounded border border-red-200">
-        {review.employee_rejection_note}
+        {rejectionNote}
       </p>
-      {review.employee_confirmation_signed_at && (
+      {signedAt && (
         <p className="text-xs text-red-600 mt-2">
-          Rejected on {new Date(review.employee_confirmation_signed_at).toLocaleDateString()}
+          Rejected on {new Date(signedAt).toLocaleDateString()}
         </p>
       )}
 

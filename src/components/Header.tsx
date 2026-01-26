@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiSearch, FiBell, FiMenu, FiLogOut, FiUser, FiHome } from 'react-icons/fi';
+import { getRoleDisplayName } from '../utils/roleUtils';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -29,10 +30,14 @@ const Header: React.FC<HeaderProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
     setShowUserMenu(false);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    navigate('/login');
   };
 
   return (
@@ -104,7 +109,9 @@ const Header: React.FC<HeaderProps> = ({
                               setShowCompanyMenu(false);
                               window.location.reload(); // Reload to refresh data
                             } catch (error) {
-                              console.error('Failed to switch company:', error);
+                              if (typeof window !== 'undefined' && window.toast) {
+                                window.toast.error('Failed to switch company.');
+                              }
                             }
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
@@ -188,7 +195,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-xs text-gray-500">{getRoleDisplayName(user?.role_id)}</p>
                 </div>
               </button>
 
@@ -199,7 +206,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="px-3 py-2 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
                       <p className="text-xs text-gray-500">{user?.email}</p>
-                      <p className="text-xs text-gray-500 capitalize mt-1">{user?.role}</p>
+                      <p className="text-xs text-gray-500 mt-1">{getRoleDisplayName(user?.role_id)}</p>
                     </div>
                     <button
                       onClick={() => {

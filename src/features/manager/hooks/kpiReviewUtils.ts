@@ -15,7 +15,7 @@ export interface ItemCommentsMap {
 }
 
 export interface QualitativeRatingsMap {
-  [itemId: number]: string;
+  [itemId: number]: string | number;
 }
 
 export interface ReviewDraftData {
@@ -48,7 +48,6 @@ export const parseEmployeeData = (employeeComment: string, itemRatings?: any): {
       const ratingValue = parseFloat(ratingData.rating);
       ratings[id] = ratingValue;
       comments[id] = String(ratingData.comment || '');
-      console.log(`📊 [KPIReview Utils] Structured - Item ${id} - Rating: ${ratingValue}`);
     });
     return { ratings, comments };
   }
@@ -56,22 +55,18 @@ export const parseEmployeeData = (employeeComment: string, itemRatings?: any): {
   // FALLBACK: Parse from JSON (backward compatibility)
   try {
     const employeeData = JSON.parse(employeeComment || '{}');
-    console.log('📋 [KPIReview Utils] Parsed employee data:', employeeData);
     
     if (employeeData.items && Array.isArray(employeeData.items)) {
       employeeData.items.forEach((item: any) => {
         if (item.item_id) {
           const ratingValue = parseFloat(String(item.rating || 0));
-          console.log(`📊 [KPIReview Utils] Item ${item.item_id} - Rating: ${item.rating}, Parsed: ${ratingValue}`);
           ratings[item.item_id] = ratingValue;
           comments[item.item_id] = String(item.comment || '');
         }
       });
     } else {
-      console.warn('⚠️ [KPIReview Utils] Employee data.items is not an array:', employeeData);
     }
   } catch (error) {
-    console.error('❌ [KPIReview Utils] Error parsing employee data:', error);
     // If parsing fails and we have KPI items, return empty maps
   }
 
@@ -111,7 +106,6 @@ export const parseManagerData = (managerComment: string, itemRatings?: any): {
     }
   } catch (error) {
     // If not JSON, return empty maps
-    console.error('Error parsing manager data:', error);
   }
 
   return { ratings, comments };
@@ -147,6 +141,7 @@ export const getRatingLabel = (rating: number): string => {
 
 /**
  * Calculate average rating from item ratings and accomplishments
+ * Excludes items marked with exclude_from_calculation = 1
  */
 export const calculateAverageRating = (
   items: KPIItem[],
@@ -154,13 +149,20 @@ export const calculateAverageRating = (
   accomplishments?: any[]
 ): number => {
   if (!items || items.length === 0) return 0;
-  const itemRatings = items.map((item) => ratingsMap[item.id] || 0).filter(r => r > 0);
   
-  // Include manager ratings from accomplishments if available
+  // Filter out items excluded from calculation (exclude_from_calculation === 1)
+  const includedItems = items.filter(item => !item.exclude_from_calculation || item.exclude_from_calculation === 0);
+  const itemRatings = includedItems.map((item) => ratingsMap[item.id] || 0).filter(r => r > 0);
+  
+  // Include ratings from accomplishments if available
+  // Use manager_rating if available, otherwise use employee_rating
   const accomplishmentRatings = accomplishments 
     ? accomplishments
-        .filter(acc => acc.manager_rating !== null && acc.manager_rating !== undefined && acc.manager_rating > 0)
-        .map(acc => acc.manager_rating)
+        .filter(acc => {
+          const rating = acc.manager_rating ?? acc.employee_rating;
+          return rating !== null && rating !== undefined && rating > 0;
+        })
+        .map(acc => acc.manager_rating ?? acc.employee_rating)
     : [];
   
   const allRatings = [...itemRatings, ...accomplishmentRatings];
@@ -180,22 +182,43 @@ export const roundToAllowedRating = (averageRating: number): number => {
 
 /**
  * Validate all KPI items are rated
+ * Note: Items excluded from calculation (exclude_from_calculation === 1) still need to be rated
  */
 export const validateAllItemsRated = (
   items: KPIItem[],
   managerRatings: ItemRatingsMap,
   qualitativeRatings: QualitativeRatingsMap
-): boolean => {
-  return items.every((item) => {
-    // Skip validation for qualitative items
+): { valid: boolean; missingItems: Array<{ item_id: number; title: string; type: 'qualitative' | 'quantitative'; value: any; parsed?: number | null }> } => {
+
+  const missingItems: Array<{ item_id: number; title: string; type: 'qualitative' | 'quantitative'; value: any; parsed?: number | null }> = [];
+
+  const allValid = items.every((item) => {
+    // Validate qualitative items (still required even if excluded from calculation)
     if (item.is_qualitative) {
       const qualRating = qualitativeRatings[item.id];
-      return qualRating && (qualRating === 'exceeds' || qualRating === 'meets' || qualRating === 'needs_improvement');
+      const hasValue = qualRating !== undefined && qualRating !== null && String(qualRating).trim().length > 0;
+      if (!hasValue) {
+        missingItems.push({ item_id: item.id, title: item.title || '', type: 'qualitative', value: qualRating ?? null, parsed: null });
+        return false;
+      }
+      return true;
     }
-    // Validate quantitative items
+
+    // Validate quantitative items - accept any numeric rating > 0 (still required even if excluded from calculation)
     const rating = managerRatings[item.id];
-    return rating !== undefined && rating !== null && (rating === 0.00 || rating === 1.00 || rating === 1.25 || rating === 1.50);
+    const ratingNum = !isNaN(parseFloat(String(rating))) ? parseFloat(String(rating)) : NaN;
+    const isValid = rating !== undefined && rating !== null && !isNaN(ratingNum) && ratingNum > 0;
+    if (!isValid) {
+      missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating ?? null, parsed: isNaN(ratingNum) ? null : ratingNum });
+      return false;
+    }
+    return true;
   });
+
+  if (!allValid) {
+  }
+
+  return { valid: allValid, missingItems };
 };
 
 /**
@@ -205,19 +228,49 @@ export const buildItemDataJSON = (
   items: KPIItem[],
   managerRatings: ItemRatingsMap,
   managerComments: ItemCommentsMap,
-  actualValues?: Record<number, string>
+  actualValues?: Record<number, string>,
+  targetValues?: Record<number, string>,
+  goalWeights?: Record<number, string>,
+  currentPerformanceStatuses?: Record<number, string>
 ): string => {
   const itemRatings = items.map((item) => managerRatings[item.id] || 0);
   const averageRating = itemRatings.reduce((sum, rating) => sum + rating, 0) / itemRatings.length;
   const roundedRating = roundToAllowedRating(averageRating);
 
   const itemData = {
-    items: items.map((item) => ({
-      item_id: item.id,
-      rating: managerRatings[item.id] || 0,
-      comment: managerComments[item.id] || '',
-      actual_value: actualValues ? (actualValues[item.id] || '') : '',
-    })),
+    items: items.map((item) => {
+      const actualValue = actualValues ? actualValues[item.id] : '';
+      const targetValue = targetValues ? (targetValues[item.id] || item.target_value) : item.target_value;
+      const goalWeight = goalWeights ? (goalWeights[item.id] || item.goal_weight || item.measure_criteria) : (item.goal_weight || item.measure_criteria);
+      const currentPerfStatus = currentPerformanceStatuses ? currentPerformanceStatuses[item.id] : '';
+      
+      // Calculate percentages for Actual vs Target method
+      let percentageValueObtained = null;
+      let managerRatingPercentage = null;
+      
+      if (actualValue && targetValue) {
+        const actualNum = parseFloat(String(actualValue));
+        const targetNum = parseFloat(String(targetValue));
+        const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+        
+        if (!isNaN(actualNum) && !isNaN(targetNum) && targetNum > 0 && !isNaN(goalWeightNum) && goalWeightNum > 0) {
+          percentageValueObtained = (actualNum / targetNum) * 100;
+          managerRatingPercentage = percentageValueObtained * goalWeightNum;
+        }
+      }
+      
+      return {
+        item_id: item.id,
+        rating: managerRatings[item.id] || 0,
+        comment: managerComments[item.id] || '',
+        actual_value: actualValue || '',
+        target_value: targetValue || '',
+        goal_weight: goalWeight || '',
+        current_performance_status: currentPerfStatus || '',
+        percentage_value_obtained: percentageValueObtained,
+        manager_rating_percentage: managerRatingPercentage,
+      };
+    }),
     average_rating: averageRating,
     rounded_rating: roundedRating,
   };
@@ -232,7 +285,7 @@ export const buildQualitativeRatingsArray = (
   items: KPIItem[],
   qualitativeRatings: QualitativeRatingsMap,
   qualitativeComments: ItemCommentsMap
-): Array<{ item_id: number; rating: string; comment: string }> => {
+): Array<{ item_id: number; rating: string | number; comment: string }> => {
   return items
     .filter(item => item.is_qualitative)
     .map(item => ({
@@ -267,7 +320,6 @@ export const loadReviewDraft = (reviewId: string): Partial<ReviewDraftData> | nu
     if (!savedDraft) return null;
     return JSON.parse(savedDraft);
   } catch (error) {
-    console.error('Error loading review draft:', error);
     return null;
   }
 };

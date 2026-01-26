@@ -116,7 +116,7 @@ const SuperAdminDashboard: React.FC = () => {
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <button
             onClick={() => navigateTo('/super-admin/onboard-company')}
             className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -131,7 +131,7 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigateTo('/super-admin/manage-companies')}
+            onClick={() => navigateTo('/super-admin/company-management')}
             className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -157,7 +157,7 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigateTo('/super-admin/manage-users')}
+            onClick={() => navigateTo('/super-admin/user-management')}
             className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -166,6 +166,32 @@ const SuperAdminDashboard: React.FC = () => {
             <div className="text-left">
               <p className="font-medium text-gray-900">Manage Users</p>
               <p className="text-xs text-gray-500">View all users</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigateTo('/super-admin/assign-manager-departments')}
+            className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <FiCalendar className="text-xl text-indigo-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Assign Managers</p>
+              <p className="text-xs text-gray-500">Link to departments</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigateTo('/super-admin/department-management')}
+            className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+              <FiGrid className="text-xl text-teal-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Departments</p>
+              <p className="text-xs text-gray-500">Manage departments</p>
             </div>
           </button>
         </div>
@@ -177,7 +203,7 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Recent Companies</h2>
             <button
-              onClick={() => navigateTo('/super-admin/manage-companies')}
+              onClick={() => navigateTo('/super-admin/company-management')}
               className="text-sm text-purple-600 hover:text-purple-700 font-medium"
             >
               View All

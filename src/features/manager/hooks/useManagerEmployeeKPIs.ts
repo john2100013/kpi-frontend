@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { managerService } from '../services/managerService';
 import { getKPIStage } from './managerDashboardUtils';
@@ -39,6 +40,7 @@ export const useManagerEmployeeKPIs = (): UseManagerEmployeeKPIsReturn => {
       fetchData();
     }
   }, [employeeId]);
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -53,7 +55,7 @@ export const useManagerEmployeeKPIs = (): UseManagerEmployeeKPIsReturn => {
       setReviews(allReviews);
       setEmployee(employeeData);
     } catch (error) {
-      console.error('Error fetching employee KPIs data:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }

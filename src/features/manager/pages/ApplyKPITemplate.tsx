@@ -51,17 +51,10 @@ const ApplyKPITemplate: React.FC = () => {
   const [selectedKPIItem, setSelectedKPIItem] = useState<{ item: KPITemplateItem; index: number } | null>(null);
 
   useEffect(() => {
-    console.log('📊 ApplyKPITemplate state updated:', {
-      loading,
-      hasTemplate: !!template,
-      templateName: template?.template_name,
-      employeeCount: filteredEmployees.length,
-      selectedCount: selectedEmployees.length,
-    });
+ 
   }, [loading, template, filteredEmployees, selectedEmployees]);
 
   if (loading) {
-    console.log('⏳ Showing loading state');
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Loading template...</div>
@@ -70,7 +63,6 @@ const ApplyKPITemplate: React.FC = () => {
   }
 
   if (!template) {
-    console.log('❌ No template found, showing error state');
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Template not found</div>
@@ -82,11 +74,6 @@ const ApplyKPITemplate: React.FC = () => {
   const filteredIds = filteredEmployees.map(emp => emp.id);
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedEmployees.includes(id));
 
-  console.log('✅ Rendering template form with:', {
-    templateName: template.template_name,
-    itemCount: template.items?.length,
-    employeeCount: filteredEmployees.length,
-  });
 
   return (
     <div className="space-y-6">

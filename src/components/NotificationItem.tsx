@@ -65,11 +65,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMar
       
       // Check if date is valid
       if (isNaN(date.getTime())) {
-        console.warn('Invalid date string:', dateString);
         return 'Unknown time';
       }
     } catch (error) {
-      console.error('Error parsing date:', dateString, error);
       return 'Unknown time';
     }
     

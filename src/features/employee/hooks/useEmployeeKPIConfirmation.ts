@@ -39,15 +39,16 @@ export const useEmployeeKPIConfirmation = () => {
     try {
       setLoading(true);
       const reviewData = await employeeService.fetchReviewById(parseInt(reviewId!));
-      setReview(reviewData);
-
+      setReview(reviewData); // <-- CRITICAL: set the review state!
       // Fetch the full KPI details with items
       if (reviewData?.kpi_id) {
         const kpiData = await employeeService.fetchKPIById(reviewData.kpi_id);
         setKpi(kpiData);
       }
     } catch (error: any) {
-      console.error('Error fetching review:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Failed to load review');
+      }
       setError('Failed to load review');
     } finally {
       setLoading(false);
@@ -64,9 +65,10 @@ export const useEmployeeKPIConfirmation = () => {
   };
 
   const handleSubmit = async () => {
+    
     const validation = validateConfirmation(action, rejectionNote, signature);
-    if (!validation.valid) {
-      setError(validation.error!);
+    
+    if (!validation.valid) {      setError(validation.error!);
       return;
     }
 
@@ -74,21 +76,26 @@ export const useEmployeeKPIConfirmation = () => {
     setError('');
 
     try {
-      await employeeService.submitConfirmation(parseInt(reviewId!), {
+     
+      
+      const response = await employeeService.submitConfirmation(parseInt(reviewId!), {
         confirmation_status: action === 'approve' ? 'approved' : 'rejected',
         rejection_note: action === 'reject' ? rejectionNote : null,
         signature: action === 'approve' ? signature : null,
       });
+      
 
       toast.success(
         action === 'approve'
           ? 'Review approved successfully!'
           : 'Review rejected successfully. Your manager and HR have been notified.'
       );
-
+      
       navigate('/employee/dashboard');
     } catch (error: any) {
-      console.error('Error confirming review:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error(error.response?.data?.error || 'Failed to confirm review');
+      }
       setError(error.response?.data?.error || 'Failed to confirm review');
     } finally {
       setSubmitting(false);
@@ -105,6 +112,7 @@ export const useEmployeeKPIConfirmation = () => {
 
   const parsedRatings = review ? parseItemRatingsFromReview(review) : null;
   const ratingSummary = review ? calculateRatingSummary(review, kpi) : null;
+
 
   return {
     reviewId,

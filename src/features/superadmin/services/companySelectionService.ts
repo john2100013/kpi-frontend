@@ -8,7 +8,7 @@ export interface CompanyOption {
 
 export const companySelectionService = {
   fetchAvailableCompanies: async (): Promise<CompanyOption[]> => {
-    const response = await api.get('/companies/available-for-selection');
+    const response = await api.get('/companies/my-companies');
     return response.data.companies || [];
   },
 

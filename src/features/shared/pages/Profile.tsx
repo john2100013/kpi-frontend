@@ -10,7 +10,6 @@ import { Button } from '../../../components/common';
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
-  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signature, setSignature] = useState<string>('');
@@ -47,6 +46,7 @@ const Profile: React.FC = () => {
     }
   }, [user?.signature]);
 
+  const toast = useToast();
   const fetchUserProfile = async () => {
     try {
       const response = await api.get('/auth/me');
@@ -60,7 +60,7 @@ const Profile: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      toast.error('Could not fetch your profile. Please try again.');
     } finally {
       setLoading(false);
     }

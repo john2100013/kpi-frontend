@@ -10,13 +10,32 @@ import {
   scrollToTable,
 } from './dashboardUtils';
 
-export const useEmployeeDashboard = () => {
+interface UseEmployeeDashboardProps {
+  initialKpis?: KPI[];
+  initialReviews?: KPIReview[];
+}
+
+export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [kpis, setKpis] = useState<KPI[]>([]);
-  const [reviews, setReviews] = useState<KPIReview[]>([]);
-  const [loading, setLoading] = useState(true);
+ 
+  const [kpis, setKpis] = useState<KPI[]>(props?.initialKpis || []);
+  const [reviews, setReviews] = useState<KPIReview[]>(props?.initialReviews || []);
+  const [loading, setLoading] = useState(!props?.initialKpis && !props?.initialReviews);
+
+  // Update state when props change
+  useEffect(() => {
+    if (props?.initialKpis && props.initialKpis.length > 0) {
+      setKpis(props.initialKpis);
+    }
+    if (props?.initialReviews && props.initialReviews.length > 0) {
+      setReviews(props.initialReviews);
+    }
+    if (props?.initialKpis || props?.initialReviews) {
+      setLoading(false);
+    }
+  }, [props?.initialKpis, props?.initialReviews]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
@@ -26,7 +45,11 @@ export const useEmployeeDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
 
   useEffect(() => {
-    fetchData();
+    // Only fetch if no initial data is provided
+    const hasInitialData = props?.initialKpis && props?.initialKpis.length > 0 && props?.initialReviews && props?.initialReviews.length > 0;
+    const shouldFetch = !hasInitialData;
+    
+    
     checkPasswordChange();
   }, [searchParams]);
 
@@ -38,21 +61,59 @@ export const useEmployeeDashboard = () => {
         api.get('/kpi-review'),
       ]);
 
-      setKpis(kpisRes.data.kpis || []);
-      setReviews(reviewsRes.data.reviews || []);
+
+      // Fix: Backend returns data in response.data.data.kpis, not response.data.kpis
+      const kpisData = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
+      const reviewsData = reviewsRes.data.reviews || [];
+
+      
+
+      setKpis(kpisData);
+      setReviews(reviewsData);
     } catch (error) {
-      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const checkPasswordChange = () => {
-    const required = searchParams.get('passwordChangeRequired') === 'true' || 
-                     localStorage.getItem('passwordChangeRequired') === 'true';
-    if (required) {
-      setPasswordChangeRequired(true);
-      setShowPasswordModal(true);
+  const checkPasswordChange = async () => {
+
+    
+    // Only check backend - ignore URL params and localStorage
+    try {
+
+      const response = await api.get('/auth/me');
+      const userData = response.data.user;
+      
+      
+      const backendRequires = userData.password_change_required === true || userData.password_change_required === 1;
+
+      
+      if (backendRequires) {
+
+        setPasswordChangeRequired(true);
+        setShowPasswordModal(true);
+      } else {
+
+        setPasswordChangeRequired(false);
+        setShowPasswordModal(false);
+        
+        // Clear any stale data
+        localStorage.removeItem('passwordChangeRequired');
+        
+        // Remove URL parameter if present
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('passwordChangeRequired')) {
+
+          urlParams.delete('passwordChangeRequired');
+          const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    } catch (error) {
+      // On error, don't show modal
+      setPasswordChangeRequired(false);
+      setShowPasswordModal(false);
     }
   };
 
@@ -88,6 +149,7 @@ export const useEmployeeDashboard = () => {
   };
 
   const stats = calculateDashboardStats(kpis, reviews);
+  
   const uniquePeriods = getUniquePeriods(kpis);
   const filteredKpis = filterKpis(kpis, reviews, searchTerm, selectedPeriod, selectedStatus);
 
