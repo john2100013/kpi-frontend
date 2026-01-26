@@ -27,9 +27,9 @@ export interface DepartmentFeatures {
   is_default?: boolean;
 }
 
-export const useDepartmentFeatures = (kpiId?: number) => {
+export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFeatures | null) => {
   const { user } = useAuth();
-  const [features, setFeatures] = useState<DepartmentFeatures | null>(null);
+  const [features, setFeatures] = useState<DepartmentFeatures | null>(initialData ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -197,10 +197,11 @@ export const useDepartmentFeatures = (kpiId?: number) => {
 
   // Fetch features on mount or when kpiId or user ID changes
   useEffect(() => {
-    if (user?.id) {
+    // Only fetch if no initialData is provided
+    if (user?.id && !initialData) {
       fetchFeatures();
     }
-  }, [user?.id, kpiId]);
+  }, [user?.id, kpiId, initialData]);
 
   return {
     features,

@@ -2,7 +2,7 @@ import React from 'react';
 import { KPI, KPIReview } from '../../../types';
 import { Button } from '../../../components/common';
 import { DashboardStageInfo } from '../hooks/dashboardUtils';
-import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
+import { CompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 interface DashboardKPIRowProps {
   kpi: KPI;
@@ -13,6 +13,7 @@ interface DashboardKPIRowProps {
   onReview: (kpiId: number) => void;
   onConfirm: (reviewId: number) => void;
   onEdit: (kpiId: number) => void;
+  features?: CompanyFeatures | null;
 }
 
 export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
@@ -24,8 +25,8 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
   onReview,
   onConfirm,
   onEdit,
+  features,
 }) => {
-  const { features } = useCompanyFeatures();
   
   // Backend may send either 'status' or 'review_status' field
   const reviewStatus = (review as any)?.status || review?.review_status;

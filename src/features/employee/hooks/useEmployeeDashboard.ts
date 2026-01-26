@@ -10,13 +10,32 @@ import {
   scrollToTable,
 } from './dashboardUtils';
 
-export const useEmployeeDashboard = () => {
+interface UseEmployeeDashboardProps {
+  initialKpis?: KPI[];
+  initialReviews?: KPIReview[];
+}
+
+export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [kpis, setKpis] = useState<KPI[]>([]);
-  const [reviews, setReviews] = useState<KPIReview[]>([]);
-  const [loading, setLoading] = useState(true);
+ 
+  const [kpis, setKpis] = useState<KPI[]>(props?.initialKpis || []);
+  const [reviews, setReviews] = useState<KPIReview[]>(props?.initialReviews || []);
+  const [loading, setLoading] = useState(!props?.initialKpis && !props?.initialReviews);
+
+  // Update state when props change
+  useEffect(() => {
+    if (props?.initialKpis && props.initialKpis.length > 0) {
+      setKpis(props.initialKpis);
+    }
+    if (props?.initialReviews && props.initialReviews.length > 0) {
+      setReviews(props.initialReviews);
+    }
+    if (props?.initialKpis || props?.initialReviews) {
+      setLoading(false);
+    }
+  }, [props?.initialKpis, props?.initialReviews]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
@@ -26,13 +45,16 @@ export const useEmployeeDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
 
   useEffect(() => {
-    fetchData();
+    // Only fetch if no initial data is provided
+    const hasInitialData = props?.initialKpis && props?.initialKpis.length > 0 && props?.initialReviews && props?.initialReviews.length > 0;
+    const shouldFetch = !hasInitialData;
+    
+    
     checkPasswordChange();
   }, [searchParams]);
 
   const fetchData = async () => {
     try {
-
       setLoading(true);
       const [kpisRes, reviewsRes] = await Promise.all([
         api.get('/kpis'),
@@ -44,11 +66,7 @@ export const useEmployeeDashboard = () => {
       const kpisData = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
       const reviewsData = reviewsRes.data.reviews || [];
 
-
-      // Log reviews with manager_submitted status specifically
-      const managerSubmittedReviews = reviewsData.filter((r: any) => 
-        r.review_status === 'manager_submitted' || r.status === 'manager_submitted'
-      );
+      
 
       setKpis(kpisData);
       setReviews(reviewsData);

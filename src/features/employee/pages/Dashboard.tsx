@@ -7,7 +7,15 @@ import { DashboardKPIRow } from '../components';
 import { KPI, KPIReview } from '../../../types';
 import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
-const EmployeeDashboard: React.FC = () => {
+interface EmployeeDashboardProps {
+  sharedKpis?: KPI[];
+  sharedReviews?: KPIReview[];
+  sharedDepartmentFeatures?: any;
+}
+
+const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, sharedReviews, sharedDepartmentFeatures }) => {
+  
+
   const {
     filteredKpis,
     reviews,
@@ -31,9 +39,13 @@ const EmployeeDashboard: React.FC = () => {
     handleEditReview,
     getDashboardKPIStage,
     navigate,
-  } = useEmployeeDashboard();
+  } = useEmployeeDashboard({
+    initialKpis: sharedKpis,
+    initialReviews: sharedReviews,
+  });
 
-  const { features, loading: featuresLoading } = useCompanyFeatures();
+ 
+  const { features, loading: featuresLoading } = useCompanyFeatures(undefined, sharedDepartmentFeatures);
 
   if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
@@ -302,6 +314,7 @@ const EmployeeDashboard: React.FC = () => {
                       onReview={handleReviewKPI}
                       onConfirm={handleConfirmReview}
                       onEdit={handleEditReview}
+                      features={features}
                     />
                   );
                 })

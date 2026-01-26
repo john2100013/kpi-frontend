@@ -20,9 +20,11 @@ import {
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  initialKpis?: any[];
+  initialReviews?: any[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, initialKpis, initialReviews }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -31,13 +33,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
   const isActive = (path: string) => location.pathname === path;
 
+
+
   useEffect(() => {
     if (isManager(user)) {
       fetchPendingReviewsCount();
     } else if (isEmployee(user)) {
-      fetchEmployeeCounts();
+      // Use initial data if provided, otherwise fetch
+      if (initialKpis && initialReviews) {
+        calculateEmployeeCounts(initialKpis, initialReviews);
+      } else {
+        fetchEmployeeCounts();
+      }
     }
-  }, [user]);
+  }, [user, initialKpis, initialReviews]);
 
   // Refresh count when navigating to/from relevant pages
   useEffect(() => {
@@ -47,9 +56,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       location.pathname === '/employee/acknowledge' || 
       location.pathname === '/employee/reviews'
     )) {
-      fetchEmployeeCounts();
+      // Use initial data if available, otherwise fetch
+      if (initialKpis && initialReviews) {
+        calculateEmployeeCounts(initialKpis, initialReviews);
+      } else {
+        fetchEmployeeCounts();
+      }
     }
-  }, [location.pathname, user]);
+  }, [location.pathname, user, initialKpis, initialReviews]);
+
+  const calculateEmployeeCounts = (kpis: any[], reviews: any[]) => {
+    // Count pending acknowledgements
+    const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
+    setPendingAcknowledgementsCount(pendingAcknowledgements);
+
+    // Count KPIs needing employee review
+    const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
+    const needReview = acknowledgedKPIs.filter((kpi: any) => {
+      const review = reviews.find((r: any) => r.kpi_id === kpi.id);
+      return !review || review.review_status === 'pending';
+    }).length;
+    setPendingEmployeeReviewsCount(needReview);
+  };
 
   const fetchPendingReviewsCount = async () => {
     try {
@@ -70,17 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       const kpis = kpisRes.data.kpis || [];
       const reviews = reviewsRes.data.reviews || [];
 
-      // Count pending acknowledgements
-      const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
-      setPendingAcknowledgementsCount(pendingAcknowledgements);
-
-      // Count KPIs needing employee review
-      const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
-      const needReview = acknowledgedKPIs.filter((kpi: any) => {
-        const review = reviews.find((r: any) => r.kpi_id === kpi.id);
-        return !review || review.review_status === 'pending';
-      }).length;
-      setPendingEmployeeReviewsCount(needReview);
+      calculateEmployeeCounts(kpis, reviews);
     } catch (error) {
       setPendingAcknowledgementsCount(0);
       setPendingEmployeeReviewsCount(0);
