@@ -758,18 +758,6 @@ const ManagerDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <Button
-                variant="link"
-                icon={FiArrowRight}
-                iconPosition="right"
-                size="sm"
-                onClick={() => navigate('/manager/employees')}
-              >
-                View All Employees
-              </Button>
-            </div>
           </div>
 
           {/* Quick Actions */}

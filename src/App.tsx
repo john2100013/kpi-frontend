@@ -439,16 +439,6 @@ function AppRoutes() {
             }
           />
           <Route
-            path="/manager/employees"
-            element={
-              <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
-                <Layout>
-                  <EmployeeSelection />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/manager/reviews"
             element={
               <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
@@ -858,16 +848,6 @@ function AppRoutes() {
         path="/hr/employees"
         element={
           <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
-            <Layout>
-              <Employees />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/manager/employees"
-        element={
-          <ProtectedRoute allowedRoles={[ROLE_IDS.MANAGER]}>
             <Layout>
               <Employees />
             </Layout>

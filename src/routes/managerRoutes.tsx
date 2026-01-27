@@ -133,16 +133,6 @@ export const getManagerRoutes = (
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/manager/employees"
-        element={
-          <ProtectedRoute allowedRoles={['manager']}>
-            <Layout>
-              <Employees />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
 
       {/* Reviews */}
       <Route

@@ -140,7 +140,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     { path: '/manager/dashboard', label: 'Dashboard', icon: FiHome },
     { path: '/manager/kpi-management', label: 'KPI Management', icon: FiTarget },
     { path: '/manager/kpi-templates', label: 'KPI Templates', icon: FiFileText },
-    { path: '/manager/employees', label: 'Employees', icon: FiUsers },
     { 
       path: '/manager/reviews', 
       label: 'Reviews', 
