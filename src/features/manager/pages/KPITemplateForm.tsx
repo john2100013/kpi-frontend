@@ -80,7 +80,14 @@ const KPITemplateForm: React.FC = () => {
             </p>
           </div>
         </div>
-        <Button onClick={handleSubmit} disabled={saving} variant="primary" icon={FiSave} loading={saving}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={saving} 
+          variant="primary" 
+          icon={FiSave} 
+          loading={saving}
+          className={!selectedPeriodSetting ? 'ring-2 ring-orange-400' : ''} 
+        >
           {isEditMode ? 'Update Template' : 'Create Template'}
         </Button>
       </div>

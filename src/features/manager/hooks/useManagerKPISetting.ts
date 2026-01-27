@@ -332,71 +332,79 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     toast.success('Draft saved successfully! Your progress has been saved.');
   };
 
-  const handleSubmit = async () => {
-    // Basic validation
-    const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
-    if (!basicValidation.isValid) {
-      toast.error(basicValidation.error!);
-      return;
-    }
+const handleSubmit = async () => {
+  if (!selectedPeriodSetting) {
+    toast.error(
+      `Please select a ${period === 'quarterly' ? 'quarter' : 'year'} before submitting the KPI.`
+    );
+    return;
+  }
+
+  // Basic validation
+  const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
+  if (!basicValidation.isValid) {
+    toast.error(basicValidation.error!);
+    return;
+  }
 
     // Goal weights validation
-    const weightValidation = validateGoalWeights(kpiRows);
-    if (!weightValidation.isValid) {
-      toast.error(weightValidation.error!);
+  const weightValidation = validateGoalWeights(kpiRows);
+  if (!weightValidation.isValid) {
+    toast.error(weightValidation.error!);
+    return;
+  }
+
+  // Ask for confirmation if no goal weights
+  if (weightValidation.needsConfirmation) {
+    const confirmProceed = await confirm({
+      title: 'Continue without goal weights?',
+      message: 'Do you want to continue without entering goal weight?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
+    });
+    if (!confirmProceed) {
       return;
     }
+  }
 
-    // Ask for confirmation if no goal weights
-    if (weightValidation.needsConfirmation) {
-      const confirmProceed = await confirm({
-        title: 'Continue without goal weights?',
-        message: 'Do you want to continue without entering goal weight?',
-        variant: 'warning',
-        confirmText: 'Continue',
-        cancelText: 'Cancel'
-      });
-      if (!confirmProceed) {
-        return;
-      }
+  setSaving(true);
+  try {
+    const validKpiRows = getValidKPIRows(kpiRows);
+    
+    await api.post('/kpis/create', {
+      employee_id: parseInt(employeeId!),
+      period,
+      quarter: period === 'quarterly' ? quarter : undefined,
+      year,
+      meeting_date: meetingDate?.toISOString().split('T')[0],
+      manager_signature: managerSignature,
+      kpi_items: validKpiRows.map(kpi => ({
+        title: kpi.title,
+        description: kpi.description,
+        current_performance_status: kpi.current_performance_status,
+        target_value: kpi.target_value,
+        expected_completion_date: kpi.expected_completion_date || null,
+        measure_unit: kpi.measure_unit,
+        goal_weight: kpi.goal_weight,
+        is_qualitative: kpi.is_qualitative || false,
+        exclude_from_calculation: kpi.exclude_from_calculation || 0,
+      })),
+    });
+
+    // Clear draft after successful submission
+    if (employeeId) {
+      clearDraftFromStorage(employeeId);
     }
 
-    setSaving(true);
-    try {
-      const validKpiRows = getValidKPIRows(kpiRows);
-      
-      await api.post('/kpis/create', {
-        employee_id: parseInt(employeeId!),
-        period,
-        quarter: period === 'quarterly' ? quarter : undefined,
-        year,
-        meeting_date: meetingDate?.toISOString().split('T')[0],
-        manager_signature: managerSignature,
-        kpi_items: validKpiRows.map(kpi => ({
-          title: kpi.title,
-          description: kpi.description,
-          current_performance_status: kpi.current_performance_status,
-          target_value: kpi.target_value,
-          expected_completion_date: kpi.expected_completion_date || null,
-          measure_unit: kpi.measure_unit,
-          goal_weight: kpi.goal_weight,
-          is_qualitative: kpi.is_qualitative || false,
-        })),
-      });
-
-      // Clear draft after successful submission
-      if (employeeId) {
-        clearDraftFromStorage(employeeId);
-      }
-
-      toast.success('KPI form submitted successfully!');
-      navigate('/manager/dashboard');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to submit KPI form');
-    } finally {
-      setSaving(false);
-    }
-  };
+    toast.success('KPI form submitted successfully!');
+    navigate('/manager/dashboard');
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || 'Failed to submit KPI form');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleBack = () => {
     navigate(-1);
@@ -480,77 +488,84 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
     }
   };
 
-  const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
-    
-    if (selectedEmployeeIds.length === 0) {
-      toast.error('Please select at least one employee');
-      return;
-    }
+const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
+  if (!selectedPeriodSetting) {
+    toast.error(
+      `Please select a ${period === 'quarterly' ? 'quarter' : 'year'} before sending KPIs to employees.`,
+    );
+    return;
+  }
+
+  if (selectedEmployeeIds.length === 0) {
+    toast.error('Please select at least one employee');
+    return;
+  }
 
     // Basic validation
-    const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
-    if (!basicValidation.isValid) {
-      toast.error(basicValidation.error!);
-      return;
-    }
+  const basicValidation = validateKPIForm(kpiRows, period, managerSignature);
+  if (!basicValidation.isValid) {
+    toast.error(basicValidation.error!);
+    return;
+  }
 
     // Goal weights validation
-    const weightValidation = validateGoalWeights(kpiRows);
-    if (!weightValidation.isValid) {
-      toast.error(weightValidation.error!);
+  const weightValidation = validateGoalWeights(kpiRows);
+  if (!weightValidation.isValid) {
+    toast.error(weightValidation.error!);
+    return;
+  }
+
+  // Ask for confirmation if no goal weights
+  if (weightValidation.needsConfirmation) {
+    const confirmProceed = await confirm({
+      title: 'Continue without goal weights?',
+      message: 'Do you want to continue without entering goal weight?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
+    });
+    if (!confirmProceed) {
       return;
     }
+  }
 
-    // Ask for confirmation if no goal weights
-    if (weightValidation.needsConfirmation) {
-      const confirmProceed = await confirm({
-        title: 'Continue without goal weights?',
-        message: 'Do you want to continue without entering goal weight?',
-        variant: 'warning',
-        confirmText: 'Continue',
-        cancelText: 'Cancel'
-      });
-      if (!confirmProceed) {
-        return;
-      }
-    }
+  setSaving(true);
+  try {
+    const validKpiRows = getValidKPIRows(kpiRows);
+    
+    // Send KPIs to all selected employees
+    const promises = selectedEmployeeIds.map(empId =>
+      api.post('/kpis/create', {
+        employee_id: empId,
+        period,
+        quarter: period === 'quarterly' ? quarter : undefined,
+        year,
+        meeting_date: meetingDate?.toISOString().split('T')[0],
+        manager_signature: managerSignature,
+        kpi_items: validKpiRows.map(kpi => ({
+          title: kpi.title,
+          description: kpi.description,
+          current_performance_status: kpi.current_performance_status,
+          target_value: kpi.target_value,
+          expected_completion_date: kpi.expected_completion_date || null,
+          measure_unit: kpi.measure_unit,
+          goal_weight: kpi.goal_weight,
+          is_qualitative: kpi.is_qualitative || false,
+          exclude_from_calculation: kpi.exclude_from_calculation || 0,
+        })),
+      })
+    );
 
-    setSaving(true);
-    try {
-      const validKpiRows = getValidKPIRows(kpiRows);
-      
-      // Send KPIs to all selected employees
-      const promises = selectedEmployeeIds.map(empId =>
-        api.post('/kpis/create', {
-          employee_id: empId,
-          period,
-          quarter: period === 'quarterly' ? quarter : undefined,
-          year,
-          meeting_date: meetingDate?.toISOString().split('T')[0],
-          manager_signature: managerSignature,
-          kpi_items: validKpiRows.map(kpi => ({
-            title: kpi.title,
-            description: kpi.description,
-            current_performance_status: kpi.current_performance_status,
-            target_value: kpi.target_value,
-            expected_completion_date: kpi.expected_completion_date || null,
-            measure_unit: kpi.measure_unit,
-            goal_weight: kpi.goal_weight,
-            is_qualitative: kpi.is_qualitative || false,
-          })),
-        })
-      );
+    await Promise.all(promises);
 
-      await Promise.all(promises);
-
-      toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
-      navigate('/manager/dashboard');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to send KPIs to employees');
-    } finally {
-      setSaving(false);
-    }
-  };
+    toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
+    navigate('/manager/dashboard');
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || 'Failed to send KPIs to employees');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleEmployeeSelectionChange = (employeeIds: number[]) => {
     setSelectedEmployeeIds(employeeIds);

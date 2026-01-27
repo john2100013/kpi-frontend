@@ -375,67 +375,67 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     }
   };
 
-  const handleSubmit = async () => {
-    const validItems = getValidKPIItems(kpiItems);
-    const validation = validateTemplateForm(templateName, validItems, totalGoalWeight);
-    
-    if (!validation.valid) {
-      toast.error(validation.error || 'Validation failed');
-      return;
-    }
+const handleSubmit = async () => {
+  const validItems = getValidKPIItems(kpiItems);
+  const validation = validateTemplateForm(templateName, validItems, totalGoalWeight);
+  
+  if (!validation.valid) {
+    toast.error(validation.error || 'Validation failed');
+    return;
+  }
 
     // Ask for confirmation if no goal weights (same as KPI Setting)
-    if (validation.needsConfirmation) {
-      const confirmProceed = await confirm({
-        title: 'Continue without goal weights?',
-        message: 'Do you want to continue without entering goal weight?',
-        variant: 'warning',
-        confirmText: 'Continue',
-        cancelText: 'Cancel'
-      });
-      if (!confirmProceed) {
-        return;
-      }
+  if (validation.needsConfirmation) {
+    const confirmProceed = await confirm({
+      title: 'Continue without goal weights?',
+      message: 'Do you want to continue without entering goal weight?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
+    });
+    if (!confirmProceed) {
+      return;
+    }
+  }
+
+  setSaving(true);
+
+  try {
+    const payload = {
+      template_name: templateName,
+      description,
+      period: period === 'yearly' ? 'annual' : period,
+      period_setting_id: selectedPeriodSetting?.id,
+      department_id: selectedDepartmentId,
+      use_template_titles: useTemplateDropdown ? 1 : 0,
+      items: validItems.map(item => ({
+        title: item.title,
+        description: item.description,
+        current_performance_status: item.current_performance_status,
+        target_value: item.target_value,
+        expected_completion_date: item.expected_completion_date || null,
+        measure_unit: item.measure_unit,
+        goal_weight: item.goal_weight,
+        is_qualitative: item.is_qualitative || false,
+        exclude_from_calculation: item.exclude_from_calculation || 0,
+      })),
+    };
+
+    if (isEditMode) {
+      await api.put(`/templates/${id}`, payload);
+      toast.success('Template updated successfully!');
+    } else {
+      await api.post('/templates', payload);
+      toast.success('Template created successfully!');
     }
 
-    setSaving(true);
-
-    try {
-      const payload = {
-        template_name: templateName,
-        description,
-        period: period === 'yearly' ? 'annual' : period,
-        department_id: selectedDepartmentId,  // NEW: Send department_id
-        use_template_titles: useTemplateDropdown ? 1 : 0,  // NEW: Send use_template_titles flag
-        items: validItems.map(item => ({
-          title: item.title,
-          description: item.description,
-          current_performance_status: item.current_performance_status,
-          target_value: item.target_value,
-          expected_completion_date: item.expected_completion_date || null,
-          measure_unit: item.measure_unit,
-          goal_weight: item.goal_weight,
-          is_qualitative: item.is_qualitative || false,  // Send to backend
-          exclude_from_calculation: item.exclude_from_calculation || 0,  // Send to backend
-        })),
-      };
-
-
-      if (isEditMode) {
-        await api.put(`/templates/${id}`, payload);
-        toast.success('Template updated successfully!');
-      } else {
-        await api.post('/templates', payload);
-        toast.success('Template created successfully!');
-      }
-
-      navigate('/manager/kpi-templates');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to save template');
-    } finally {
-      setSaving(false);
-    }
-  };
+    navigate('/manager/kpi-templates');
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || 'Failed to save template');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleBack = () => {
     navigate('/manager/kpi-templates');
