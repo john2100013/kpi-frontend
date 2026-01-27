@@ -10,7 +10,6 @@ import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { KPIReview, KPI } from '../../../types';
-import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 import { useDepartmentFeatures, DepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
 
 interface UseManagerReviewsListReturn {
@@ -34,7 +33,6 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
   const [acknowledgedKPIs, setAcknowledgedKPIs] = useState<KPI[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
-  const { features } = useCompanyFeatures();
   const { fetchDepartmentFeaturesById } = useDepartmentFeatures();
   
   // Cache for employee department features to avoid repeated API calls
@@ -52,12 +50,9 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
         api.get('/kpis/acknowledged-review-pending')
       ]);
       
-     
       // Handle nested response structure: response.data.data.kpis OR response.data.kpis
       const acknowledgedKPIsData = kpisResponse.data.data?.kpis || kpisResponse.data.kpis || [];
       const reviewsData = reviewsResponse.data.data?.reviews || reviewsResponse.data.reviews || [];
-      
-     
       
       // Extract unique employee department IDs from acknowledged KPIs
       const employeeDeptIds = [...new Set(
@@ -66,7 +61,6 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
           .filter((id: any) => id != null)
       )] as number[];
       
-      
       // Fetch department features for all employee departments
       const newCache: Record<number, DepartmentFeatures> = {};
       await Promise.all(
@@ -74,7 +68,6 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
           const features = await fetchDepartmentFeaturesById(deptId);
           if (features) {
             newCache[deptId] = features;
-        
           }
         })
       );
@@ -91,40 +84,22 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
   };
 
   // Check if a KPI should be shown as "Manager to initiate" based on period and settings
-  // NOW CHECKS THE EMPLOYEE'S DEPARTMENT FEATURES, NOT THE MANAGER'S
+  // CHECKS THE EMPLOYEE'S DEPARTMENT FEATURES
   const shouldShowAsManagerInitiated = (kpi: KPI & { employee_department_id?: number }): boolean => {
-   
     // If employee_department_id is available, use cached department features
     if (kpi.employee_department_id && employeeDeptFeaturesCache[kpi.employee_department_id]) {
       const employeeFeatures = employeeDeptFeaturesCache[kpi.employee_department_id];
       const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-    
       
       if (kpiPeriod === 'yearly') {
-        const result = employeeFeatures.enable_employee_self_rating_yearly === false;
-        return result;
+        return employeeFeatures.enable_employee_self_rating_yearly === false;
       } else {
-        const result = employeeFeatures.enable_employee_self_rating_quarterly === false;
-        return result;
+        return employeeFeatures.enable_employee_self_rating_quarterly === false;
       }
     }
     
-    // FALLBACK: Use manager's features (backward compatibility)
-    if (!features) {
-
-      return false;
-    }
-    
-    const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-  
-    
-    if (kpiPeriod === 'yearly') {
-      const result = features.enable_employee_self_rating_yearly === false;
-      return result;
-    } else {
-      const result = features.enable_employee_self_rating_quarterly === false;
-      return result;
-    }
+    // If no employee department features available, return false (default to employee self-rate)
+    return false;
   };
 
   const pendingCount = reviews.filter(
@@ -170,9 +145,6 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
   };
 
   const handleStartReview = (kpiId: number) => {
-    // Simply navigate to the KPI review page with the KPI ID
-    // The review record will be created when the manager submits ratings, not now
-
     navigate(`/manager/kpi-review/kpi/${kpiId}`);
   };
 

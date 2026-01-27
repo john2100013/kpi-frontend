@@ -47,13 +47,13 @@ const MeetingScheduler: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [employeesRes, kpisRes, reviewsRes] = await Promise.all([
-        api.get('/employees').catch(() => ({ data: { employees: [] } })),
+      const [kpisRes, reviewsRes] = await Promise.all([
+        // api.get('/employees').catch(() => ({ data: { employees: [] } })),
         api.get('/kpis').catch(() => ({ data: { kpis: [] } })),
         api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
       ]);
 
-      setEmployees(employeesRes.data.employees || []);
+      // setEmployees(employeesRes.data.employees || []);
       setKpis(kpisRes.data.kpis || []);
       setReviews(reviewsRes.data.reviews || []);
 

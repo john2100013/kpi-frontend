@@ -33,10 +33,6 @@ const CompletedReviews: React.FC = () => {
     fetchAvailablePeriods();
   }, []);
 
-  useEffect(() => {
-    fetchAvailablePeriods();
-  }, [kpiType]);
-
   const fetchAvailablePeriods = async () => {
     try {
       // Fetch both quarterly and yearly periods
@@ -511,4 +507,3 @@ const CompletedReviews: React.FC = () => {
 };
 
 export default CompletedReviews;
-

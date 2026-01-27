@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Fetch current session from server using cookies
     const fetchSession = async () => {
       try {
-        const response = await api.get('/auth/session');
+        const response = await api.get('/auth/me');
         const { user: sessionUser, companies: sessionCompanies, selectedCompany: sessionSelectedCompany } = response.data;
         
         if (sessionUser) {

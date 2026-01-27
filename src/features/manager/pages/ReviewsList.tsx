@@ -1,7 +1,6 @@
 import React from 'react';
 import { FiArrowLeft, FiInfo } from 'react-icons/fi';
 import { useManagerReviewsList } from '../hooks';
-import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const ReviewsList: React.FC = () => {
   const {
@@ -19,20 +18,13 @@ const ReviewsList: React.FC = () => {
     shouldShowAsManagerInitiated,
   } = useManagerReviewsList();
 
-  const { features, loading: featuresLoading } = useCompanyFeatures();
-
-  
-
-  if (loading || featuresLoading) {
+  if (loading) {
     return <div className="p-6">Loading...</div>;
   }
 
   // Filter acknowledged KPIs that need manager to initiate based on self-rating settings
-  // KEEP ALL KPIs - just categorize them for display
   const managerInitiateKPIs = acknowledgedKPIs.filter(shouldShowAsManagerInitiated);
   const employeeSelfRateKPIs = acknowledgedKPIs.filter(kpi => !shouldShowAsManagerInitiated(kpi));
-  
- 
 
   // Check if we have any yearly or quarterly KPIs requiring manager initiation
   const yearlyManagerKPIs = managerInitiateKPIs.filter(k => k.period?.toLowerCase() === 'yearly');
@@ -174,7 +166,7 @@ const ReviewsList: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700`}>
-                      Self rating Enabled , Waiting for employee to initiate
+                      Self rating Enabled, Waiting for employee to initiate
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -223,7 +215,6 @@ const ReviewsList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
-                        {/* Check if employee has already confirmed/rejected (completed or rejected status) */}
                         {((review.status || review.review_status) === 'completed' || (review.status || review.review_status) === 'rejected') ? (
                           <>
                             <span className="text-xs text-gray-500 italic">
