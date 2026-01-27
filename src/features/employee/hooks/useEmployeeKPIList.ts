@@ -1,42 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../services/api';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { fetchKPIsAndReviews, selectAllKPIs, selectAllReviews, selectKPILoading } from '../../../store/slices/kpiSlice';
 import { KPI, KPIReview } from '../../../types';
 import { getKPIStage, getPrimaryAction, canEditReview } from './kpiListUtils';
 
 export const useEmployeeKPIList = () => {
   const navigate = useNavigate();
-  const [kpis, setKpis] = useState<KPI[]>([]);
-  const [reviews, setReviews] = useState<KPIReview[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  
+  // Get data from Redux store
+  const kpis = useAppSelector(selectAllKPIs);
+  const reviews = useAppSelector(selectAllReviews);
+  const loading = useAppSelector(selectKPILoading);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
   const toast = useToast();
+  
   useEffect(() => {
-    fetchData();
+    // Only fetch if we don't have data yet
+    if (kpis.length === 0 && reviews.length === 0 && !loading) {
+      fetchData();
+    }
   }, []);
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [kpisRes, reviewsRes] = await Promise.all([
-        api.get('/kpis'),
-        api.get('/kpi-review'),
-      ]);
-
-      // Backend returns data in response.data.data.kpis structure
-      const kpisData = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
-      const reviewsData = reviewsRes.data.data?.reviews || reviewsRes.data.reviews || [];
-      
-      setKpis(kpisData);
-      setReviews(reviewsData);
+      await dispatch(fetchKPIsAndReviews()).unwrap();
     } catch (error) {
       toast.error('Could not fetch your KPIs. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 

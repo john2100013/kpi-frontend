@@ -38,7 +38,6 @@ export const useManagerEmployeeKPIs = (): UseManagerEmployeeKPIsReturn => {
 
   const fetchData = async () => {
     if (!employeeId) {
-      console.error('No employeeId provided');
       return;
     }
 

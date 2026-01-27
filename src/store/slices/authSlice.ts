@@ -46,7 +46,6 @@ export const login = createAsyncThunk(
       if (response.data.csrfToken) {
         setCSRFToken(response.data.csrfToken);
       } else {
-        console.warn('[authSlice] No CSRF token in login response!');
       }
 
       return response.data;
@@ -70,7 +69,6 @@ export const loginWithEmail = createAsyncThunk(
       if (response.data.csrfToken) {
         setCSRFToken(response.data.csrfToken);
       } else {
-        console.warn('[authSlice] No CSRF token in email login response!');
       }
 
       return response.data;

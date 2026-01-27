@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { isEmployee } from '../utils/roleUtils';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchKPIsAndReviews, selectAllKPIs, selectAllReviews, selectKPILoading } from '../store/slices/kpiSlice';
 import api from '../services/api';
 
 interface EmployeeDataContextType {
@@ -16,11 +18,15 @@ const EmployeeDataContext = createContext<EmployeeDataContextType | undefined>(u
 
 export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [sharedKpis, setSharedKpis] = useState<any[]>([]);
-  const [sharedReviews, setSharedReviews] = useState<any[]>([]);
+  const dispatch = useAppDispatch();
+  
+  // Get data from Redux store
+  const kpis = useAppSelector(selectAllKPIs);
+  const reviews = useAppSelector(selectAllReviews);
+  const loading = useAppSelector(selectKPILoading);
+  
   const [sharedDepartmentFeatures, setSharedDepartmentFeatures] = useState<any>(null);
   const [dataFetched, setDataFetched] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const fetchingRef = useRef(false);
   const userIdRef = useRef(user?.id);
 
@@ -33,30 +39,22 @@ export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       
       fetchingRef.current = true;
-      setIsLoading(true);
       
       try {
-        const [kpisRes, reviewsRes, deptFeaturesRes] = await Promise.all([
-          api.get('/kpis'),
-          api.get('/kpi-review'),
-          api.get('/department-features/my-department')
-        ]);
-
-        const kpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
-        const reviews = reviewsRes.data.reviews || [];
-
-        setSharedKpis(kpis);
-        setSharedReviews(reviews);
+        // Dispatch Redux action to fetch KPIs and reviews (single combined call)
+        await dispatch(fetchKPIsAndReviews()).unwrap();
+        
+        // Fetch department features separately (only once)
+        const deptFeaturesRes = await api.get('/department-features/my-department');
         setSharedDepartmentFeatures(deptFeaturesRes.data);
         setDataFetched(true);
       } catch (error) {
         setDataFetched(false);
       } finally {
-        setIsLoading(false);
         fetchingRef.current = false;
       }
     }
-  }, [user, dataFetched]);
+  }, [user, dataFetched, dispatch]);
 
   const refreshData = async () => {
     setDataFetched(false);
@@ -84,11 +82,11 @@ export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   return (
     <EmployeeDataContext.Provider
       value={{
-        sharedKpis,
-        sharedReviews,
+        sharedKpis: kpis,
+        sharedReviews: reviews,
         sharedDepartmentFeatures,
         dataFetched,
-        isLoading,
+        isLoading: loading,
         refreshData,
       }}
     >

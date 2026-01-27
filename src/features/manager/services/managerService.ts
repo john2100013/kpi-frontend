@@ -161,7 +161,6 @@ export const managerService = {
 
       return departments;
     } catch (error) {
-      console.error('[managerService] Error fetching manager departments:', error);
       if (toast) toast.error('Server error. Please try reloading or try later.');
       return []; // Return empty array instead of throwing
     }

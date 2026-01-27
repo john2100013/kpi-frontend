@@ -32,6 +32,10 @@ const HRDashboard: React.FC = () => {
     navigate,
   } = useHRDashboard();
 
+  // Debug logging
+  React.useEffect(() => {
+  
+  }, [periodSettings, departmentsList]);
 
   const handleSaveDefaultPeriod = async () => {
     const success = await saveDefaultPeriod(filters.period);

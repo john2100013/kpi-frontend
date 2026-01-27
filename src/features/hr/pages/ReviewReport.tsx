@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../../context/ToastContext';
-import { FiFilter, FiDownload, FiFileText } from 'react-icons/fi';
+import { FiFilter, FiDownload, FiFileText, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import api from '../../../services/api';
 import { Button } from '../../../components/common';
-
-interface Department {
-  id: number;
-  name: string;
-}
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { fetchDepartments } from '../../../store/slices/departmentSlice';
 
 interface PeriodSetting {
   id: number;
@@ -36,22 +33,30 @@ interface ReviewReportData {
 const ReviewReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const dispatch = useAppDispatch();
   const [reportData, setReportData] = useState<ReviewReportData[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  
+  // Redux state for departments
+  const { departments: departmentsList } = useAppSelector((state) => state.departments);
   
   // Filters
   const [selectedPeriodType, setSelectedPeriodType] = useState<'quarterly' | 'yearly'>('quarterly');
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<number | ''>('');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   
   // Available options
   const [quarterlyPeriods, setQuarterlyPeriods] = useState<PeriodSetting[]>([]);
   const [yearlyPeriods, setYearlyPeriods] = useState<PeriodSetting[]>([]);
 
   useEffect(() => {
-    fetchDepartments();
+    dispatch(fetchDepartments());
     fetchAvailablePeriods();
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     fetchAvailablePeriods();
@@ -59,16 +64,12 @@ const ReviewReport: React.FC = () => {
 
   useEffect(() => {
     fetchReportData();
+    setCurrentPage(1); // Reset to first page when filters change
   }, [selectedPeriodType, selectedPeriodId, selectedDepartment]);
 
-  const fetchDepartments = async () => {
-    try {
-      const response = await api.get('/departments');
-      setDepartments(response.data.departments || []);
-    } catch (error) {
-      toast.error('Could not fetch departments. Please try again.');
-    }
-  };
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when search term changes
+  }, [searchTerm]);
 
   const fetchAvailablePeriods = async () => {
     try {
@@ -133,6 +134,27 @@ const ReviewReport: React.FC = () => {
     }
   };
 
+  // Filter and paginate data
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return reportData;
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    return reportData.filter(record => 
+      record.employee_name.toLowerCase().includes(lowerSearch) ||
+      record.payroll.toLowerCase().includes(lowerSearch) ||
+      record.department.toLowerCase().includes(lowerSearch) ||
+      record.email.toLowerCase().includes(lowerSearch)
+    );
+  }, [reportData, searchTerm]);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
   const handleExport = () => {
     // TODO: Implement CSV export
   };
@@ -164,7 +186,24 @@ const ReviewReport: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search
+            </label>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search employees..."
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+
           {/* Period Type Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -217,7 +256,7 @@ const ReviewReport: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">All Departments</option>
-              {departments.map((dept) => (
+              {Array.isArray(departmentsList) && departmentsList.map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.name}
                 </option>
@@ -229,11 +268,20 @@ const ReviewReport: React.FC = () => {
 
       {/* Report Data Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <FiFileText className="text-purple-600 text-xl" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Report Results ({reportData.length} records)
-          </h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <FiFileText className="text-purple-600 text-xl" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Report Results ({filteredData.length} {filteredData.length !== reportData.length ? `of ${reportData.length}` : ''} records)
+            </h2>
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -278,15 +326,16 @@ const ReviewReport: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {reportData.map((record, index) => {
+                {paginatedData.map((record, index) => {
                   const periodDisplay = record.period === 'quarterly' 
                     ? `${record.quarter} ${record.year}`
                     : `${record.year} (Yearly)`;
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
 
                   return (
                     <tr key={`${record.kpi_id}-${index}`} className="hover:bg-gray-50">
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {index + 1}
+                        {globalIndex}
                       </td>
                       <td className="px-4 py-4 text-sm font-medium text-gray-900">
                         {record.employee_name}
@@ -328,22 +377,72 @@ const ReviewReport: React.FC = () => {
             </table>
           </div>
         )}
+
+        {/* Pagination Controls */}
+        {!loading && filteredData.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                variant="outline"
+                icon={FiChevronLeft}
+                className="px-3 py-1"
+              >
+                Previous
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                icon={FiChevronRight}
+                className="px-3 py-1"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary Statistics */}
       {reportData.length > 0 && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl shadow-sm border border-purple-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Summary Statistics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-lg p-4 border border-purple-200">
               <p className="text-sm text-gray-600 mb-1">Total Records</p>
               <p className="text-2xl font-bold text-purple-600">{reportData.length}</p>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <p className="text-sm text-gray-600 mb-1">Average Rating %</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {(reportData.reduce((sum, r) => sum + (r.manager_percentage_rating || 0), 0) / reportData.length).toFixed(2)}%
-              </p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-purple-200">
               <p className="text-sm text-gray-600 mb-1">Self-Rating Enabled</p>

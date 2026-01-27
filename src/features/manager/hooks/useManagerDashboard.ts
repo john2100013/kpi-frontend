@@ -48,6 +48,9 @@ export const useManagerDashboard = () => {
   const isLoading = loading || kpisLoading || statsLoading;
 
   const toast = useToast();
+  
+
+  
   // Initial data fetch
   useEffect(() => {
     fetchInitialData();
@@ -108,7 +111,9 @@ export const useManagerDashboard = () => {
       setRecentActivity(activityData);
       setEmployees(employeesData);
       setManagerDepartments(departmentsData);
+   
     } catch (error) {
+     
       toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);

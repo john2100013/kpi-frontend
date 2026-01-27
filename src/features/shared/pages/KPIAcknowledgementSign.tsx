@@ -55,7 +55,6 @@ const KPIAcknowledgement: React.FC = () => {
  
 
     if (!employeeSignature) {
-      console.warn('[KPIAcknowledgementSign] Missing employee signature');
       toast.error('Please provide your digital signature');
       return;
     }
