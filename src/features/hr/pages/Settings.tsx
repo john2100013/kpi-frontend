@@ -3,7 +3,7 @@ import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import { useConfirm } from '../../../hooks/useConfirm';
 import { FiSave, FiTrash2, FiPlus } from 'react-icons/fi';
-import { Button } from '../../../components/common';
+import { Button, ConfirmDialog } from '../../../components/common';
 
 interface PeriodSetting {
   id?: number;
@@ -168,7 +168,7 @@ const Settings: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      await api.delete(`/settings/period-settings/${id}`);
+      await api.post(`/settings/period-settings/${id}/delete`);
       // Fix: Filter by id to ensure only the specific item is removed
       setPeriodSettings(prev => prev.filter(s => s.id !== id));
     } catch (error) {
@@ -1023,6 +1023,16 @@ const Settings: React.FC = () => {
           )}
         </div>
       )}
+       <ConfirmDialog
+        isOpen={confirm.confirmState.isOpen}
+        onClose={confirm.handleCancel}
+        onConfirm={confirm.handleConfirm}
+        title={confirm.confirmState.title}
+        message={confirm.confirmState.message}
+        variant={confirm.confirmState.variant}
+        confirmText={confirm.confirmState.confirmText}
+        cancelText={confirm.confirmState.cancelText}
+      />
     </div>
   );
 };
