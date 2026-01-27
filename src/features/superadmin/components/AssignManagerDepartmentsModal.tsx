@@ -34,6 +34,7 @@ export const AssignManagerDepartmentsModal: React.FC<AssignManagerDepartmentsMod
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [selectedDepartments, setSelectedDepartments] = useState<number[]>([]);
+
   useEffect(() => {
     if (manager) {
       // Fetch current departments for this manager

@@ -78,16 +78,22 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [location.pathname, user, initialKpis, initialReviews]);
 
   const calculateEmployeeCounts = (kpis: any[], reviews: any[]) => {
+  
+
     // Count pending acknowledgements
     const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
+    
     setPendingAcknowledgementsCount(pendingAcknowledgements);
 
     // Count KPIs needing employee review
     const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
+    
+    
     const needReview = acknowledgedKPIs.filter((kpi: any) => {
       const review = reviews.find((r: any) => r.kpi_id === kpi.id);
       return !review || review.review_status === 'pending';
     }).length;
+    
     setPendingEmployeeReviewsCount(needReview);
   };
 
@@ -107,8 +113,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         api.get('/kpi-review'),
       ]);
 
-      const kpis = kpisRes.data.kpis || [];
-      const reviews = reviewsRes.data.reviews || [];
+
+      // Backend returns: { success: true, data: { kpis: [], pagination: {} } }
+      // So we need to extract from response.data.data.kpis
+      const kpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
+      const reviews = reviewsRes.data.data?.reviews || reviewsRes.data.reviews || [];
+
 
       calculateEmployeeCounts(kpis, reviews);
     } catch (error) {

@@ -14,7 +14,6 @@ interface EmployeeDashboardProps {
 }
 
 const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, sharedReviews, sharedDepartmentFeatures }) => {
-  
 
   const {
     filteredKpis,
@@ -46,6 +45,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
 
  
   const { features, loading: featuresLoading } = useCompanyFeatures(undefined, sharedDepartmentFeatures);
+
 
   if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;

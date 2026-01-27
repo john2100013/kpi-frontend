@@ -1,41 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '../../../context/ToastContext';
-import api from '../../../services/api';
+import { useEmployeeData } from '../../../context/EmployeeDataContext';
 import { KPI } from '../../../types';
 import { FiClock, FiEye, FiCheckCircle } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 
-const AcknowledgeList: React.FC = () => {
+interface AcknowledgeListProps {
+  sharedKpis?: KPI[];
+}
+
+const AcknowledgeList: React.FC<AcknowledgeListProps> = ({ sharedKpis }) => {
   const navigate = useNavigate();
-  const toast = useToast();
+  const { sharedKpis: contextKpis, isLoading: contextLoading } = useEmployeeData();
   const [kpis, setKpis] = useState<KPI[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Use shared KPIs from context (via props or directly from context)
+  const sourceKpis = sharedKpis || contextKpis;
+  const loading = contextLoading;
+
+  console.log('[AcknowledgeList] Render - sharedKpis prop:', sharedKpis?.length, 'contextKpis:', contextKpis.length, 'loading:', loading);
 
   useEffect(() => {
-    fetchPendingKPIs();
-  }, []);
-
-  const fetchPendingKPIs = async () => {
-    try {
-      const response = await api.get('/kpis');
-      // Filter only pending KPIs (need acknowledgement)
-      // Defensive: Log and fallback if kpis is undefined
-      if (!response.data || !Array.isArray(response.data.kpis)) {
-        toast.error('Invalid KPI data received. Please try again.');
-        setKpis([]);
-        return;
-      }
-      const pendingKPIs = response.data.kpis.filter(
-        (kpi: KPI) => kpi.status === 'pending'
-      );
-      setKpis(pendingKPIs);
-    } catch (error) {
-      toast.error('Failed to fetch pending KPIs. Please try again.');
-    } finally {
-      setLoading(false);
+    console.log('[AcknowledgeList] Processing KPIs from shared data...');
+    
+    if (!sourceKpis || !Array.isArray(sourceKpis)) {
+      console.warn('[AcknowledgeList] Invalid KPI data');
+      setKpis([]);
+      return;
     }
-  };
+    
+    // Filter for pending KPIs only
+    const pendingKPIs = sourceKpis.filter(
+      (kpi: KPI) => kpi.status === 'pending'
+    );
+    
+    console.log('[AcknowledgeList] Filtered pending KPIs:', pendingKPIs.length, 'out of', sourceKpis.length);
+    setKpis(pendingKPIs);
+  }, [sourceKpis]);
 
   if (loading) {
     return <div className="p-6">Loading...</div>;

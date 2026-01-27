@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { EmployeeDataProvider, useEmployeeData } from './context/EmployeeDataContext';
@@ -239,10 +239,16 @@ function AppRoutes() {
   useEffect(() => {
   }, [location]);
 
-  // Sync Redux user to AuthContext whenever it changes
+  // Sync Redux user to AuthContext only when user ID changes (not on every object reference change)
+  const userIdRef = useRef(user?.id);
+  
   useEffect(() => {
-    setAuthContextUser(user);
-  }, [user, setAuthContextUser]);
+    // Only sync if user ID actually changed or went from null to defined
+    if (user?.id !== userIdRef.current) {
+      userIdRef.current = user?.id;
+      setAuthContextUser(user);
+    }
+  }, [user?.id, setAuthContextUser]);
 
   // Root route handler - redirect based on auth state
   const RootRedirect = () => {

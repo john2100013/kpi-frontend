@@ -6,6 +6,7 @@ import SignatureField from '../../../components/SignatureField';
 import DatePicker from '../../../components/DatePicker';
 import TextModal from '../../../components/TextModal';
 import { useToast } from '../../../context/ToastContext';
+import { useEmployeeData } from '../../../context/EmployeeDataContext';
 import { FiCheckCircle, FiClock } from 'react-icons/fi';
 import { Button } from '../../../components/common';
 
@@ -13,6 +14,7 @@ const KPIAcknowledgement: React.FC = () => {
   const { kpiId } = useParams<{ kpiId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refreshData } = useEmployeeData();
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -34,28 +36,26 @@ const KPIAcknowledgement: React.FC = () => {
   }, [kpiId]);
 
   const fetchKPI = async () => {
-
     try {
-      const url = `/kpis/${kpiId}`;      
+      const url = `/kpis/${kpiId}`;
       const response = await api.get(url);
-            // Check if data is in response.data.data (nested) or response.data.kpi
+      
+      // Check if data is in response.data.data (nested) or response.data.kpi
       const kpiData = response.data.data || response.data.kpi || response.data;
-         
+      
       setKpi(kpiData);
-
     } catch (error: any) {
-    
       toast.error(error.response?.data?.error || 'Failed to load KPI');
     } finally {
-
       setLoading(false);
     }
   };
 
   const handleSubmit = async () => {
-   
+ 
 
     if (!employeeSignature) {
+      console.warn('[KPIAcknowledgementSign] Missing employee signature');
       toast.error('Please provide your digital signature');
       return;
     }
@@ -64,21 +64,24 @@ const KPIAcknowledgement: React.FC = () => {
     try {
       // CORRECT ENDPOINT: /kpis/:kpiId/acknowledge (not /kpi-acknowledgement/:kpiId)
       const url = `/kpis/${kpiId}/acknowledge`;
-
-      const response = await api.post(url, {
+      
+      const payload = {
         employee_signature: employeeSignature,
-      });
+      };
 
+      const response = await api.post(url, payload);
 
       toast.success(response.data.message || 'KPI acknowledged successfully');
       
-
+      // Refresh the shared data to update sidebar counts
+      await refreshData();
+      
       navigate('/employee/dashboard');
     } catch (error: any) {
       
+      
       toast.error(error.response?.data?.error || 'Failed to acknowledge KPI');
     } finally {
-
       setSubmitting(false);
     }
   };

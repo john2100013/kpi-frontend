@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 import api from '../../../services/api';
 import { KPI, KPIReview } from '../../../types';
 import {
@@ -18,14 +19,17 @@ interface UseEmployeeDashboardProps {
 export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
+  const { user } = useAuth(); // Get user from auth context
  
+  
   const [kpis, setKpis] = useState<KPI[]>(props?.initialKpis || []);
   const [reviews, setReviews] = useState<KPIReview[]>(props?.initialReviews || []);
   const [loading, setLoading] = useState(!props?.initialKpis && !props?.initialReviews);
+  
 
   // Update state when props change
   useEffect(() => {
+    
     if (props?.initialKpis && props.initialKpis.length > 0) {
       setKpis(props.initialKpis);
     }
@@ -34,6 +38,7 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
     }
     if (props?.initialKpis || props?.initialReviews) {
       setLoading(false);
+    } else {
     }
   }, [props?.initialKpis, props?.initialReviews]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -45,75 +50,37 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const [selectedStatus, setSelectedStatus] = useState('');
 
   useEffect(() => {
-    // Only fetch if no initial data is provided
-    const hasInitialData = props?.initialKpis && props?.initialKpis.length > 0 && props?.initialReviews && props?.initialReviews.length > 0;
-    const shouldFetch = !hasInitialData;
-    
-    
+    // Check password change requirement on load
     checkPasswordChange();
   }, [searchParams]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [kpisRes, reviewsRes] = await Promise.all([
-        api.get('/kpis'),
-        api.get('/kpi-review'),
-      ]);
-
-
-      // Fix: Backend returns data in response.data.data.kpis, not response.data.kpis
-      const kpisData = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
-      const reviewsData = reviewsRes.data.reviews || [];
-
-      
-
-      setKpis(kpisData);
-      setReviews(reviewsData);
-    } catch (error) {
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const checkPasswordChange = async () => {
-
-    
-    // Only check backend - ignore URL params and localStorage
-    try {
-
-      const response = await api.get('/auth/me');
-      const userData = response.data.user;
-      
-      
-      const backendRequires = userData.password_change_required === true || userData.password_change_required === 1;
-
-      
-      if (backendRequires) {
-
-        setPasswordChangeRequired(true);
-        setShowPasswordModal(true);
-      } else {
-
-        setPasswordChangeRequired(false);
-        setShowPasswordModal(false);
-        
-        // Clear any stale data
-        localStorage.removeItem('passwordChangeRequired');
-        
-        // Remove URL parameter if present
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('passwordChangeRequired')) {
-
-          urlParams.delete('passwordChangeRequired');
-          const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
-          window.history.replaceState({}, '', newUrl);
-        }
-      }
-    } catch (error) {
-      // On error, don't show modal
+    // Use auth context user data instead of making API call
+    if (!user) {
       setPasswordChangeRequired(false);
       setShowPasswordModal(false);
+      return;
+    }
+    
+    const backendRequires = !!user.requires_password_change;
+    
+    if (backendRequires) {
+      setPasswordChangeRequired(true);
+      setShowPasswordModal(true);
+    } else {
+      setPasswordChangeRequired(false);
+      setShowPasswordModal(false);
+      
+      // Clear any stale data
+      localStorage.removeItem('passwordChangeRequired');
+      
+      // Remove URL parameter if present
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('passwordChangeRequired')) {
+        urlParams.delete('passwordChangeRequired');
+        const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+        window.history.replaceState({}, '', newUrl);
+      }
     }
   };
 
