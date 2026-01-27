@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import api from '../../../services/api';
 import { KPI, KPIReview } from '../../../types';
 import {
   calculateDashboardStats,
@@ -18,63 +17,51 @@ interface UseEmployeeDashboardProps {
 
 export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user } = useAuth(); // Get user from auth context
- 
-  
+  const { user } = useAuth(); 
   const [kpis, setKpis] = useState<KPI[]>(props?.initialKpis || []);
   const [reviews, setReviews] = useState<KPIReview[]>(props?.initialReviews || []);
   const [loading, setLoading] = useState(!props?.initialKpis && !props?.initialReviews);
-  
-
-  // Update state when props change
-  useEffect(() => {
-    
-    if (props?.initialKpis && props.initialKpis.length > 0) {
-      setKpis(props.initialKpis);
-    }
-    if (props?.initialReviews && props.initialReviews.length > 0) {
-      setReviews(props.initialReviews);
-    }
-    if (props?.initialKpis || props?.initialReviews) {
-      setLoading(false);
-    } else {
-    }
-  }, [props?.initialKpis, props?.initialReviews]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
-
-  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+   const initialDataSetRef = useRef(false);
 
   useEffect(() => {
-    // Check password change requirement on load
+    if (initialDataSetRef.current) {
+      return;
+    }
+    if (props?.initialKpis || props?.initialReviews) {
+      if (props.initialKpis && props.initialKpis.length > 0) {
+        setKpis(props.initialKpis);
+      }
+      if (props.initialReviews && props.initialReviews.length > 0) {
+        setReviews(props.initialReviews);
+      }
+      setLoading(false);
+      initialDataSetRef.current = true;
+    }
+  }, [props?.initialKpis, props?.initialReviews]);
+
+  useEffect(() => {
     checkPasswordChange();
-  }, [searchParams]);
+  }, []);
 
   const checkPasswordChange = async () => {
-    // Use auth context user data instead of making API call
     if (!user) {
       setPasswordChangeRequired(false);
       setShowPasswordModal(false);
       return;
     }
-    
     const backendRequires = !!user.requires_password_change;
-    
     if (backendRequires) {
       setPasswordChangeRequired(true);
       setShowPasswordModal(true);
     } else {
       setPasswordChangeRequired(false);
       setShowPasswordModal(false);
-      
-      // Clear any stale data
       localStorage.removeItem('passwordChangeRequired');
-      
-      // Remove URL parameter if present
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('passwordChangeRequired')) {
         urlParams.delete('passwordChangeRequired');

@@ -27,16 +27,11 @@ export interface DepartmentFeatures {
 
 export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFeatures | null) => {
   const { user } = useAuth();
-  const [features, setFeatures] = useState<DepartmentFeatures | null>(initialData ?? null);
-  const [loading, setLoading] = useState(!initialData); // If initialData exists, start with loading=false
-  const [error, setError] = useState<string | null>(null);
   const toast = useToast();
-  
+  const [features, setFeatures] = useState<DepartmentFeatures | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
+  const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Fetch department features for current user's department
-   * OR for a specific KPI's employee department if kpiId is provided
-   */
   const fetchFeatures = async () => {
     try {
       setLoading(true);
@@ -51,22 +46,22 @@ export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFe
       }
       setFeatures(response?.data ?? null);
     } catch (err: any) {
-      toast.error('Could not fetch department features. Please try again.');
-      setError(err.response?.data?.error || 'Failed to fetch department features');
-      
-      // Set default features on error
-      setFeatures({
-        department_id: 0,
-        company_id: user?.company_id || 0,
-        use_goal_weight_yearly: false,
-        use_goal_weight_quarterly: false,
-        use_actual_values_yearly: false,
-        use_actual_values_quarterly: false,
-        use_normal_calculation: true,
-        enable_employee_self_rating_quarterly: false,
-        enable_employee_self_rating_yearly: false,
-        is_default: true,
-      });
+        toast.error('Could not fetch department features. Please try again.');
+        setError(err.response?.data?.error || 'Failed to fetch department features');
+        
+        // Set default features on error
+        setFeatures({
+          department_id: 0,
+          company_id: user?.company_id || 0,
+          use_goal_weight_yearly: false,
+          use_goal_weight_quarterly: false,
+          use_actual_values_yearly: false,
+          use_actual_values_quarterly: false,
+          use_normal_calculation: true,
+          enable_employee_self_rating_quarterly: false,
+          enable_employee_self_rating_yearly: false,
+          is_default: true,
+        });
     } finally {
       setLoading(false);
     }
@@ -182,14 +177,20 @@ export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFe
       setLoading(false);
       return;
     }
-    
+
     // Only fetch if no initialData is provided and user exists
-    if (user?.id) {
+    if (user?.id && kpiId) {
       fetchFeatures();
     } else {
       setLoading(false);
     }
-  }, [user?.id, kpiId, initialData]);
+  }, []);
+
+  useEffect(() => {
+    if (kpiId && user?.id) {
+      fetchFeatures();
+    }
+  }, [kpiId]);
 
   return {
     features,
@@ -201,6 +202,6 @@ export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFe
     areGoalWeightsRequired,
     areActualValuesRequired,
     isEmployeeSelfRatingEnabled,
-    fetchDepartmentFeaturesById, // Export the new helper
+    fetchDepartmentFeaturesById,
   };
 };

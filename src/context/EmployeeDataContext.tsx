@@ -1,85 +1,71 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from './AuthContext';
-import { isEmployee } from '../utils/roleUtils';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import { KPI, KPIReview } from '../types';
 
 interface EmployeeDataContextType {
-  sharedKpis: any[];
-  sharedReviews: any[];
-  sharedDepartmentFeatures: any | null;
+  sharedKpis: KPI[];
+  sharedReviews: KPIReview[];
+  sharedDepartmentFeatures: any;
   dataFetched: boolean;
-  isLoading: boolean;
-  refreshData: () => Promise<void>;
+  loading: boolean;
+  refetch: () => void;
 }
 
 const EmployeeDataContext = createContext<EmployeeDataContextType | undefined>(undefined);
 
 export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [sharedKpis, setSharedKpis] = useState<any[]>([]);
-  const [sharedReviews, setSharedReviews] = useState<any[]>([]);
+  const [sharedKpis, setSharedKpis] = useState<KPI[]>([]);
+  const [sharedReviews, setSharedReviews] = useState<KPIReview[]>([]);
   const [sharedDepartmentFeatures, setSharedDepartmentFeatures] = useState<any>(null);
   const [dataFetched, setDataFetched] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const fetchingRef = useRef(false);
-  const userIdRef = useRef(user?.id);
+  const [loading, setLoading] = useState(true);
+  const hasFetchedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Memoize fetchSharedData to prevent unnecessary re-creation
-  const fetchSharedData = useCallback(async (forceRefresh = false) => {
-    if (isEmployee(user) && !fetchingRef.current) {
-      // Skip if data already fetched and not forcing refresh
-      if (!forceRefresh && dataFetched) {
-        return;
-      }
-      
-      fetchingRef.current = true;
-      setIsLoading(true);
-      
-      try {
-        const [kpisRes, reviewsRes, deptFeaturesRes] = await Promise.all([
-          api.get('/kpis'),
-          api.get('/kpi-review'),
-          api.get('/department-features/my-department')
-        ]);
-
-        const kpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
-        const reviews = reviewsRes.data.reviews || [];
-
-        setSharedKpis(kpis);
-        setSharedReviews(reviews);
-        setSharedDepartmentFeatures(deptFeaturesRes.data);
-        setDataFetched(true);
-      } catch (error) {
-        setDataFetched(false);
-      } finally {
-        setIsLoading(false);
-        fetchingRef.current = false;
-      }
+  const fetchData = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  }, [user, dataFetched]);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    try {
+      setLoading(true);
 
-  const refreshData = async () => {
-    setDataFetched(false);
-    fetchingRef.current = false;
-    await fetchSharedData(true);
+      const [kpisRes, reviewsRes, featuresRes] = await Promise.all([
+        api.get('/kpis', { signal }),
+        api.get('/kpi-review', { signal }),
+        api.get('/department-features/my-department', { signal }),
+      ]);
+
+      setSharedKpis(kpisRes?.data?.data?.kpis || []);
+      setSharedReviews(reviewsRes.data.reviews || []);
+      setSharedDepartmentFeatures(featuresRes.data);
+      setDataFetched(true);
+      hasFetchedRef.current = true;
+    } catch (error) {
+        setDataFetched(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Track user ID changes to prevent refetch on same user object recreation
   useEffect(() => {
-    const currentUserId = user?.id;
-    
-    // Only fetch if user ID changed or data not yet fetched
-    if (currentUserId && currentUserId !== userIdRef.current) {
-      userIdRef.current = currentUserId;
-      setDataFetched(false);
+    if (hasFetchedRef.current) {
+      return;
     }
-  }, [user?.id]);
+    fetchData();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
-  useEffect(() => {
-    if (!dataFetched && user) {
-      fetchSharedData();
-    }
-  }, [dataFetched]);
+  const refetch = () => {
+    hasFetchedRef.current = false;
+    fetchData();
+  };
 
   return (
     <EmployeeDataContext.Provider
@@ -88,8 +74,8 @@ export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
         sharedReviews,
         sharedDepartmentFeatures,
         dataFetched,
-        isLoading,
-        refreshData,
+        loading,
+        refetch,
       }}
     >
       {children}
@@ -99,7 +85,7 @@ export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
 export const useEmployeeData = () => {
   const context = useContext(EmployeeDataContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useEmployeeData must be used within EmployeeDataProvider');
   }
   return context;

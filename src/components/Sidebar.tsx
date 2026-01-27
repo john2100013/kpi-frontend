@@ -44,21 +44,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
-  
+  const toast = useToast();
+
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
     if (isManager(user)) {
       fetchPendingReviewsCount();
     } else if (isEmployee(user)) {
-      // Use initial data if provided, otherwise fetch
       if (initialKpis && initialReviews) {
         calculateEmployeeCounts(initialKpis, initialReviews);
       } else {
         fetchEmployeeCounts();
       }
     }
-  }, [user, initialKpis, initialReviews]);
+  }, [user?.id]);
 
   // Refresh count when navigating to/from relevant pages
   useEffect(() => {
@@ -78,22 +78,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   const calculateEmployeeCounts = (kpis: any[], reviews: any[]) => {
-  
-
-    // Count pending acknowledgements
     const pendingAcknowledgements = kpis.filter((kpi: any) => kpi.status === 'pending').length;
-    
     setPendingAcknowledgementsCount(pendingAcknowledgements);
-
-    // Count KPIs needing employee review
     const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
-    
-    
     const needReview = acknowledgedKPIs.filter((kpi: any) => {
       const review = reviews.find((r: any) => r.kpi_id === kpi.id);
       return !review || review.review_status === 'pending';
     }).length;
-    
     setPendingEmployeeReviewsCount(needReview);
   };
 
@@ -112,22 +103,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         api.get('/kpis'),
         api.get('/kpi-review'),
       ]);
-
-
-      // Backend returns: { success: true, data: { kpis: [], pagination: {} } }
-      // So we need to extract from response.data.data.kpis
       const kpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
       const reviews = reviewsRes.data.data?.reviews || reviewsRes.data.reviews || [];
-
-
       calculateEmployeeCounts(kpis, reviews);
     } catch (error) {
       setPendingAcknowledgementsCount(0);
       setPendingEmployeeReviewsCount(0);
     }
   };
-
-  const toast = useToast();
   
   const handleLogout = async () => {
     onClose();
