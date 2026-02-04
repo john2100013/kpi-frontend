@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
-import { FiArrowLeft, FiUser, FiTrendingUp, FiCalendar, FiCheckCircle, FiFilter } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiTrendingUp, FiCalendar, FiCheckCircle, FiFilter, FiAlertCircle } from 'react-icons/fi';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 interface PerformanceData {
   id: number;
@@ -28,46 +30,103 @@ interface PerformanceData {
   }>;
 }
 
+interface PeriodSetting {
+  id: number;
+  period_type: 'quarterly' | 'yearly';
+  quarter?: string;
+  year: number;
+  is_active: boolean;
+}
+
 const EmployeePerformance: React.FC = () => {
   const { employeeId } = useParams<{ employeeId: string }>();
   const navigate = useNavigate();
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const toast = useToast();
   const [employeeInfo, setEmployeeInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [periodFilter, setPeriodFilter] = useState<'all' | 'quarterly' | 'yearly'>('all');
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [quarterlyPeriods, setQuarterlyPeriods] = useState<PeriodSetting[]>([]);
+  const [yearlyPeriods, setYearlyPeriods] = useState<PeriodSetting[]>([]);
+
+  // Get company features for conditional display - use first KPI's review_id
+  const firstKpiReviewId = performanceData.length > 0 ? performanceData[0].review_id : undefined;
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(firstKpiReviewId);
 
   useEffect(() => {
     if (employeeId) {
       fetchPerformanceData();
+      fetchAvailablePeriods();
     }
   }, [employeeId]);
 
+  const fetchAvailablePeriods = async () => {
+    try {
+      // Fetch both quarterly and yearly periods from settings
+      const [quarterlyRes, yearlyRes] = await Promise.all([
+        api.get('/settings/available-periods', { params: { period_type: 'quarterly' } }),
+        api.get('/settings/available-periods', { params: { period_type: 'yearly' } })
+      ]);
+
+      // API returns { success: true, periods: [...] }
+      const quarterly = Array.isArray(quarterlyRes.data?.periods) ? quarterlyRes.data.periods : [];
+      const yearly = Array.isArray(yearlyRes.data?.periods) ? yearlyRes.data.periods : [];
+
+      setQuarterlyPeriods(quarterly);
+      setYearlyPeriods(yearly);
+    } catch (error) {
+      toast.error('Could not fetch available periods. Please try again.');
+    }
+  };
+
   const fetchPerformanceData = async () => {
     try {
+      
       const response = await api.get(`/kpis/employee-performance/${employeeId}`);
-      const data = response.data.performance || [];
+      
+      const data = response.data.performance || response.data.data?.performance || [];
+      
+      if (!Array.isArray(data)) {
+        setPerformanceData([]);
+        setLoading(false);
+        return;
+      }
+      
       
       // Ensure all rating values are numbers
-      const normalizedData = data.map((period: any) => ({
-        ...period,
-        average_rating: period.average_rating != null && !isNaN(period.average_rating) ? period.average_rating : 0,
-        final_rating: period.final_rating != null && !isNaN(period.final_rating) ? period.final_rating : 0,
-        total_weight: period.total_weight != null && !isNaN(period.total_weight) ? period.total_weight : 0,
-        item_calculations: period.item_calculations || [],
-      }));
+      const normalizedData = data.map((period: any) => {
+        // Parse ratings - handle both numbers and string numbers
+        const parseRating = (value: any): number => {
+          if (value == null) return 0;
+          const parsed = typeof value === 'string' ? parseFloat(value) : value;
+          return !isNaN(parsed) ? parsed : 0;
+        };
+
+        const normalized = {
+          ...period,
+          average_rating: parseRating(period.average_rating),
+          final_rating: parseRating(period.final_rating),
+          total_weight: parseRating(period.total_weight),
+          item_calculations: period.item_calculations || [],
+        };
+        
+        
+        return normalized;
+      });
       
       setPerformanceData(normalizedData);
       
       if (normalizedData.length > 0) {
-        setEmployeeInfo({
+        const empInfo = {
           name: normalizedData[0].employee_name,
           department: normalizedData[0].employee_department,
           payroll_number: normalizedData[0].employee_payroll_number,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching performance data:', error);
+        };
+        setEmployeeInfo(empInfo);
+      } 
+    } catch (error: any) {
+      toast.error('Could not fetch performance data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -100,8 +159,8 @@ const EmployeePerformance: React.FC = () => {
       filtered = filtered.filter(p => p.period === 'yearly');
     }
     
-    // Filter by year (only for quarterly)
-    if (periodFilter === 'quarterly' && yearFilter !== 'all') {
+    // Filter by year - applies to BOTH quarterly and yearly
+    if (yearFilter !== 'all') {
       const selectedYear = parseInt(yearFilter);
       filtered = filtered.filter(p => (p.year || p.review_year) === selectedYear);
     }
@@ -111,8 +170,17 @@ const EmployeePerformance: React.FC = () => {
 
   // Separate quarterly and yearly data
   const quarterlyData = useMemo(() => {
-    return filteredData.filter(p => p.period === 'quarterly');
-  }, [filteredData]);
+    // Always get quarterly data from performanceData, respecting year filter
+    let quarterly = performanceData.filter(p => p.period === 'quarterly');
+    
+    // Apply year filter if selected
+    if (yearFilter !== 'all') {
+      const selectedYear = parseInt(yearFilter);
+      quarterly = quarterly.filter(p => (p.year || p.review_year) === selectedYear);
+    }
+    
+    return quarterly;
+  }, [performanceData, yearFilter]);
 
   const yearlyData = useMemo(() => {
     return filteredData.filter(p => p.period === 'yearly');
@@ -128,7 +196,9 @@ const EmployeePerformance: React.FC = () => {
         totals[year] = { count: 0, totalRating: 0, averageRating: 0 };
       }
       totals[year].count++;
-      totals[year].totalRating += period.final_rating || 0;
+      // Parse final_rating to ensure it's a number
+      const finalRating = typeof period.final_rating === 'string' ? parseFloat(period.final_rating) : period.final_rating;
+      totals[year].totalRating += finalRating || 0;
     });
     
     // Calculate averages
@@ -145,9 +215,15 @@ const EmployeePerformance: React.FC = () => {
   // Calculate average rating for filtered data
   const calculateAverageRating = (data: PerformanceData[]): number => {
     if (data.length === 0) return 0;
-    const validRatings = data.filter(p => p.final_rating != null && !isNaN(p.final_rating));
+    const validRatings = data.filter(p => {
+      const finalRating = typeof p.final_rating === 'string' ? parseFloat(p.final_rating) : p.final_rating;
+      return finalRating != null && !isNaN(finalRating);
+    });
     if (validRatings.length === 0) return 0;
-    const sum = validRatings.reduce((acc, p) => acc + (p.final_rating || 0), 0);
+    const sum = validRatings.reduce((acc, p) => {
+      const finalRating = typeof p.final_rating === 'string' ? parseFloat(p.final_rating) : p.final_rating;
+      return acc + (finalRating || 0);
+    }, 0);
     return sum / validRatings.length;
   };
 
@@ -187,19 +263,20 @@ const EmployeePerformance: React.FC = () => {
     return 0;
   };
 
-  // Calculate average manager rating for a period
-  const calculateAverageManagerRating = (itemCalculations: Array<{ manager_rating: number }>): number => {
-    if (!itemCalculations || itemCalculations.length === 0) return 0;
-    const validRatings = itemCalculations.filter(c => c.manager_rating != null && !isNaN(c.manager_rating) && c.manager_rating > 0);
-    if (validRatings.length === 0) return 0;
-    const sum = validRatings.reduce((acc, c) => acc + (c.manager_rating || 0), 0);
-    return sum / validRatings.length;
+  // Get calculation method helper for a specific period
+  const getCalculationMethod = (period: 'quarterly' | 'yearly'): string => {
+    return getCalculationMethodName ? getCalculationMethodName(period) : 'Normal Calculation';
+  };
+
+  // Check if self-rating is enabled for a period
+  const isSelfRatingEnabled = (period: 'quarterly' | 'yearly'): boolean => {
+    return isEmployeeSelfRatingEnabled ? isEmployeeSelfRatingEnabled(period) : false;
   };
 
   // Convert rating (out of 1.5) to percentage
   const ratingToPercent = (rating: number): number => {
     if (!rating || isNaN(rating)) return 0;
-    const pct = (rating / 1.5) * 100;
+    const pct = (rating / 1.25) * 100;
     return Math.max(0, Math.min(100, pct));
   };
 
@@ -211,11 +288,12 @@ const EmployeePerformance: React.FC = () => {
     quarterlyData.forEach(period => {
       const year = period.year || period.review_year || 0;
       const quarter = period.quarter || period.review_quarter || '';
+      const finalRating = typeof period.final_rating === 'string' ? parseFloat(period.final_rating) : period.final_rating;
       
       if (!yearMap[year]) {
         yearMap[year] = {};
       }
-      yearMap[year][quarter] = period.final_rating || 0;
+      yearMap[year][quarter] = finalRating || 0;
     });
     
     Object.keys(yearMap).sort((a, b) => parseInt(b) - parseInt(a)).forEach(yearStr => {
@@ -283,47 +361,42 @@ const EmployeePerformance: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 mb-4">
           <FiFilter className="text-gray-600" />
-          <div className="flex-1 flex items-center space-x-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Period Type</label>
-              <select
-                value={periodFilter}
-                onChange={(e) => {
-                  setPeriodFilter(e.target.value as 'all' | 'quarterly' | 'yearly');
-                  if (e.target.value !== 'quarterly') {
-                    setYearFilter('all');
-                  }
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="all">All Periods</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
-            {periodFilter === 'quarterly' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                <select
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="all">All Years</option>
-                  {availableYears.map(year => (
-                    <option key={year} value={year.toString()}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Period Type</label>
+            <select
+              value={periodFilter}
+              onChange={(e) => setPeriodFilter(e.target.value as 'all' | 'quarterly' | 'yearly')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Periods (Quarterly & Yearly)</option>
+              {quarterlyPeriods.length > 0 && <option value="quarterly">Quarterly Only</option>}
+              {yearlyPeriods.length > 0 && <option value="yearly">Yearly Only</option>}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Year</label>
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Years</option>
+              {availableYears.map(year => (
+                <option key={year} value={year.toString()}>{year}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Applies to both quarterly and yearly KPIs</p>
           </div>
         </div>
       </div>
 
       {/* Performance Summary */}
-      <div className={`grid gap-6 ${periodFilter === 'all' ? 'grid-cols-1 md:grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -332,15 +405,14 @@ const EmployeePerformance: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600">Total Periods</p>
               <p className="text-2xl font-bold text-gray-900">{filteredData.length}</p>
-              {periodFilter === 'quarterly' && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Quarterly: {quarterlyData.length} | Yearly: {yearlyData.length}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 mt-1">
+                {periodFilter === 'all' ? `Quarterly: ${quarterlyData.length} | Yearly: ${yearlyData.length}` : 
+                 periodFilter === 'quarterly' ? `${quarterlyData.length} Quarterly` : `${yearlyData.length} Yearly`}
+              </p>
             </div>
           </div>
         </div>
-        {(periodFilter === 'quarterly' || periodFilter === 'yearly') && (
+        {filteredData.length > 0 && (
           <>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center space-x-3">
@@ -349,17 +421,10 @@ const EmployeePerformance: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Average Rating</p>
-                  <p className="text-2xl font-bold text-gray-900">{filteredAverageRating.toFixed(2)}</p>
-                  {periodFilter === 'quarterly' && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {yearFilter === 'all' ? 'All Years' : `Year ${yearFilter}`}: {filteredAverageRating.toFixed(2)} ({ratingToPercent(filteredAverageRating).toFixed(0)}%)
-                    </p>
-                  )}
-                  {periodFilter === 'yearly' && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {yearFilter === 'all' ? `Year ${availableYears[0] || 'N/A'}` : `Year ${yearFilter}`}: {filteredAverageRating.toFixed(2)} ({ratingToPercent(filteredAverageRating).toFixed(0)}%)
-                    </p>
-                  )}
+                  <p className="text-2xl font-bold text-gray-900">{getFilteredAverageRating().toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {yearFilter === 'all' ? 'All Years' : `Year ${yearFilter}`} • {ratingToPercent(getFilteredAverageRating()).toFixed(0)}%
+                  </p>
                 </div>
               </div>
             </div>
@@ -372,7 +437,7 @@ const EmployeePerformance: React.FC = () => {
                   <p className="text-sm text-gray-600">Performance Level</p>
                   <p className="text-lg font-semibold text-gray-900">{filteredAvgRatingInfo.label}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {ratingToPercent(filteredAverageRating).toFixed(0)}%
+                    {ratingToPercent(getFilteredAverageRating()).toFixed(0)}%
                   </p>
                 </div>
               </div>
@@ -418,7 +483,7 @@ const EmployeePerformance: React.FC = () => {
               {graphData.map((yearData) => {
                 const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
                 const values = quarters.map(q => yearData.quarters[q] ?? null);
-                const maxValue = Math.max(1.5, ...values.filter(v => v !== null).map(v => v || 0));
+                const maxValue = Math.max(1.25, ...values.filter(v => v !== null).map(v => v || 0));
                 const minValue = 0;
                 const range = maxValue - minValue;
                 const graphHeight = 300;
@@ -572,7 +637,12 @@ const EmployeePerformance: React.FC = () => {
               const averageRating = period.average_rating || 0;
               const finalRating = period.final_rating || 0;
               const ratingInfo = getRatingLabel(finalRating);
-              const avgManagerRating = calculateAverageManagerRating(period.item_calculations || []);
+              
+              // Get calculation method for this period
+              const calculationMethodName = getCalculationMethod(period.period);
+              const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+              const selfRatingEnabled = isSelfRatingEnabled(period.period);
+              
               return (
                 <div key={`quarterly-${period.id}-${period.review_id}-${periodIdx}`} className="p-6 hover:bg-gray-50">
                   <div className="flex items-start justify-between mb-4">
@@ -607,6 +677,24 @@ const EmployeePerformance: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Calculation Method Info Card */}
+                  <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <FiAlertCircle className="text-blue-600 text-xl mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-blue-900 mb-1">Review Configuration</h3>
+                        <p className="text-sm text-blue-800 mb-1">
+                          <span className="font-medium">Calculation Method:</span>{' '}
+                          <span className="font-semibold">{calculationMethodName}</span>
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          <span className="font-medium">Employee Self-Rating:</span>{' '}
+                          {selfRatingEnabled ? '✅ Enabled' : '❌ Disabled'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Calculation Breakdown */}
                   <div className="mt-4 bg-gray-50 rounded-lg p-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Rating Calculation:</p>
@@ -625,14 +713,16 @@ const EmployeePerformance: React.FC = () => {
                             period.item_calculations.map((calc, calcIdx) => (
                               <tr key={`quarterly-calc-${period.id}-${calc.item_id}-${calcIdx}`} className="border-b border-gray-200">
                                 <td className="py-2 px-3 text-gray-700">{calc.title || `Item ${calc.item_id}`}</td>
-                                <td className="py-2 px-3 text-right font-semibold">{(calc.manager_rating || 0).toFixed(2)}</td>
+                                {!isActualValueMethod && (
+                                  <td className="py-2 px-3 text-right font-semibold">{(calc.manager_rating || 0).toFixed(2)}</td>
+                                )}
                                 <td className="py-2 px-3 text-right">{((calc.goal_weight || 0) * 100).toFixed(0)}%</td>
                                 <td className="py-2 px-3 text-right font-semibold text-purple-600">{(calc.contribution || 0).toFixed(2)}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="py-4 px-3 text-center text-gray-500 text-sm">
+                              <td colSpan={isActualValueMethod ? 3 : 4} className="py-4 px-3 text-center text-gray-500 text-sm">
                                 No calculation data available
                               </td>
                             </tr>
@@ -641,9 +731,9 @@ const EmployeePerformance: React.FC = () => {
                         <tfoot>
                           <tr className="border-t-2 border-gray-400 font-semibold">
                             <td className="py-2 px-3">Total</td>
-                            <td className="py-2 px-3 text-right">
-                              {avgManagerRating > 0 ? avgManagerRating.toFixed(2) : '-'}
-                            </td>
+                            {!isActualValueMethod && (
+                              <td className="py-2 px-3 text-right">-</td>
+                            )}
                             <td className="py-2 px-3 text-right">{((period.total_weight || 0) * 100).toFixed(0)}%</td>
                             <td className="py-2 px-3 text-right">
                               <div className="text-gray-600 text-xs">Avg: {averageRating.toFixed(2)}</div>
@@ -685,11 +775,14 @@ const EmployeePerformance: React.FC = () => {
               const averageRating = period.average_rating || 0;
               const finalRating = period.final_rating || 0;
               const ratingInfo = getRatingLabel(finalRating);
-              const avgManagerRating = calculateAverageManagerRating(period.item_calculations || []);
+              
+              // Get calculation method for this period
+              const calculationMethodName = getCalculationMethod(period.period);
+              const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+              const selfRatingEnabled = isSelfRatingEnabled(period.period);
+              
               return (
-                <div key={`yearly-${period.id}-${period.review_id}-${periodIdx}`} className="p-6 hover:bg-gray-50 border-l-4 border-red-500">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
+                <div key={`yearly-${period.id}-${period.review_id}-${periodIdx}`} className="p-6 hover:bg-gray-50 border-l-4 border-red-500">\n                  <div className="flex items-start justify-between mb-4">\n                    <div>
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {period.year || period.review_year} - Yearly
@@ -720,6 +813,24 @@ const EmployeePerformance: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Calculation Method Info Card */}
+                  <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <FiAlertCircle className="text-green-600 text-xl mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-green-900 mb-1">Review Configuration</h3>
+                        <p className="text-sm text-green-800 mb-1">
+                          <span className="font-medium">Calculation Method:</span>{' '}
+                          <span className="font-semibold">{calculationMethodName}</span>
+                        </p>
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">Employee Self-Rating:</span>{' '}
+                          {selfRatingEnabled ? '✅ Enabled' : '❌ Disabled'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Calculation Breakdown */}
                   <div className="mt-4 bg-gray-50 rounded-lg p-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Rating Calculation:</p>
@@ -728,7 +839,9 @@ const EmployeePerformance: React.FC = () => {
                         <thead>
                           <tr className="border-b border-gray-300">
                             <th className="text-left py-2 px-3">KPI Item</th>
-                            <th className="text-right py-2 px-3">Manager Rating</th>
+                            {!isActualValueMethod && (
+                              <th className="text-right py-2 px-3">Manager Rating</th>
+                            )}
                             <th className="text-right py-2 px-3">Goal Weight</th>
                             <th className="text-right py-2 px-3">Contribution</th>
                           </tr>
@@ -738,14 +851,16 @@ const EmployeePerformance: React.FC = () => {
                             period.item_calculations.map((calc, calcIdx) => (
                               <tr key={`yearly-calc-${period.id}-${calc.item_id}-${calcIdx}`} className="border-b border-gray-200">
                                 <td className="py-2 px-3 text-gray-700">{calc.title || `Item ${calc.item_id}`}</td>
-                                <td className="py-2 px-3 text-right font-semibold">{(calc.manager_rating || 0).toFixed(2)}</td>
+                                {!isActualValueMethod && (
+                                  <td className="py-2 px-3 text-right font-semibold">{(calc.manager_rating || 0).toFixed(2)}</td>
+                                )}
                                 <td className="py-2 px-3 text-right">{((calc.goal_weight || 0) * 100).toFixed(0)}%</td>
                                 <td className="py-2 px-3 text-right font-semibold text-red-600">{(calc.contribution || 0).toFixed(2)}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="py-4 px-3 text-center text-gray-500 text-sm">
+                              <td colSpan={isActualValueMethod ? 3 : 4} className="py-4 px-3 text-center text-gray-500 text-sm">
                                 No calculation data available
                               </td>
                             </tr>
@@ -754,9 +869,9 @@ const EmployeePerformance: React.FC = () => {
                         <tfoot>
                           <tr className="border-t-2 border-gray-400 font-semibold">
                             <td className="py-2 px-3">Total</td>
-                            <td className="py-2 px-3 text-right text-red-600">
-                              {avgManagerRating > 0 ? avgManagerRating.toFixed(2) : '-'}
-                            </td>
+                            {!isActualValueMethod && (
+                              <td className="py-2 px-3 text-right">-</td>
+                            )}
                             <td className="py-2 px-3 text-right">{((period.total_weight || 0) * 100).toFixed(0)}%</td>
                             <td className="py-2 px-3 text-right">
                               <div className="text-gray-600 text-xs">Avg: {averageRating.toFixed(2)}</div>

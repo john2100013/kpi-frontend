@@ -53,7 +53,7 @@ const EmailTemplates: React.FC = () => {
       const response = await api.get('/email-templates');
       setTemplates(response.data.templates || []);
     } catch (error) {
-      console.error('Error fetching templates:', error);
+      toast.error('Failed to fetch email templates. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,6 @@ const EmailTemplates: React.FC = () => {
       await fetchTemplates();
       toast.success('Template deleted successfully!');
     } catch (error: any) {
-      console.error('Error deleting template:', error);
       toast.error(error.response?.data?.error || 'Error deleting template');
     }
   };
@@ -232,7 +231,6 @@ const EmailTemplates: React.FC = () => {
       setEditorMode('visual');
       toast.success('Template saved successfully!');
     } catch (error: any) {
-      console.error('Error saving template:', error);
       toast.error(error.response?.data?.error || 'Error saving template');
     } finally {
       setSaving(false);

@@ -3,7 +3,7 @@ import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import { useConfirm } from '../../../hooks/useConfirm';
 import { FiSave, FiTrash2, FiPlus } from 'react-icons/fi';
-import { Button } from '../../../components/common';
+import { Button, ConfirmDialog } from '../../../components/common';
 
 interface PeriodSetting {
   id?: number;
@@ -68,30 +68,20 @@ const Settings: React.FC = () => {
         api.get('/settings/period-settings'),
         api.get('/settings/reminder-settings'),
         api.get('/settings/daily-reminders'),
-        api.get('/settings/hr-email-notifications').catch(() => ({ data: { setting: { receive_email_notifications: true } } })),
-        api.get('/rating-options/manage').catch(() => ({ data: { rating_options: [] } })),
+        api.get('/settings/hr-email-notifications'),
+        api.get('/rating-options/manage'),
       ]);
+
 
       // Backend now returns dates in YYYY-MM-DD format using PostgreSQL to_char
       // So we can use them directly without any timezone conversion
       const formattedSettings = (periodsRes.data.settings || []).map((setting: PeriodSetting) => {
-        console.log('📅 [FRONTEND] Received setting from backend:', {
-          id: setting.id,
-          original_start: setting.start_date,
-          original_end: setting.end_date,
-          start_date_type: typeof setting.start_date,
-          end_date_type: typeof setting.end_date
-        });
         
         // Backend returns dates as plain YYYY-MM-DD strings via PostgreSQL to_char
         // Just ensure they're strings (should already be)
         const startDate = setting.start_date ? String(setting.start_date).split('T')[0] : '';
         const endDate = setting.end_date ? String(setting.end_date).split('T')[0] : '';
         
-        console.log('📅 [FRONTEND] Using dates directly:', {
-          formatted_start: startDate,
-          formatted_end: endDate
-        });
         
         return {
           ...setting,
@@ -100,32 +90,28 @@ const Settings: React.FC = () => {
         };
       });
       
-      console.log('📋 [FRONTEND] Final formatted settings:', formattedSettings);
+
       setPeriodSettings(formattedSettings);
       setReminderSettings(remindersRes.data.settings || []);
-      setDailyReminderSetting(dailyRes.data.setting || { send_daily_reminders: false, days_before_meeting: 3, cc_emails: '' });
-      setHrEmailNotifications(emailNotifRes.data.setting?.receive_email_notifications !== false);
+      
+      // FIX: Backend returns 'settings' (plural) not 'setting' (singular)
+      setDailyReminderSetting(dailyRes.data.settings || { send_daily_reminders: false, days_before_meeting: 3, cc_emails: '' });
+      
+      // FIX: Backend returns 'settings' with 'receive_notifications' not 'receive_email_notifications'
+      setHrEmailNotifications(emailNotifRes.data.settings?.receive_notifications !== false);
+      
       setRatingOptions(ratingOptionsRes.data.rating_options || []);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSavePeriodSetting = async (setting: PeriodSetting, index: number) => {
-    console.log('📝 [FRONTEND] Saving period setting:', {
-      index,
-      setting,
-      start_date: setting.start_date,
-      end_date: setting.end_date,
-      start_date_type: typeof setting.start_date,
-      end_date_type: typeof setting.end_date
-    });
 
     // Validate required fields
     if (!setting.start_date || !setting.end_date) {
-      console.error('❌ [FRONTEND] Missing date fields:', { start_date: setting.start_date, end_date: setting.end_date });
       toast.warning('Please enter both start date and end date');
       return;
     }
@@ -137,15 +123,15 @@ const Settings: React.FC = () => {
       end_date: setting.end_date.includes('T') ? setting.end_date.split('T')[0] : setting.end_date,
     };
 
-    console.log('📤 [FRONTEND] Sending to backend:', formattedSetting);
+
 
     setSaving(true);
     try {
       const response = await api.post('/settings/period-settings', formattedSetting);
-      console.log('✅ [FRONTEND] Response received:', response.data);
+
       
       const savedSetting = response.data.setting;
-      console.log('📥 [FRONTEND] Saved setting from backend:', savedSetting);
+
       
       // Ensure dates are in YYYY-MM-DD format for date inputs
       const formattedDates = {
@@ -153,7 +139,7 @@ const Settings: React.FC = () => {
         end_date: savedSetting.end_date ? (savedSetting.end_date.split('T')[0] || savedSetting.end_date) : '',
       };
       
-      console.log('📅 [FRONTEND] Formatted dates:', formattedDates);
+
       
       const updated = [...periodSettings];
       updated[index] = {
@@ -161,13 +147,11 @@ const Settings: React.FC = () => {
         ...formattedDates,
       };
       
-      console.log('💾 [FRONTEND] Updated period settings array:', updated);
+
       setPeriodSettings(updated);
       toast.success('Period setting saved successfully!');
     } catch (error: any) {
-      console.error('❌ [FRONTEND] Error saving period setting:', error);
-      console.error('❌ [FRONTEND] Error response:', error.response?.data);
-      console.error('❌ [FRONTEND] Error status:', error.response?.status);
+     
       toast.error(error.response?.data?.error || error.response?.data?.details || 'Error saving period setting');
     } finally {
       setSaving(false);
@@ -184,11 +168,10 @@ const Settings: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      await api.delete(`/settings/period-settings/${id}`);
+      await api.post(`/settings/period-settings/${id}/delete`);
       // Fix: Filter by id to ensure only the specific item is removed
       setPeriodSettings(prev => prev.filter(s => s.id !== id));
     } catch (error) {
-      console.error('Error deleting period setting:', error);
       toast.error('Error deleting period setting');
     }
   };
@@ -218,7 +201,6 @@ const Settings: React.FC = () => {
       }
       setReminderSettings(updated);
     } catch (error) {
-      console.error('Error saving reminder setting:', error);
       toast.error('Error saving reminder setting');
     } finally {
       setSaving(false);
@@ -238,7 +220,6 @@ const Settings: React.FC = () => {
       await api.delete(`/settings/reminder-settings/${id}`);
       setReminderSettings(reminderSettings.filter(s => s.id !== id));
     } catch (error) {
-      console.error('Error deleting reminder setting:', error);
       toast.error('Error deleting reminder setting');
     }
   };
@@ -261,7 +242,6 @@ const Settings: React.FC = () => {
       await api.post('/settings/daily-reminders', dailyReminderSetting);
       toast.success('Daily reminder settings saved successfully!');
     } catch (error) {
-      console.error('Error saving daily reminder settings:', error);
       toast.error('Error saving daily reminder settings');
     } finally {
       setSaving(false);
@@ -287,27 +267,25 @@ const Settings: React.FC = () => {
         rating_value: typeof ratingValue === 'string' ? parseFloat(ratingValue) : (ratingValue as number),
       };
       
-      console.log('🔍 [Settings] Saving rating option:', optionToSave);
+
       let response;
       if (option.id) {
         // Update existing
-        console.log('🔍 [Settings] Updating existing rating option:', option.id);
+
         response = await api.put(`/rating-options/${option.id}`, optionToSave);
       } else {
         // Create new
-        console.log('🔍 [Settings] Creating new rating option');
+
         response = await api.post('/rating-options', optionToSave);
       }
 
-      console.log('✅ [Settings] Rating option saved:', response.data);
+
       const updated = [...ratingOptions];
       updated[index] = response.data.rating_option;
       setRatingOptions(updated);
       toast.success('Rating option saved successfully!');
     } catch (error: any) {
-      console.error('❌ [Settings] Error saving rating option:', error);
-      console.error('❌ [Settings] Error response:', error.response);
-      console.error('❌ [Settings] Error data:', error.response?.data);
+     
       const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || 'Error saving rating option';
       toast.error(errorMessage);
     } finally {
@@ -329,7 +307,6 @@ const Settings: React.FC = () => {
       setRatingOptions(prev => prev.filter(opt => opt.id !== id));
       toast.success('Rating option deleted successfully!');
     } catch (error) {
-      console.error('Error deleting rating option:', error);
       toast.error('Error deleting rating option');
     }
   };
@@ -826,7 +803,6 @@ const Settings: React.FC = () => {
                       });
                       toast.success('Email notification settings saved successfully!');
                     } catch (error: any) {
-                      console.error('Error saving email notification settings:', error);
                       toast.error(error.response?.data?.error || 'Error saving settings');
                     } finally {
                       setSaving(false);
@@ -1047,6 +1023,16 @@ const Settings: React.FC = () => {
           )}
         </div>
       )}
+       <ConfirmDialog
+        isOpen={confirm.confirmState.isOpen}
+        onClose={confirm.handleCancel}
+        onConfirm={confirm.handleConfirm}
+        title={confirm.confirmState.title}
+        message={confirm.confirmState.message}
+        variant={confirm.confirmState.variant}
+        confirmText={confirm.confirmState.confirmText}
+        cancelText={confirm.confirmState.cancelText}
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../context/ToastContext';
-import { userManagementService, User, UserFilters } from '../services/userManagementService';
+import { userManagementService, User, UserFilters, UserUpdateData, Department } from '../services/userManagementService';
 
 export const useUserManagement = () => {
   const navigate = useNavigate();
@@ -9,32 +9,63 @@ export const useUserManagement = () => {
   
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Array<{ id: number; name: string }>>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   
-  // Filters
-  const [roleFilter, setRoleFilter] = useState<string>('');
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(25);
+  
+  // Filters - default to 'employee' role (ID: 4)
+  const [roleFilter, setRoleFilter] = useState<string>('4');
   const [companyFilter, setCompanyFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Edit and assign states
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [assigningManager, setAssigningManager] = useState<User | null>(null);
 
   useEffect(() => {
     fetchInitialData();
   }, []);
 
   useEffect(() => {
+    setCurrentPage(1); // Reset to page 1 when filters change
     fetchUsers();
   }, [roleFilter, companyFilter, searchQuery]);
+
+  useEffect(() => {
+    if (companyFilter) {
+      fetchDepartments();
+    }
+  }, [companyFilter]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = users.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [usersData, companiesData] = await Promise.all([
-        userManagementService.fetchAllUsers(),
-        userManagementService.fetchCompanies(),
-      ]);
-      
-      setUsers(usersData);
+
+      // First fetch companies
+      const companiesData = await userManagementService.fetchCompanies();
+
       setCompanies(companiesData);
+      
+      // Set default company to first company if available
+      if (companiesData.length > 0) {
+        setCompanyFilter(companiesData[0].id.toString());
+        // fetchUsers will be triggered by the useEffect when companyFilter changes
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to load data');
     } finally {
@@ -44,16 +75,72 @@ export const useUserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const filters: UserFilters = {};
+      // Backend requires both role and company
+      if (!roleFilter || !companyFilter) {
+        setUsers([]);
+        return;
+      }
       
-      if (roleFilter) filters.role = roleFilter;
-      if (companyFilter) filters.company = companyFilter;
+      const filters: UserFilters = {
+        role: roleFilter,
+        company: companyFilter
+      };
+      
       if (searchQuery) filters.search = searchQuery;
 
+
       const data = await userManagementService.fetchAllUsers(filters);
+
       setUsers(data);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to fetch users');
+      setUsers([]);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    if (!companyFilter) return;
+    
+    try {
+      const data = await userManagementService.fetchDepartments(parseInt(companyFilter));
+      setDepartments(data);
+    } catch (error: any) {
+      toast.error('Failed to fetch departments. Please try again.');
+      setDepartments([]);
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+  };
+
+  const handleSaveUser = async (userId: number, data: UserUpdateData) => {
+    try {
+      await userManagementService.updateUser(userId, data);
+      
+      toast.success('User updated successfully');
+      setEditingUser(null);
+      fetchUsers(); // Refresh the list
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to update user');
+      throw error;
+    }
+  };
+
+  const handleAssignDepartments = (manager: User) => {
+    setAssigningManager(manager);
+  };
+
+  const handleSaveManagerDepartments = async (managerId: number, departmentIds: number[]) => {
+    try {
+      await userManagementService.assignManagerDepartments(managerId, departmentIds);
+      toast.success('Manager departments assigned successfully');
+      setAssigningManager(null);
+      // Optionally refresh the users list to show updated department assignments
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to assign departments');
+      throw error;
     }
   };
 
@@ -71,7 +158,7 @@ export const useUserManagement = () => {
       
       toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update user status');
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to update user status');
     } finally {
       setActionLoading(null);
     }
@@ -99,8 +186,8 @@ export const useUserManagement = () => {
   };
 
   const handleResetFilters = () => {
-    setRoleFilter('');
-    setCompanyFilter('');
+    setRoleFilter('4'); // Employee role ID
+    setCompanyFilter(companies.length > 0 ? companies[0].id.toString() : '');
     setSearchQuery('');
   };
 
@@ -123,19 +210,34 @@ export const useUserManagement = () => {
 
   return {
     users,
+    paginatedUsers,
     companies,
+    departments,
     loading,
     actionLoading,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    handlePageChange,
     roleFilter,
     setRoleFilter,
     companyFilter,
     setCompanyFilter,
     searchQuery,
     setSearchQuery,
+    editingUser,
+    setEditingUser,
+    assigningManager,
+    setAssigningManager,
+    handleEditUser,
+    handleSaveUser,
+    handleAssignDepartments,
+    handleSaveManagerDepartments,
     handleToggleStatus,
     handleDeleteUser,
     handleResetFilters,
     handleBack,
     getRoleBadgeColor,
+    fetchUsers,
   };
 };

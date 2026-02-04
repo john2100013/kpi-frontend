@@ -96,23 +96,18 @@ const ManagerDashboard: React.FC = () => {
     try {
       const [, reviewsRes, notificationsRes, activityRes, employeesRes] = await Promise.all([
         api.get('/kpis').catch(err => {
-          console.error('Error fetching KPIs:', err);
           return { data: { kpis: [] } };
         }),
         api.get('/kpi-review').catch(err => {
-          console.error('Error fetching reviews:', err);
           return { data: { reviews: [] } };
         }),
         api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
-          console.error('Error fetching notifications:', err);
           return { data: { notifications: [] } };
         }),
         api.get('/notifications/activity').catch(err => {
-          console.error('Error fetching activity:', err);
           return { data: { activities: [] } };
         }),
         api.get('/employees').catch(err => {
-          console.error('Error fetching employees:', err);
           return { data: { employees: [] } };
         }),
       ]);
@@ -122,7 +117,7 @@ const ManagerDashboard: React.FC = () => {
       setRecentActivity(activityRes.data.activities || []);
       setEmployees(employeesRes.data.employees || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }
@@ -133,7 +128,7 @@ const ManagerDashboard: React.FC = () => {
       const response = await api.get('/departments/manager-departments');
       setManagerDepartments(response.data.departments || []);
     } catch (error) {
-      console.error('Error fetching manager departments:', error);
+      toast.error('Server error. Please try reloading or try later.');
     }
   };
 
@@ -142,7 +137,7 @@ const ManagerDashboard: React.FC = () => {
       const response = await api.get(`/departments/statistics/${department}/${category}`);
       setCategoryEmployees(response.data.employees || []);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      toast.error('Server error. Please try reloading or try later.');
       setCategoryEmployees([]);
     }
   };
@@ -163,7 +158,6 @@ const ManagerDashboard: React.FC = () => {
       setDefaultPeriod(filters.period);
       toast.success('Default period filter saved successfully!');
     } catch (error) {
-      console.error('Error saving default period:', error);
       toast.error('Failed to save default period');
     } finally {
       setSavingDefault(false);
@@ -230,7 +224,7 @@ const ManagerDashboard: React.FC = () => {
       await api.patch(`/notifications/${id}/read`);
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      toast.error('Could not mark notification as read.');
     }
   };
 
@@ -304,7 +298,7 @@ const ManagerDashboard: React.FC = () => {
 
   // Get unique employees with their KPI status
   const employeeStatusList = employees
-    .filter(emp => emp.role === 'employee')
+    .filter(emp => emp.role_id === 4) // Employee role ID
     .map(emp => ({
       ...emp,
       kpiCount: getEmployeeKPICount(emp.id),
@@ -763,18 +757,6 @@ const ManagerDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <Button
-                variant="link"
-                icon={FiArrowRight}
-                iconPosition="right"
-                size="sm"
-                onClick={() => navigate('/manager/employees')}
-              >
-                View All Employees
-              </Button>
             </div>
           </div>
 

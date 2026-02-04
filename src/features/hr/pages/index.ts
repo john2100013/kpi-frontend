@@ -10,3 +10,4 @@ export { default as DepartmentDashboard } from './DepartmentDashboard';
 export { default as EmailTemplates } from './EmailTemplates';
 export { default as RejectedKPIManagement } from './RejectedKPIManagement';
 export { default as EmployeePerformance } from './EmployeePerformance';
+export { default as ReviewReport } from './ReviewReport';

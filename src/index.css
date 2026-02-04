@@ -43,6 +43,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Define CSS variables for sidebar width */
+:root {
+  --sidebar-width-expanded: 256px;
+  --sidebar-width-collapsed: 96px; /* Updated from 80px to 96px for w-24 */
+}
+
+/* Apply sidebar width based on state - desktop only */
+@media (min-width: 1024px) {
+  body.sidebar-expanded {
+    --sidebar-width: var(--sidebar-width-expanded);
+  }
+
+  body.sidebar-collapsed {
+    --sidebar-width: var(--sidebar-width-collapsed);
+  }
+}
+
+/* On mobile and tablets, no body margin */
+@media (max-width: 1023px) {
+  body {
+    --sidebar-width: 0px;
+  }
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
@@ -55,14 +79,25 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #cbd5e0;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #a0aec0;
+}
+
+/* Hide scrollbar for collapsed sidebar navigation */
+.overflow-y-visible {
+  overflow-y: visible !important;
+}
+
+/* Ensure nav doesn't create unnecessary scroll */
+nav {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
 }

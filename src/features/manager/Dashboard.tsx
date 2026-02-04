@@ -96,23 +96,33 @@ const ManagerDashboard: React.FC = () => {
     try {
       const [, reviewsRes, notificationsRes, activityRes, employeesRes] = await Promise.all([
         api.get('/kpis').catch(err => {
-          console.error('Error fetching KPIs:', err);
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not fetch KPIs.');
+          }
           return { data: { kpis: [] } };
         }),
         api.get('/kpi-review').catch(err => {
-          console.error('Error fetching reviews:', err);
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not fetch reviews.');
+          }
           return { data: { reviews: [] } };
         }),
         api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
-          console.error('Error fetching notifications:', err);
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not fetch notifications.');
+          }
           return { data: { notifications: [] } };
         }),
         api.get('/notifications/activity').catch(err => {
-          console.error('Error fetching activity:', err);
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not fetch activity.');
+          }
           return { data: { activities: [] } };
         }),
         api.get('/employees').catch(err => {
-          console.error('Error fetching employees:', err);
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not fetch employees.');
+          }
           return { data: { employees: [] } };
         }),
       ]);
@@ -122,7 +132,9 @@ const ManagerDashboard: React.FC = () => {
       setRecentActivity(activityRes.data.activities || []);
       setEmployees(employeesRes.data.employees || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch dashboard data.');
+      }
     } finally {
       setLoading(false);
     }
@@ -133,7 +145,9 @@ const ManagerDashboard: React.FC = () => {
       const response = await api.get('/departments/manager-departments');
       setManagerDepartments(response.data.departments || []);
     } catch (error) {
-      console.error('Error fetching manager departments:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch manager departments.');
+      }
     }
   };
 
@@ -142,7 +156,9 @@ const ManagerDashboard: React.FC = () => {
       const response = await api.get(`/departments/statistics/${department}/${category}`);
       setCategoryEmployees(response.data.employees || []);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch employees.');
+      }
       setCategoryEmployees([]);
     }
   };
@@ -163,7 +179,6 @@ const ManagerDashboard: React.FC = () => {
       setDefaultPeriod(filters.period);
       toast.success('Default period filter saved successfully!');
     } catch (error) {
-      console.error('Error saving default period:', error);
       toast.error('Failed to save default period');
     } finally {
       setSavingDefault(false);
@@ -230,7 +245,9 @@ const ManagerDashboard: React.FC = () => {
       await api.patch(`/notifications/${id}/read`);
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not mark notification as read.');
+      }
     }
   };
 
@@ -765,17 +782,6 @@ const ManagerDashboard: React.FC = () => {
               </table>
             </div>
 
-            <div className="p-6 border-t border-gray-200">
-              <Button
-                variant="link"
-                icon={FiArrowRight}
-                iconPosition="right"
-                size="sm"
-                onClick={() => navigate('/manager/employees')}
-              >
-                View All Employees
-              </Button>
-            </div>
           </div>
 
           {/* Quick Actions */}

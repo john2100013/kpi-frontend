@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 import api from '../../../services/api';
 import { KPI, Accomplishment } from '../../../types';
 import { RatingOption } from '../types';
@@ -13,33 +14,19 @@ interface TextModalState {
   onChange?: (value: string) => void;
 }
 
-// Extended KPIItem interface with review fields
-interface ExtendedKPIItem {
-  id: number;
-  title: string;
-  description?: string;
-  current_performance_status?: string;
-  target_value?: string;
-  measure_unit?: string;
-  expected_completion_date?: string;
-  goal_weight?: string;
-  measure_criteria?: string;
-  is_qualitative?: boolean;
-  self_rating?: number | null;
-  employee_comment?: string | null;
-}
-
 export const useEmployeeSelfRating = () => {
   const { kpiId } = useParams<{ kpiId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
 
+
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [comments, setComments] = useState<Record<number, string>>({});
+  const [goalWeights, setGoalWeights] = useState<Record<number, string>>({});
   const [employeeSignature, setEmployeeSignature] = useState('');
   const [reviewDate, setReviewDate] = useState<Date | null>(new Date()); // Changed to Date | null
   const [ratingOptions, setRatingOptions] = useState<RatingOption[]>([]);
@@ -58,9 +45,14 @@ export const useEmployeeSelfRating = () => {
     value: '',
   });
 
+  // Get calculation method from department features
+  const { getCalculationMethodName } = useCompanyFeatures(Number(kpiId));
+
   useEffect(() => {
     if (kpiId) {
       fetchKPIDetails();
+    } else {
+      // No kpiId in useEffect (log removed)
     }
   }, [kpiId]);
 
@@ -72,43 +64,79 @@ export const useEmployeeSelfRating = () => {
   }, [kpi]);
 
   const fetchKPIDetails = async () => {
-    if (!kpiId) return;
+    if (!kpiId) {
+      return;
+    }
 
     try {
       setLoading(true);
-      const response = await api.get(`/kpis/${kpiId}`);
-      const data = response.data.kpi;
+      
+      const url = `/kpis/${kpiId}`;
+      
+      const response = await api.get(url);
+      
+      
+      
+      // FIXED: Handle nested response structure (response.data.data or response.data.kpi)
+      const data = response.data.data || response.data.kpi || response.data;
+    
+      
+      if (!data) {
+        throw new Error('No KPI data found in response');
+      }
+      
       setKpi(data);
 
-      // Load existing self-ratings if any
-      if (data.items && data.items.length > 0) {
-        const initialRatings: Record<number, number> = {};
-        const initialComments: Record<number, string> = {};
+      // Fetch existing review data if status indicates employee has submitted
+      if (data.status === 'employee_submitted' || data.status === 'manager_submitted' || data.status === 'completed') {
+        try {
+          const reviewResponse = await api.get(`/kpi-review/kpi/${kpiId}`);
+          const review = reviewResponse.data.review || reviewResponse.data;
+          
+        
 
-        data.items.forEach((item: ExtendedKPIItem) => {
-          if (item.self_rating !== null && item.self_rating !== undefined) {
-            initialRatings[item.id] = item.self_rating;
+          if (review && review.id) {
+            // Load ratings and comments from kpi_item_ratings using the ratings endpoint
+            const ratingsResponse = await api.get(`/kpi-review/${review.id}/ratings`);
+            const itemRatings = ratingsResponse.data.ratings || ratingsResponse.data.item_ratings || [];
+            
+
+            const initialRatings: Record<number, number> = {};
+            const initialComments: Record<number, string> = {};
+
+            itemRatings.forEach((rating: any) => {
+              if (rating.rater_role === 'employee' && rating.kpi_item_id) {
+                initialRatings[rating.kpi_item_id] = rating.quantitative_rating || 0;
+                initialComments[rating.kpi_item_id] = rating.employee_comment || rating.rating_comment || '';
+              }
+            });
+
+            setRatings(initialRatings);
+            setComments(initialComments);
+
+            // Load review form fields
+            if (review.employee_signature) setEmployeeSignature(review.employee_signature);
+            if (review.employee_signed_at) setReviewDate(new Date(review.employee_signed_at));
+            if (review.major_accomplishments) setMajorAccomplishments(review.major_accomplishments);
+            if (review.disappointments) setDisappointments(review.disappointments);
+            if (review.improvement_needed) setImprovementNeeded(review.improvement_needed);
+            if (review.future_plan) setFuturePlan(review.future_plan);
+            
+            // Load accomplishments (now included in the review response)
+            if (review.accomplishments && Array.isArray(review.accomplishments) && review.accomplishments.length > 0) {
+              setAccomplishments(review.accomplishments);
+            }
           }
-          if (item.employee_comment) {
-            initialComments[item.id] = item.employee_comment;
+        } catch (reviewError: any) {
+          if (typeof window !== 'undefined' && window.toast) {
+            window.toast.error('Could not load review data. Please try again later.');
           }
-        });
-
-        setRatings(initialRatings);
-        setComments(initialComments);
-      }
-
-      // Load other self-rating data
-      if (data.employee_signature) setEmployeeSignature(data.employee_signature);
-      if (data.self_review_date) setReviewDate(new Date(data.self_review_date));
-      if (data.major_accomplishments) setMajorAccomplishments(data.major_accomplishments);
-      if (data.disappointments) setDisappointments(data.disappointments);
-      if (data.improvement_needed) setImprovementNeeded(data.improvement_needed);
-      if (data.accomplishments && data.accomplishments.length > 0) {
-        setAccomplishments(data.accomplishments);
-      }
-      if (data.future_plan) setFuturePlan(data.future_plan);
+          // It's okay if review doesn't exist yet - user might be doing first-time rating
+        }
+      } 
+      
     } catch (error: any) {
+    
       toast.error(error.response?.data?.error || 'Failed to load KPI details');
       navigate('/employee/dashboard');
     } finally {
@@ -121,7 +149,6 @@ export const useEmployeeSelfRating = () => {
       const response = await api.get('/rating-options');
       const allOptions = response.data?.rating_options || [];
       
-      // Filter numeric options based on KPI period (yearly or quarterly)
       const periodType = period || 'quarterly'; // Default to quarterly if not specified
       const numericOptions = allOptions.filter((opt: RatingOption) => 
         opt.rating_type === periodType
@@ -130,12 +157,9 @@ export const useEmployeeSelfRating = () => {
         opt.rating_type === 'qualitative'
       );
       
-      console.log(`📋 [SelfRating] Setting ${periodType} rating options:`, numericOptions);
-      console.log('📋 [SelfRating] Setting qualitative rating options:', qualitativeOptions);
       setRatingOptions(numericOptions);
       setQualitativeRatingOptions(qualitativeOptions);
     } catch (error) {
-      console.error('Failed to fetch rating options:', error);
       // Fallback to default options based on period
       const periodType = period || 'quarterly';
       setRatingOptions([
@@ -148,10 +172,8 @@ export const useEmployeeSelfRating = () => {
   };
 
   const handleRatingChange = (itemId: number, ratingValue: number) => {
-    console.log('🔄 [useEmployeeSelfRating] handleRatingChange called:', { itemId, ratingValue });
     setRatings((prev) => {
       const updated = { ...prev, [itemId]: ratingValue };
-      console.log('✅ [useEmployeeSelfRating] Updated ratings state:', updated);
       return updated;
     });
   };
@@ -187,22 +209,32 @@ export const useEmployeeSelfRating = () => {
   const handleSubmit = async () => {
     if (!kpiId || !kpi) return;
 
-    // Validate accomplishments (minimum 2)
-    if (accomplishments.length < 2) {
-      toast.error('Please add at least 2 major accomplishments');
-      return;
-    }
+    // Check if Performance Reflection should be hidden (Quarterly + Goal Weight + Self Rating Enabled)
+    const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+    const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+    const shouldHidePerformanceReflection = 
+      kpiPeriod === 'quarterly' && 
+      calculationMethodName.includes('Goal Weight');
 
-    // Validate all accomplishments have titles and ratings
-    const incompleteAccomplishments = accomplishments.some(acc => 
-      !acc.title || acc.title.trim() === '' || 
-      acc.employee_rating === null || 
-      acc.employee_rating === undefined
-    );
+    // Only validate accomplishments if Performance Reflection section is visible
+    if (!shouldHidePerformanceReflection) {
+      // Validate accomplishments (minimum 2)
+      if (accomplishments.length < 2) {
+        toast.error('Please add at least 2 major accomplishments');
+        return;
+      }
 
-    if (incompleteAccomplishments) {
-      toast.error('Please complete all accomplishment titles and ratings');
-      return;
+      // Validate all accomplishments have titles and ratings
+      const incompleteAccomplishments = accomplishments.some(acc => 
+        !acc.title || acc.title.trim() === '' || 
+        acc.employee_rating === null || 
+        acc.employee_rating === undefined
+      );
+
+      if (incompleteAccomplishments) {
+        toast.error('Please complete all accomplishment titles and ratings');
+        return;
+      }
     }
 
     // Validate all KPIs have ratings (excluding qualitative ones)
@@ -227,12 +259,13 @@ export const useEmployeeSelfRating = () => {
     try {
       setSaving(true);
       
-      // Calculate average rating (from numeric items + accomplishments)
-      const itemRatings = itemsNeedingRatings.map((item: any) => ratings[item.id] || 0);
+      // Calculate average rating (from numeric items + accomplishments) - exclude items marked with exclude_from_calculation = 1
+      const itemsIncludedInCalculation = itemsNeedingRatings.filter((item: any) => !item.exclude_from_calculation || item.exclude_from_calculation === 0);
+      const itemRatingValues = itemsIncludedInCalculation.map((item: any) => ratings[item.id] || 0);
       const accomplishmentRatings = accomplishments
         .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0)
         .map(acc => Number(acc.employee_rating) || 0);
-      const allRatings = [...itemRatings, ...accomplishmentRatings];
+      const allRatings = [...itemRatingValues, ...accomplishmentRatings];
       const averageRating = allRatings.length > 0 
         ? allRatings.reduce((sum: number, rating: number) => sum + rating, 0) / allRatings.length
         : 0;
@@ -243,22 +276,25 @@ export const useEmployeeSelfRating = () => {
         Math.abs(curr - averageRating) < Math.abs(prev - averageRating) ? curr : prev
       );
       
-      // Include ALL items (both numeric and qualitative) in submission
+      // Prepare item ratings array - proper REST API structure
       const allItems = kpi.items || [];
-      const itemData = {
-        items: allItems.map((item: any) => ({
-          item_id: item.id,
-          rating: ratings[item.id] || 0,
-          comment: comments[item.id] || '',
-          is_qualitative: item.is_qualitative || false,
-        })),
-        average_rating: averageRating,
-        rounded_rating: roundedRating,
-      };
+      const itemRatings = allItems.map((item: any) => ({
+        item_id: item.id,
+        rating: ratings[item.id] || 0,
+        comment: comments[item.id] || '',
+        is_qualitative: item.is_qualitative || false,
+      }));
 
-      await api.post(`/kpi-review/${kpiId}/self-rating`, {
-        employee_rating: roundedRating,
-        employee_comment: JSON.stringify(itemData),
+      
+
+   
+
+
+      const submitResponse = await api.post(`/kpi-review/${kpiId}/self-rating`, {
+        overall_rating: roundedRating,
+        average_rating: averageRating,
+        employee_rating_percentage: employeeRatingPercentage,
+        item_ratings: itemRatings,
         employee_signature: employeeSignature,
         review_period: kpi?.period || 'quarterly',
         review_quarter: kpi?.quarter,
@@ -269,6 +305,8 @@ export const useEmployeeSelfRating = () => {
         accomplishments: accomplishments,
         future_plan: futurePlan,
       });
+      
+     
       
       // Clear draft
       localStorage.removeItem(`self-rating-draft-${kpiId}`);
@@ -312,9 +350,13 @@ export const useEmployeeSelfRating = () => {
     setTextModal((prev) => ({ ...prev, value }));
   };
 
-  // Calculate average rating (from items + accomplishments)
+  // Calculate average rating (from items + accomplishments) - exclude items marked with exclude_from_calculation = 1
   const averageRating = (() => {
-    const itemsWithRatings = kpi?.items?.filter((item: any) => !item.is_qualitative && ratings[item.id]) || [];
+    const itemsWithRatings = kpi?.items?.filter((item: any) => 
+      !item.is_qualitative && 
+      ratings[item.id] && 
+      (!item.exclude_from_calculation || item.exclude_from_calculation === 0)
+    ) || [];
     const itemRatingsSum = itemsWithRatings.reduce((acc, item: any) => acc + (ratings[item.id] || 0), 0);
     
     const accomplishmentRatings = accomplishments
@@ -326,6 +368,94 @@ export const useEmployeeSelfRating = () => {
     if (totalCount === 0) return 0;
     
     return (itemRatingsSum + accomplishmentsSum) / totalCount;
+  })();
+
+  // Calculate employee rating percentage based on calculation method
+  const employeeRatingPercentage = (() => {
+    if (!kpi) return 0;
+    
+    const calculationMethodName = kpi.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+    const includedItems = kpi.items?.filter((item: any) => 
+      !item.is_qualitative && 
+      (!item.exclude_from_calculation || item.exclude_from_calculation === 0)
+    ) || [];
+    
+    // Include accomplishments with employee_rating
+    const accomplishmentsWithRatings = accomplishments.filter(acc => 
+      acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0
+    );
+    
+    // Get the maximum rating value from rating options based on KPI period
+    
+    const maxRating = ratingOptions.length > 0 
+      ? Math.max(...ratingOptions.map(option => Number(option.rating_value))) 
+      : 0;
+    
+   
+    
+    if (maxRating === 0) {
+      return 0;
+    }
+    
+    if (calculationMethodName.includes('Goal Weight')) {
+      let totalWeightedScore = 0;
+      
+      // Calculate for items
+      includedItems.forEach(item => {
+        const empRating = ratings[item.id] || 0;
+        const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+        const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+        
+        if (empRating > 0 && goalWeightNum > 0) {
+          const ratingPercentage = (empRating / maxRating) * 100;
+          const weightedScore = ratingPercentage * goalWeightNum;
+          totalWeightedScore += weightedScore;
+        }
+      });
+      
+      // Include accomplishments - distribute remaining weight equally
+      if (accomplishmentsWithRatings.length > 0) {
+        const totalItemWeight = includedItems.reduce((sum, item) => {
+          const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+          const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+          return sum + goalWeightNum;
+        }, 0);
+        const remainingWeight = Math.max(0, 1 - totalItemWeight);
+        const accomplishmentWeight = accomplishmentsWithRatings.length > 0 
+          ? remainingWeight / accomplishmentsWithRatings.length 
+          : 0;
+        
+        accomplishmentsWithRatings.forEach(acc => {
+          const rating = acc.employee_rating;
+          if (rating !== null && rating !== undefined && rating > 0) {
+            const ratingPercentage = (Number(rating) / maxRating) * 100;
+            const weightedScore = ratingPercentage * accomplishmentWeight;
+            totalWeightedScore += weightedScore;
+          }
+        });
+      }
+      
+      return totalWeightedScore;
+    } else {
+      // Normal Calculation: (total score / total possible score) × 100
+      const totalQuestions = includedItems.length + accomplishmentsWithRatings.length;
+      const totalPossibleScore = totalQuestions * maxRating;
+      
+      // Sum ratings for included items
+      const totalItemScore = includedItems.reduce((sum, item) => sum + (ratings[item.id] || 0), 0);
+      
+      // Sum ratings for accomplishments
+      const totalAccomplishmentScore = accomplishmentsWithRatings.reduce((sum, acc) => {
+        return sum + (Number(acc.employee_rating) || 0);
+      }, 0);
+      
+      const totalScore = totalItemScore + totalAccomplishmentScore;
+      const percentage = totalPossibleScore > 0 ? (totalScore / totalPossibleScore) * 100 : 0;
+      
+     
+      
+      return percentage;
+    }
   })();
 
   // Calculate completion percentage
@@ -343,6 +473,7 @@ export const useEmployeeSelfRating = () => {
     saving,
     ratings,
     comments,
+    goalWeights,
     employeeSignature,
     reviewDate,
     ratingOptions,
@@ -355,6 +486,7 @@ export const useEmployeeSelfRating = () => {
     textModal,
     averageRating,
     completion,
+    employeeRatingPercentage,
     setEmployeeSignature,
     setReviewDate, // Now returns Date | null
     setMajorAccomplishments,

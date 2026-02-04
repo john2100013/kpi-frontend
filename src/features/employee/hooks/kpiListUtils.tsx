@@ -8,7 +8,7 @@ export interface KPIStageInfo {
   icon: React.ReactNode;
 }
 
-export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
+export const getKPIStage = (kpi: KPI, reviews: KPIReview[], isSelfRatingEnabled: boolean = true): KPIStageInfo => {
   // Find review for this KPI
   const review = reviews.find(r => r.kpi_id === kpi.id);
 
@@ -21,6 +21,14 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
   }
 
   if (kpi.status === 'acknowledged' && !review) {
+    // If self-rating is disabled, show Manager Will Initiate Review
+    if (!isSelfRatingEnabled) {
+      return {
+        stage: 'Manager Will Initiate Review',
+        color: 'bg-blue-100 text-blue-700',
+        icon: <FiClock className="inline" />
+      };
+    }
     return {
       stage: 'KPI Acknowledged - Review Pending',
       color: 'bg-blue-100 text-blue-700',
@@ -29,7 +37,7 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
   }
 
   if (review) {
-    if (review.review_status === 'manager_submitted') {
+      if (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation') {
       return {
         stage: 'Awaiting Your Confirmation',
         color: 'bg-indigo-100 text-indigo-700',
@@ -94,8 +102,8 @@ export const getPrimaryAction = (
     };
   }
 
-  if (review && review.review_status === 'manager_submitted') {
-    return {
+  if (review && (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation')) {
+      return {
       label: 'Confirm',
       onClick: () => navigate(`/employee/kpi-confirmation/${review.id}`)
     };
@@ -116,9 +124,5 @@ export const getPrimaryAction = (
 
 export const canEditReview = (review: KPIReview | undefined): boolean => {
   if (!review) return false;
-  return (
-    review.review_status === 'employee_submitted' ||
-    review.review_status === 'manager_submitted' ||
-    review.review_status === 'completed'
-  );
+  return review.review_status === 'employee_submitted';
 };

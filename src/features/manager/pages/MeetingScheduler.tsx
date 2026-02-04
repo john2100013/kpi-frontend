@@ -47,13 +47,13 @@ const MeetingScheduler: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [employeesRes, kpisRes, reviewsRes] = await Promise.all([
-        api.get('/employees').catch(() => ({ data: { employees: [] } })),
+      const [kpisRes, reviewsRes] = await Promise.all([
+        // api.get('/employees').catch(() => ({ data: { employees: [] } })),
         api.get('/kpis').catch(() => ({ data: { kpis: [] } })),
         api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
       ]);
 
-      setEmployees(employeesRes.data.employees || []);
+      // setEmployees(employeesRes.data.employees || []);
       setKpis(kpisRes.data.kpis || []);
       setReviews(reviewsRes.data.reviews || []);
 
@@ -72,7 +72,7 @@ const MeetingScheduler: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Could not fetch meeting data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,6 @@ const MeetingScheduler: React.FC = () => {
       toast.success('Meeting scheduled successfully! Email notifications have been sent.');
       navigate('/manager/dashboard');
     } catch (error: any) {
-      console.error('Error scheduling meeting:', error);
       toast.error(error.response?.data?.error || 'Failed to schedule meeting');
     } finally {
       setSaving(false);

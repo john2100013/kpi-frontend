@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchKPIs, selectAllKPIs, selectKPILoading } from '../../../store/slices/kpiSlice';
@@ -15,6 +16,16 @@ import { managerService } from '../services';
 import { DashboardFilters, Employee, ManagerDepartment, EmployeeWithStatus } from '../types';
 import { KPI, KPIReview, Notification } from '../../../types';
 import { getKPIStageWithProgress } from './managerDashboardUtils';
+import { useDepartmentFeatures, DepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
+import api from '../../../services/api';
+
+interface PeriodSetting {
+  id: number;
+  period_type: 'quarterly' | 'yearly';
+  quarter?: string;
+  year: number;
+  is_active: boolean;
+}
 
 export const useManagerDashboard = () => {
   const navigate = useNavigate();
@@ -32,6 +43,11 @@ export const useManagerDashboard = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [recentActivity, setRecentActivity] = useState<Notification[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [recentKPIs, setRecentKPIs] = useState<any[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [employeeKPIs, setEmployeeKPIs] = useState<any[]>([]);
+  const [loadingEmployeeKPIs, setLoadingEmployeeKPIs] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState<string>('');
   const [filters, setFilters] = useState<DashboardFilters>({
     period: '',
     department: '',
@@ -39,27 +55,48 @@ export const useManagerDashboard = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [categoryEmployees, setCategoryEmployees] = useState<Employee[]>([]);
+  const [kpisByCategory, setKpisByCategory] = useState<any[]>([]);
+  const [employeeDeptFeaturesCache, setEmployeeDeptFeaturesCache] = useState<Record<number, DepartmentFeatures>>({});
   const [defaultPeriod, setDefaultPeriod] = useState<string>('');
   const [savingDefault, setSavingDefault] = useState(false);
   const [managerDepartments, setManagerDepartments] = useState<ManagerDepartment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [kpiType, setKpiType] = useState<'quarterly' | 'yearly'>('quarterly');
+  const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+  const [quarterlyPeriods, setQuarterlyPeriods] = useState<PeriodSetting[]>([]);
+  const [yearlyPeriods, setYearlyPeriods] = useState<PeriodSetting[]>([]);
 
   const isLoading = loading || kpisLoading || statsLoading;
 
+  const toast = useToast();
+  const { fetchDepartmentFeaturesById } = useDepartmentFeatures();
+  
+
+  
   // Initial data fetch
   useEffect(() => {
     fetchInitialData();
     loadDefaultPeriod();
+    fetchAvailablePeriods();
   }, [dispatch]);
 
-  // Fetch employees when category is selected
+  // Fetch KPIs when category is selected (except for no_kpi which needs employees)
   useEffect(() => {
     if (selectedCategory && selectedDepartment) {
-      fetchCategoryEmployees(selectedDepartment, selectedCategory);
+      if (selectedCategory === 'no_kpi') {
+        // For no_kpi, fetch employees instead
+        fetchCategoryEmployees(selectedDepartment, selectedCategory);
+        setKpisByCategory([]);
+      } else {
+        // For other categories, fetch KPIs
+        fetchKPIsByCategoryData(selectedDepartment, selectedCategory);
+        setCategoryEmployees([]);
+      }
     } else {
       setCategoryEmployees([]);
+      setKpisByCategory([]);
     }
-  }, [selectedCategory, selectedDepartment]);
+  }, [selectedCategory, selectedDepartment, filters.period]);
 
   // Refetch statistics when filters change
   useEffect(() => {
@@ -80,13 +117,14 @@ export const useManagerDashboard = () => {
       dispatch(fetchDepartments());
 
       // Fetch manager-specific data in parallel
-      const [reviewsData, notificationsData, activityData, employeesData, departmentsData] = 
+      const [reviewsData, notificationsData, activityData, employeesData, departmentsData, recentKPIsData] = 
         await Promise.all([
-          managerService.fetchReviews(),
-          managerService.fetchNotifications(5),
-          managerService.fetchRecentActivity(),
-          managerService.fetchEmployees(),
-          managerService.fetchManagerDepartments(),
+          managerService.fetchReviews().catch(() => []),
+          managerService.fetchNotifications(5).catch(() => []),
+          managerService.fetchRecentActivity().catch(() => []),
+          managerService.fetchEmployees().catch(() => []),
+          managerService.fetchManagerDepartments().catch(() => []),
+          managerService.fetchRecentKPIs(10).catch(() => []),
         ]);
 
       setReviews(reviewsData);
@@ -94,10 +132,42 @@ export const useManagerDashboard = () => {
       setRecentActivity(activityData);
       setEmployees(employeesData);
       setManagerDepartments(departmentsData);
+      setRecentKPIs(recentKPIsData);
+   
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+     
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchKPIsByCategoryData = async (department: string, category: string) => {
+    try {
+      const data = await managerService.fetchKPIsByCategory(department, category, filters.period);
+      
+      // Fetch department features for all unique employee departments
+      const employeeDeptIds = [...new Set(
+        data
+          .map((kpi: any) => kpi.employee_department_id)
+          .filter((id: any) => id != null)
+      )] as number[];
+      
+      // Fetch department features for all employee departments
+      const newCache: Record<number, DepartmentFeatures> = {};
+      await Promise.all(
+        employeeDeptIds.map(async (deptId) => {
+          const features = await fetchDepartmentFeaturesById(deptId);
+          if (features) {
+            newCache[deptId] = features;
+          }
+        })
+      );
+      
+      setEmployeeDeptFeaturesCache(newCache);
+      setKpisByCategory(data);
+    } catch (error) {
+      setKpisByCategory([]);
     }
   };
 
@@ -106,7 +176,6 @@ export const useManagerDashboard = () => {
       const data = await managerService.fetchEmployeesByCategory(department, category);
       setCategoryEmployees(data);
     } catch (error) {
-      console.error('Error fetching employees:', error);
       setCategoryEmployees([]);
     }
   };
@@ -119,6 +188,61 @@ export const useManagerDashboard = () => {
     }
   };
 
+  const fetchAvailablePeriods = async () => {
+    try {
+      // Fetch both quarterly and yearly periods
+      const [quarterlyRes, yearlyRes] = await Promise.all([
+        api.get('/settings/available-periods', { params: { period_type: 'quarterly' } }),
+        api.get('/settings/available-periods', { params: { period_type: 'yearly' } })
+      ]);
+
+      const quarterly = Array.isArray(quarterlyRes.data?.periods) ? quarterlyRes.data.periods : [];
+      const yearly = Array.isArray(yearlyRes.data?.periods) ? yearlyRes.data.periods : [];
+
+      setQuarterlyPeriods(quarterly);
+      setYearlyPeriods(yearly);
+
+      // Set default selected period based on current type
+      if (kpiType === 'quarterly' && quarterly.length > 0 && !selectedPeriodId) {
+        setSelectedPeriodId(quarterly[0].id);
+        updateFilterPeriod(quarterly[0]);
+      } else if (kpiType === 'yearly' && yearly.length > 0 && !selectedPeriodId) {
+        setSelectedPeriodId(yearly[0].id);
+        updateFilterPeriod(yearly[0]);
+      }
+    } catch (error) {
+      if (toast) toast.error('Could not fetch available periods.');
+    }
+  };
+
+  const updateFilterPeriod = (period: PeriodSetting) => {
+    // Format: period_type|quarter|year (same as existing format)
+    const periodValue = `${period.period_type}|${period.quarter || ''}|${period.year}`;
+    setFilters(prev => ({ ...prev, period: periodValue }));
+  };
+
+  const handleKpiTypeChange = (newType: 'quarterly' | 'yearly') => {
+    setKpiType(newType);
+    // Reset to first period of new type
+    const newPeriods = newType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+    if (newPeriods.length > 0) {
+      setSelectedPeriodId(newPeriods[0].id);
+      updateFilterPeriod(newPeriods[0]);
+    } else {
+      setSelectedPeriodId(null);
+      setFilters(prev => ({ ...prev, period: '' }));
+    }
+  };
+
+  const handlePeriodChange = (periodId: number) => {
+    setSelectedPeriodId(periodId);
+    const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+    const selectedPeriod = currentPeriods.find(p => p.id === periodId);
+    if (selectedPeriod) {
+      updateFilterPeriod(selectedPeriod);
+    }
+  };
+
   const saveDefaultPeriod = async (): Promise<boolean> => {
     try {
       setSavingDefault(true);
@@ -126,7 +250,7 @@ export const useManagerDashboard = () => {
       setDefaultPeriod(filters.period);
       return true;
     } catch (error) {
-      console.error('Error saving default period:', error);
+      toast.error('Could not save your default period.');
       return false;
     } finally {
       setSavingDefault(false);
@@ -142,6 +266,25 @@ export const useManagerDashboard = () => {
   const clearCategorySelection = () => {
     setSelectedCategory(null);
     setSelectedDepartment(null);
+  };
+
+  const handleEmployeeSelect = async (employeeId: number | null) => {
+    setSelectedEmployeeId(employeeId);
+    
+    if (employeeId) {
+      try {
+        setLoadingEmployeeKPIs(true);
+        const employeeKPIsData = await managerService.fetchEmployeeKPIs(employeeId.toString());
+        setEmployeeKPIs(employeeKPIsData || []);
+      } catch (error) {
+        toast.error('Could not load employee KPIs');
+        setEmployeeKPIs([]);
+      } finally {
+        setLoadingEmployeeKPIs(false);
+      }
+    } else {
+      setEmployeeKPIs([]);
+    }
   };
 
   const getEmployeeKPICount = (employeeId: number): number => {
@@ -183,8 +326,23 @@ export const useManagerDashboard = () => {
       await managerService.markNotificationRead(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      toast.error('Could not mark notification as read.');
     }
+  };
+
+  // Check if a KPI should show "Manager to initiate" based on employee dept features
+  const shouldShowAsManagerInitiated = (kpi: any): boolean => {
+    if (kpi.employee_department_id && employeeDeptFeaturesCache[kpi.employee_department_id]) {
+      const employeeFeatures = employeeDeptFeaturesCache[kpi.employee_department_id];
+      const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+      
+      if (kpiPeriod === 'yearly') {
+        return employeeFeatures.enable_employee_self_rating_yearly === false;
+      } else {
+        return employeeFeatures.enable_employee_self_rating_quarterly === false;
+      }
+    }
+    return false;
   };
 
   return {
@@ -197,17 +355,31 @@ export const useManagerDashboard = () => {
     notifications,
     recentActivity,
     employees,
+    recentKPIs,
+    selectedEmployeeId,
+    employeeKPIs,
+    loadingEmployeeKPIs,
+    employeeSearch,
     filters,
     selectedCategory,
     selectedDepartment,
     categoryEmployees,
+    kpisByCategory,
     defaultPeriod,
     savingDefault,
     managerDepartments,
     loading: isLoading,
+    kpiType,
+    selectedPeriodId,
+    quarterlyPeriods,
+    yearlyPeriods,
     
     // Computed
     employeeStatusList: getEmployeeStatusList(),
+    filteredEmployees: employees.filter(emp => 
+      emp.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+      (emp.payroll_number && emp.payroll_number.toLowerCase().includes(employeeSearch.toLowerCase()))
+    ),
     
     // Actions
     setFilters,
@@ -216,8 +388,13 @@ export const useManagerDashboard = () => {
     clearCategorySelection,
     handleNotificationClick,
     handleMarkNotificationRead,
+    handleEmployeeSelect,
+    setEmployeeSearch,
     getEmployeeKPICount,
     getEmployeeKPIStatus,
+    shouldShowAsManagerInitiated,
     navigate,
+    handleKpiTypeChange,
+    handlePeriodChange,
   };
 };

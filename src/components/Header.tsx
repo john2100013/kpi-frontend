@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { FiSearch, FiBell, FiMenu, FiLogOut, FiUser, FiHome } from 'react-icons/fi';
+import { RiMenuFold3Fill, RiMenuFold2Line } from 'react-icons/ri';
+import { getRoleDisplayName } from '../utils/roleUtils';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -13,6 +16,8 @@ interface HeaderProps {
     onClick: () => void;
     icon?: React.ReactNode;
   };
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -21,18 +26,25 @@ const Header: React.FC<HeaderProps> = ({
   subtitle,
   showSearch = true,
   actionButton,
+  isSidebarCollapsed,
+  onToggleSidebar,
 }) => {
   const { user, logout, companies, hasMultipleCompanies, selectedCompany, selectCompany } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
     setShowUserMenu(false);
+    try {
+      await logout();
+    } catch (error) {
+      toast.error('Unable to logout. Please try again or refresh the page.');
+    }
+    navigate('/login');
   };
 
   return (
@@ -41,12 +53,28 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between">
           {/* Left side */}
           <div className="flex items-center space-x-4 flex-1">
+            {/* Mobile menu button */}
             <button
               onClick={onMenuClick}
               className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
             >
               <FiMenu className="text-xl text-gray-700" />
             </button>
+
+            {/* Desktop sidebar toggle */}
+            {onToggleSidebar && (
+              <button
+                onClick={onToggleSidebar}
+                className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {isSidebarCollapsed ? (
+                  <RiMenuFold2Line className="text-xl text-gray-700" />
+                ) : (
+                  <RiMenuFold3Fill className="text-xl text-gray-700" />
+                )}
+              </button>
+            )}
 
             {title && (
               <div>
@@ -104,7 +132,9 @@ const Header: React.FC<HeaderProps> = ({
                               setShowCompanyMenu(false);
                               window.location.reload(); // Reload to refresh data
                             } catch (error) {
-                              console.error('Failed to switch company:', error);
+                              if (typeof window !== 'undefined' && window.toast) {
+                                window.toast.error('Failed to switch company.');
+                              }
                             }
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
@@ -166,17 +196,6 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Action Button */}
-            {actionButton && (
-              <button
-                onClick={actionButton.onClick}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                {actionButton.icon}
-                <span>{actionButton.label}</span>
-              </button>
-            )}
-
             {/* User Menu */}
             <div className="relative">
               <button
@@ -188,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-xs text-gray-500">{getRoleDisplayName(user?.role_id)}</p>
                 </div>
               </button>
 
@@ -199,7 +218,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="px-3 py-2 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
                       <p className="text-xs text-gray-500">{user?.email}</p>
-                      <p className="text-xs text-gray-500 capitalize mt-1">{user?.role}</p>
+                      <p className="text-xs text-gray-500 mt-1">{getRoleDisplayName(user?.role_id)}</p>
                     </div>
                     <button
                       onClick={() => {

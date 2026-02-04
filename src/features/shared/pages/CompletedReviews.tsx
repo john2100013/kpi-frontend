@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import api from '../../../services/api';
 import { KPI } from '../../../types';
 import { FiArrowLeft, FiEye, FiUser, FiSearch, FiFilter, FiDownload, FiCheckCircle, FiFileText } from 'react-icons/fi';
+import { ROLE_IDS } from '../../../utils/roleUtils';
 
 interface PeriodSetting {
   id: number;
@@ -23,7 +24,8 @@ const CompletedReviews: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [kpiType, setKpiType] = useState<'quarterly' | 'yearly'>('quarterly');
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
-  const [availablePeriods, setAvailablePeriods] = useState<PeriodSetting[]>([]);
+  const [quarterlyPeriods, setQuarterlyPeriods] = useState<PeriodSetting[]>([]);
+  const [yearlyPeriods, setYearlyPeriods] = useState<PeriodSetting[]>([]);
   const [downloading, setDownloading] = useState<number | null>(null);
 
   useEffect(() => {
@@ -33,16 +35,28 @@ const CompletedReviews: React.FC = () => {
 
   const fetchAvailablePeriods = async () => {
     try {
-      const response = await api.get('/settings/available-periods', {
-        params: { period_type: 'quarterly' }
-      });
-      const periods = response.data.periods || [];
-      setAvailablePeriods(periods);
-      if (periods.length > 0) {
-        setSelectedPeriodId(periods[0].id);
+      // Fetch both quarterly and yearly periods
+      const [quarterlyRes, yearlyRes] = await Promise.all([
+        api.get('/settings/available-periods', { params: { period_type: 'quarterly' } }),
+        api.get('/settings/available-periods', { params: { period_type: 'yearly' } })
+      ]);
+
+      // API returns { success: true, periods: [...] }
+      const quarterly = Array.isArray(quarterlyRes.data?.periods) ? quarterlyRes.data.periods : [];
+      const yearly = Array.isArray(yearlyRes.data?.periods) ? yearlyRes.data.periods : [];
+
+
+      setQuarterlyPeriods(quarterly);
+      setYearlyPeriods(yearly);
+
+      // Set default selected period based on current type
+      if (kpiType === 'quarterly' && quarterly.length > 0 && !selectedPeriodId) {
+        setSelectedPeriodId(quarterly[0].id);
+      } else if (kpiType === 'yearly' && yearly.length > 0 && !selectedPeriodId) {
+        setSelectedPeriodId(yearly[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      toast.error('Could not fetch available periods.');
     }
   };
 
@@ -50,13 +64,14 @@ const CompletedReviews: React.FC = () => {
     try {
       // Use the dedicated endpoint for review-completed KPIs
       const kpisRes = await api.get('/kpis/review-completed').catch(err => {
-        console.error('Error fetching review-completed KPIs:', err);
-        return { data: { kpis: [] } };
+        return { data: { data: { kpis: [] } } };
       });
 
-      setKpis(kpisRes.data.kpis || []);
+      // Backend returns { success: true, data: { kpis: [...] } }
+      const fetchedKpis = kpisRes.data?.data?.kpis || kpisRes.data?.kpis || [];
+      setKpis(fetchedKpis);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Could not fetch completed reviews.');
     } finally {
       setLoading(false);
     }
@@ -65,15 +80,33 @@ const CompletedReviews: React.FC = () => {
   // Filter KPIs by type and search (they're already filtered to review-completed by the API)
   const completedKPIs = kpis.filter((kpi) => {
     const matchesType = kpi.period === kpiType;
-    // If quarterly and a specific period is selected, match by quarter and year
-    const matchesPeriod = kpiType === 'quarterly' && selectedPeriodId
-      ? availablePeriods.find(p => p.id === selectedPeriodId && p.quarter === kpi.quarter && p.year === kpi.year)
-      : true;
+    
+    // Get current periods based on selected type
+    const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+    
+    // If a specific period is selected, match by that period
+    let matchesPeriod = true;
+    if (selectedPeriodId) {
+      const selectedPeriod = currentPeriods.find(p => p.id === selectedPeriodId);
+      if (selectedPeriod) {
+        if (kpiType === 'quarterly') {
+          // For quarterly, match both quarter and year
+          matchesPeriod = selectedPeriod.quarter === kpi.quarter && selectedPeriod.year === kpi.year;
+         
+        } else {
+          // For yearly, match only year
+          matchesPeriod = selectedPeriod.year === kpi.year;
+        
+        }
+      }
+    }
+    
     const matchesSearch = 
       kpi.employee_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       kpi.employee_department?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       kpi.employee_payroll_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       kpi.title?.toLowerCase().includes(searchQuery.toLowerCase());
+   
     
     return matchesType && matchesPeriod && matchesSearch;
   });
@@ -96,7 +129,7 @@ const CompletedReviews: React.FC = () => {
   const handleDownloadPDF = async (kpi: KPI) => {
     setDownloading(kpi.id);
     try {
-      const response = await api.get(`/kpis/${kpi.id}/review-download-pdf`, {
+      const response = await api.get(`/kpis/${kpi.id}/download-review-pdf`, {
         responseType: 'blob',
       });
 
@@ -110,7 +143,6 @@ const CompletedReviews: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Error downloading PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to download PDF');
     } finally {
       setDownloading(null);
@@ -184,9 +216,14 @@ const CompletedReviews: React.FC = () => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const periodLabel = kpiType === 'quarterly' && selectedPeriodId
-      ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''}_${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
+    
+    // Generate filename based on selected period
+    const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+    const selectedPeriod = currentPeriods.find(p => p.id === selectedPeriodId);
+    const periodLabel = selectedPeriod 
+      ? (kpiType === 'quarterly' ? `${selectedPeriod.quarter}_${selectedPeriod.year}` : `${selectedPeriod.year}`)
       : kpiType;
+    
     link.setAttribute('download', `Completed_Reviews_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
@@ -232,29 +269,55 @@ const CompletedReviews: React.FC = () => {
           <FiFilter className="text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">KPI Period</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">KPI Type</label>
             <select
-              value={kpiType === 'quarterly' && selectedPeriodId ? selectedPeriodId.toString() : kpiType}
+              value={kpiType}
               onChange={(e) => {
-                const value = e.target.value;
-                if (value === 'yearly') {
-                  setKpiType('yearly');
-                  setSelectedPeriodId(null);
-                } else {
-                  setKpiType('quarterly');
-                  setSelectedPeriodId(parseInt(value));
-                }
+                const newType = e.target.value as 'quarterly' | 'yearly';
+                setKpiType(newType);
+                // Reset to first period of new type
+                const newPeriods = newType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+                setSelectedPeriodId(newPeriods.length > 0 ? newPeriods[0].id : null);
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
-              {availablePeriods.map((period) => (
-                <option key={period.id} value={period.id.toString()}>
-                  {period.quarter} {period.year} (Quarterly)
-                </option>
-              ))}
-              <option value="yearly">Yearly KPI</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {kpiType === 'quarterly' ? 'Select Quarter' : 'Select Year'}
+            </label>
+            <select
+              value={selectedPeriodId || ''}
+              onChange={(e) => setSelectedPeriodId(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              disabled={(kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods).length === 0}
+            >
+              {kpiType === 'quarterly' ? (
+                quarterlyPeriods.length > 0 ? (
+                  quarterlyPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.quarter} {period.year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No quarterly periods available</option>
+                )
+              ) : (
+                yearlyPeriods.length > 0 ? (
+                  yearlyPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No yearly periods available</option>
+                )
+              )}
             </select>
           </div>
           <div>
@@ -280,9 +343,16 @@ const CompletedReviews: React.FC = () => {
             Completed Reviews ({completedKPIs.length})
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            {kpiType === 'quarterly' && selectedPeriodId
-              ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
-              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs with reviews completed by managers
+            {(() => {
+              const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+              const selectedPeriod = currentPeriods.find(p => p.id === selectedPeriodId);
+              if (selectedPeriod) {
+                return kpiType === 'quarterly' 
+                  ? `${selectedPeriod.quarter} ${selectedPeriod.year} KPIs with reviews completed by managers`
+                  : `${selectedPeriod.year} KPIs with reviews completed by managers`;
+              }
+              return `${kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs with reviews completed by managers`;
+            })()}
           </p>
         </div>
 
@@ -304,9 +374,16 @@ const CompletedReviews: React.FC = () => {
               {completedKPIs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                    No completed reviews found for {kpiType === 'quarterly' && selectedPeriodId
-                      ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
-                      : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} period
+                    No completed reviews found for {(() => {
+                      const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
+                      const selectedPeriod = currentPeriods.find((p: PeriodSetting) => p.id === selectedPeriodId);
+                      if (selectedPeriod) {
+                        return kpiType === 'quarterly' 
+                          ? `${selectedPeriod.quarter} ${selectedPeriod.year}`
+                          : `${selectedPeriod.year}`;
+                      }
+                      return kpiType === 'quarterly' ? 'Quarterly' : 'Yearly';
+                    })()} period
                   </td>
                 </tr>
               ) : (
@@ -370,18 +447,31 @@ const CompletedReviews: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => {
-                              // Navigate to review details
-                              const path = user?.role === 'hr' 
-                                ? `/hr/kpi-details/${kpi.id}`
-                                : `/manager/kpi-review/${reviewId}`;
+                           
+                              
+                              // Navigate to role-specific KPI Details page
+                              let path = '';
+                              if (user?.role_id === ROLE_IDS.HR) {
+                                path = `/hr/kpi-details/${kpi.id}`;
+                              } else if (user?.role_id === ROLE_IDS.MANAGER) {
+                                path = `/manager/kpi-details/${kpi.id}`;
+                              } else if (user?.role_id === ROLE_IDS.EMPLOYEE) {
+                                path = `/employee/kpi-details/${kpi.id}`;
+                              }
+                              
+                             
+                              
+                              
                               navigate(path);
+                              
+                              // navigation log removed
                             }}
                             className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
                           >
                             <FiEye className="text-sm" />
                             <span>View</span>
                           </button>
-                          {user?.role === 'hr' && (
+                          {user?.role_id === ROLE_IDS.HR && (
                             <button
                               onClick={() => {
                                 navigate(`/hr/employee-performance/${kpi.employee_id}`);
@@ -417,4 +507,3 @@ const CompletedReviews: React.FC = () => {
 };
 
 export default CompletedReviews;
-

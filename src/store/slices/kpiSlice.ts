@@ -104,6 +104,37 @@ export const deleteKPI = createAsyncThunk(
   }
 );
 
+export const fetchReviews = createAsyncThunk(
+  'kpi/fetchReviews',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/kpi-review');
+      return response.data.data?.reviews || response.data.reviews || [];
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch reviews');
+    }
+  }
+);
+
+export const fetchKPIsAndReviews = createAsyncThunk(
+  'kpi/fetchKPIsAndReviews',
+  async (_, { rejectWithValue }) => {
+    try {
+      const [kpisRes, reviewsRes] = await Promise.all([
+        api.get('/kpis'),
+        api.get('/kpi-review'),
+      ]);
+      
+      return {
+        kpis: kpisRes.data.data?.kpis || kpisRes.data.kpis || [],
+        reviews: reviewsRes.data.data?.reviews || reviewsRes.data.reviews || [],
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch data');
+    }
+  }
+);
+
 const kpiSlice = createSlice({
   name: 'kpi',
   initialState,
@@ -208,12 +239,45 @@ const kpiSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       });
+
+    // Fetch Reviews
+    builder
+      .addCase(fetchReviews.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchReviews.fulfilled, (state, action) => {
+        state.loading = false;
+        state.reviews = action.payload;
+      })
+      .addCase(fetchReviews.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch KPIs and Reviews together
+    builder
+      .addCase(fetchKPIsAndReviews.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchKPIsAndReviews.fulfilled, (state, action) => {
+        state.loading = false;
+        state.kpis = action.payload.kpis;
+        state.reviews = action.payload.reviews;
+      })
+      .addCase(fetchKPIsAndReviews.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
 // Selectors
 export const selectAllKPIs = (state: RootState) => state.kpi.kpis;
 export const selectCurrentKPI = (state: RootState) => state.kpi.currentKPI;
+export const selectAllReviews = (state: RootState) => state.kpi.reviews;
+export const selectCurrentReview = (state: RootState) => state.kpi.currentReview;
 export const selectKPILoading = (state: RootState) => state.kpi.loading;
 export const selectKPIError = (state: RootState) => state.kpi.error;
 

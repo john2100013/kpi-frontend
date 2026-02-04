@@ -19,16 +19,51 @@ export interface Company {
   total_departments: number;
 }
 
-export const superAdminDashboardService = {
-  fetchDashboardStats: async (): Promise<DashboardStats> => {
-    const response = await api.get('/super-admin/dashboard-stats');
-    return response.data;
-  },
+export interface DashboardData {
+  stats: DashboardStats;
+  companies: Company[];
+}
 
-  fetchRecentCompanies: async (limit: number = 5): Promise<Company[]> => {
-    const response = await api.get('/companies', {
-      params: { limit, sort: 'recent' }
-    });
-    return response.data.companies || [];
+let cachedRequest: Promise<DashboardData> | null = null;
+
+function calculateStats(companies: Company[]): DashboardStats {
+  const stats = {
+    totalCompanies: companies.length,
+    totalHRUsers: companies.reduce((sum, c) => sum + (Number(c.total_hr) || 0), 0),
+    totalManagers: companies.reduce((sum, c) => sum + (Number(c.total_managers) || 0), 0),
+    totalEmployees: companies.reduce((sum, c) => sum + (Number(c.total_employees) || 0), 0),
+    totalDepartments: companies.reduce((sum, c) => sum + (Number(c.total_departments) || 0), 0),
+  };
+  return stats;
+}
+
+function getRecentCompanies(companies: Company[], limit: number = 5): Company[] {
+  return companies
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
+}
+
+async function loadDashboardData(): Promise<DashboardData> {
+  const response = await api.get('/companies/list');
+  const companies = response.data.companies || response.data.data?.companies || [];
+  
+  return {
+    stats: calculateStats(companies),
+    companies: getRecentCompanies(companies),
+  };
+}
+
+export const superAdminDashboardService = {
+  fetchDashboardData: async (): Promise<DashboardData> => {
+    // If there's already a request happening, return that instead of making a new one
+    if (cachedRequest) {
+      return cachedRequest;
+    }
+    cachedRequest = loadDashboardData();
+    try {
+      return await cachedRequest;
+    } finally {
+      cachedRequest = null;
+    }
   },
 };

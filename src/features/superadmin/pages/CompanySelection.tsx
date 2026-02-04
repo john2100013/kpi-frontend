@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { selectCompany as selectCompanyAction, logout as logoutAction } from '../../../store/slices/authSlice';
 import { useAuth } from '../../../context/AuthContext';
 import { FiHome, FiLogOut, FiCheckCircle } from 'react-icons/fi';
 
 const CompanySelection: React.FC = () => {
-  const { companies, selectCompany } = useAuth();
+  const dispatch = useAppDispatch();
+  const { companies, isLoading: reduxLoading } = useAppSelector((state) => state.auth);
+  const { logout: authContextLogout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -13,18 +17,30 @@ const CompanySelection: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await selectCompany(companyId);
+      await dispatch(selectCompanyAction(companyId)).unwrap();
       navigate('/hr/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Failed to select company');
+      setError(err || 'Failed to select company');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      setLoading(true);
+      // Call both Redux and AuthContext logout
+      await dispatch(logoutAction()).unwrap();
+      await authContextLogout();
+      // Navigate to login
+      navigate('/login', { replace: true });
+    } catch (err: any) {
+      // Even if logout fails, clear local state and redirect
+      await authContextLogout();
+      navigate('/login', { replace: true });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

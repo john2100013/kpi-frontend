@@ -4,8 +4,9 @@ import DatePicker from '../../../components/DatePicker';
 import TextModal from '../../../components/TextModal';
 import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
 import { FiArrowLeft, FiSave, FiSend, FiExternalLink } from 'react-icons/fi';
-import { Button } from '../../../components/common';
+import { Button, ConfirmDialog } from '../../../components/common';
 import { useManagerKPIReview } from '../hooks';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const ManagerKPIReview: React.FC = () => {
   const {
@@ -29,21 +30,37 @@ const ManagerKPIReview: React.FC = () => {
     improvementNeededManagerComment,
     accomplishments,
     actualValues,
+    targetValues,
+    goalWeights,
+    currentPerformanceStatuses,
+    managerRatingPercentages,
     textModal,
     employeeAvg,
     managerAvg,
     employeeFinalRating,
     managerFinalRating,
+    employeeRatingPercentage,
+    employeeFinalRatingPercentage,
+    managerFinalRatingPercentage,
+    // Physical Meeting Confirmation + Overall Manager Rating
+    managerReviewMeetingConfirmed,
+    managerReviewMeetingLocation,
+    managerReviewMeetingDate,
+    managerReviewMeetingTime,
+    overallManagerRating,
     setQualitativeRatings,
     setQualitativeComments,
     setOverallComment,
     setManagerSignature,
     setReviewDate,
-    setMajorAccomplishmentsManagerComment,
     setDisappointmentsManagerComment,
     setImprovementNeededManagerComment,
     setAccomplishments,
     setActualValues,
+    setTargetValues,
+    setGoalWeights,
+    setCurrentPerformanceStatuses,
+    setManagerRatingPercentages,
     setTextModal,
     handleRatingChange,
     handleCommentChange,
@@ -51,7 +68,34 @@ const ManagerKPIReview: React.FC = () => {
     handleSubmit,
     handleBack,
     getRatingLabel,
+    // Physical Meeting Actions + Overall Rating
+    setManagerReviewMeetingConfirmed,
+    setManagerReviewMeetingLocation,
+    setManagerReviewMeetingDate,
+    setManagerReviewMeetingTime,
+    setOverallManagerRating,
+    // Confirm dialog
+    confirmState,
+    handleConfirm,
+    handleCancel,
   } = useManagerKPIReview();
+
+  // Department feature detection for conditional rendering
+  // Pass kpi.id to fetch features for the KPI's employee department
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(kpi?.id);
+
+  // Determine if self-rating is disabled for this department based on KPI period
+  const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+  const isSelfRatingDisabled = !isEmployeeSelfRatingEnabled(kpiPeriod);
+  
+  // Get calculation method name based on KPI period
+  const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
+
+  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  const shouldHidePerformanceReflection = 
+    kpiPeriod === 'quarterly' && 
+    calculationMethodName.includes('Goal Weight') && 
+    !isSelfRatingDisabled;
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -67,8 +111,9 @@ const ManagerKPIReview: React.FC = () => {
     );
   }
 
-  // If review doesn't have an ID, employee hasn't submitted self-rating yet
-  if (!review.id) {
+  // If review doesn't have an ID AND self-rating is enabled, employee hasn't submitted self-rating yet
+  // If self-rating is disabled, manager can proceed directly even without review ID
+  if (!review.id && !isSelfRatingDisabled) {
     return (
       <div className="space-y-6">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
@@ -159,16 +204,39 @@ const ManagerKPIReview: React.FC = () => {
       </div>
 
       {/* Review Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <div className="flex items-start space-x-3">
-          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-white text-xs font-bold">i</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Review Instructions Card */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-start space-x-3">
+            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-white text-xs font-bold">i</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-900 mb-2">Review Instructions</h3>
+              <p className="text-sm text-blue-800">
+                Review the employee's self-ratings carefully, enter your ratings and detailed comments for each KPI, then sign and submit for HR review. Your ratings should be based on observed performance, achievement of targets, and overall contribution during the {kpi?.period || 'quarterly'} period.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-blue-900 mb-2">Review Instructions</h3>
-            <p className="text-sm text-blue-800">
-              Review the employee's self-ratings carefully, enter your ratings and detailed comments for each KPI, then sign and submit for HR review. Your ratings should be based on observed performance, achievement of targets, and overall contribution during the quarterly period.
-            </p>
+        </div>
+
+        {/* Calculation Method Card */}
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+          <div className="flex items-start space-x-3">
+            <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-white text-xs font-bold">📊</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-purple-900 mb-2">Calculation Method</h3>
+              <p className="text-sm text-purple-800">
+                This KPI uses <span className="font-bold">{calculationMethodName}</span> for rating calculations.
+              </p>
+              {isSelfRatingDisabled && (
+                <p className="text-xs text-purple-700 mt-2">
+                  ⓘ Employee self-rating is disabled - you will rate all items directly.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -193,20 +261,36 @@ const ManagerKPIReview: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full" style={{ minWidth: '1800px' }}>
+          <table className="w-full" style={{ minWidth: isSelfRatingDisabled ? '2200px' : '2400px' }}>
             <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>KPI TITLE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '250px' }}>KPI DESCRIPTION</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>TARGET VALUE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '120px' }}>GOAL WEIGHT</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '150px' }}>EMPLOYEE SELF RATING</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>EMPLOYEE COMMENT</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>MANAGER RATING</th>
+              <tr className="border-b-2 border-gray-400">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>KPI TITLE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '250px' }}>KPI DESCRIPTION</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '180px' }}>CURRENT PERFORMANCE STATUS</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>TARGET VALUE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>ACTUAL VALUE ACHIEVED</th>
+                {/* Percentage Value Obtained - Only for Actual vs Target */}
+                {calculationMethodName.includes('Actual vs Target') && (
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>PERCENTAGE VALUE OBTAINED</th>
+                )}
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '120px' }}>MEASURE UNIT</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>EXPECTED COMPLETION DATE</th>
+                {/* Goal Weight - Show for all methods but emphasize when needed */}
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '120px' }}>
+                  GOAL WEIGHT{(calculationMethodName.includes('Goal Weight') || calculationMethodName.includes('Actual vs Target')) && <span className="text-red-600">*</span>}
+                </th>
+                {/* Employee Self Rating - Only when enabled */}
+                {!isSelfRatingDisabled && (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>EMPLOYEE SELF RATING</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>EMPLOYEE COMMENT</th>
+                  </>
+                )}
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '200px' }}>MANAGER RATING</th>
+                {/* Manager Rating % - Only for Actual vs Target and Goal Weight */}
+                {(calculationMethodName.includes('Actual vs Target') || calculationMethodName.includes('Goal Weight')) && (
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap border-r border-gray-300" style={{ minWidth: '150px' }}>MANAGER RATING %</th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase whitespace-nowrap" style={{ minWidth: '200px' }}>MANAGER COMMENT</th>
               </tr>
             </thead>
@@ -217,59 +301,168 @@ const ManagerKPIReview: React.FC = () => {
                   const empComment = employeeComments[item.id] || '';
                   const mgrRating = managerRatings[item.id] || 0;
                   const mgrComment = managerComments[item.id] || '';
+                  const actualValue = actualValues[item.id] || '';
+                  const targetValue = targetValues[item.id] || item.target_value || '';
+                  const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria || '';
+                  const currentStatus = currentPerformanceStatuses[item.id] || item.current_performance_status || '';
+                  const targetValueNum = targetValue ? parseFloat(String(targetValue)) : 0;
+                  
+                  // Determine calculation method
+                  const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+                  const isGoalWeightMethod = calculationMethodName.includes('Goal Weight');
+                  const isNormalCalculation = calculationMethodName.includes('Normal');
+                  
+                  // Calculate percentage value obtained: (actual / target) * 100 (for Actual vs Target)
+                  const percentageValueObtainedNum = actualValue && targetValueNum > 0 
+                    ? (parseFloat(actualValue) / targetValueNum) * 100
+                    : 0;
+                  const percentageValueObtained = percentageValueObtainedNum > 0
+                    ? percentageValueObtainedNum.toFixed(2) + '%'
+                    : 'N/A';
+                  
+                  // Parse goal weight
+                  const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                  
+                  // Calculate manager rating percentage based on method
+                  let managerRatingPercentage = 'N/A';
+                  
+                  if (isActualValueMethod) {
+                    // Actual vs Target: Percentage Value Obtained * Goal Weight
+                    if (percentageValueObtainedNum > 0 && goalWeightNum > 0) {
+                      managerRatingPercentage = (percentageValueObtainedNum * goalWeightNum).toFixed(2) + '%';
+                    }
+                  } else if (isGoalWeightMethod) {
+                    // Goal Weight: (rating / max_rating) * goal_weight
+                    if (mgrRating > 0 && goalWeightNum > 0) {
+                      const ratingPercentage = (mgrRating / 1.25) * 100; // Max rating is 1.25
+                      managerRatingPercentage = (ratingPercentage * goalWeightNum).toFixed(2) + '%';
+                    }
+                  } else if (isNormalCalculation) {
+                    // Normal Calculation: Individual rating percentage (for display only)
+                    // Final calculation is done at the summary level
+                    if (mgrRating > 0) {
+                      managerRatingPercentage = ((mgrRating / 1.25) * 100).toFixed(2) + '%';
+                    }
+                  }
+                  
                   return (
                     <tr key={item.id}>
+                      {/* KPI Title */}
                       <td className="px-6 py-4">
                         <div>
                           <button
                             onClick={() => setTextModal({ isOpen: true, title: 'KPI Title', value: item.title || 'N/A' })}
                             className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors"
                           >
-                            <p className="truncate max-w-[200px]" title={item.title}>{item.title}</p>
+                            <p 
+                              className="line-clamp-2 max-w-[200px]" 
+                              title={item.title}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                minHeight: '2.5rem'
+                              }}
+                            >
+                              {item.title}
+                            </p>
                           </button>
                           <p className="text-xs text-gray-500">KPI-{review.review_quarter}-{String(index + 1).padStart(3, '0')}</p>
                         </div>
                       </td>
+                      {/* KPI Description */}
                       <td className="px-6 py-4">
                         <button
                           onClick={() => setTextModal({ isOpen: true, title: 'KPI Description', value: item.description || 'N/A' })}
                           className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
                         >
-                          <p className="truncate max-w-[250px]" title={item.description || 'N/A'}>{item.description || 'N/A'}</p>
-                        </button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setTextModal({ isOpen: true, title: 'Current Performance Status', value: item.current_performance_status || 'N/A' })}
-                          className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
-                        >
-                          <p className="truncate max-w-[180px]" title={item.current_performance_status || 'N/A'}>{item.current_performance_status || 'N/A'}</p>
-                        </button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: item.target_value || 'N/A' })}
-                          className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors"
-                        >
-                          <p className="truncate max-w-[150px]" title={item.target_value || 'N/A'}>
-                            {item.is_qualitative ? <span className="text-purple-600 font-medium">Qualitative</span> : (item.target_value || 'N/A')}
+                          <p 
+                            className="line-clamp-2 max-w-[250px]" 
+                            title={item.description || 'N/A'}
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              minHeight: '2.5rem'
+                            }}
+                          >
+                            {item.description || 'N/A'}
                           </p>
                         </button>
                       </td>
+                      {/* Current Performance Status */}
+                      <td className="px-6 py-4">
+                        {isSelfRatingDisabled ? (
+                          <textarea
+                            value={currentStatus}
+                            onChange={(e) => setCurrentPerformanceStatuses({ ...currentPerformanceStatuses, [item.id]: e.target.value })}
+                            placeholder="Enter current status"
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setTextModal({ isOpen: true, title: 'Current Performance Status', value: currentStatus || 'N/A' })}
+                            className="text-left text-sm text-gray-900 hover:text-purple-600 transition-colors"
+                          >
+                            <p className="truncate max-w-[180px]" title={currentStatus || 'N/A'}>{currentStatus || 'N/A'}</p>
+                          </button>
+                        )}
+                      </td>
+                      {/* Target Value */}
+                      <td className="px-6 py-4">
+                        {isSelfRatingDisabled ? (
+                          <input
+                            type="text"
+                            value={targetValue}
+                            onChange={(e) => setTargetValues({ ...targetValues, [item.id]: e.target.value })}
+                            placeholder={item.is_qualitative ? "Qualitative (optional)" : "Enter target value"}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setTextModal({ isOpen: true, title: 'Target Value', value: targetValue || 'N/A' })}
+                            className="text-left font-semibold text-gray-900 hover:text-purple-600 transition-colors"
+                          >
+                            <p className="truncate max-w-[150px]" title={targetValue || 'N/A'}>
+                              {item.is_qualitative ? <span className="text-purple-600 font-medium">Qualitative</span> : (targetValue || 'N/A')}
+                            </p>
+                          </button>
+                        )}
+                      </td>
+                      {/* Actual Value Achieved */}
                       <td className="px-6 py-4">
                         <input
                           type="text"
-                          value={actualValues[item.id] || ''}
+                          value={actualValue}
                           onChange={(e) => setActualValues({ ...actualValues, [item.id]: e.target.value })}
                           placeholder="Enter actual value"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
                       </td>
+                      {/* Percentage Value Obtained - Only for Actual vs Target */}
+                      {isActualValueMethod && (
+                        <td className="px-6 py-4">
+                          <span className={`text-sm font-semibold ${
+                            actualValue && targetValueNum > 0 ? 
+                              (parseFloat(actualValue) / targetValueNum) >= 1 ? 'text-green-600' : 
+                              (parseFloat(actualValue) / targetValueNum) >= 0.7 ? 'text-orange-600' : 
+                              'text-red-600'
+                            : 'text-gray-400'
+                          }`}>
+                            {percentageValueObtained}
+                          </span>
+                        </td>
+                      )}
+                      {/* Measure Unit */}
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-1 rounded text-sm whitespace-nowrap ${item.is_qualitative ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                           {item.is_qualitative ? 'Qualitative' : (item.measure_unit || 'N/A')}
                         </span>
                       </td>
+                      {/* Expected Completion Date */}
                       <td className="px-6 py-4">
                         <p className="text-sm text-gray-700 whitespace-nowrap">
                           {item.expected_completion_date 
@@ -277,70 +470,90 @@ const ManagerKPIReview: React.FC = () => {
                             : 'N/A'}
                         </p>
                       </td>
+                      {/* Goal Weight */}
                       <td className="px-6 py-4">
-                        <p className="text-sm text-gray-700 whitespace-nowrap">{item.goal_weight || item.measure_criteria || 'N/A'}</p>
+                        {isSelfRatingDisabled ? (
+                          <input
+                            type="text"
+                            value={goalWeight}
+                            onChange={(e) => setGoalWeights({ ...goalWeights, [item.id]: e.target.value })}
+                            placeholder="Enter weight (e.g., 15%)"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 whitespace-nowrap">{goalWeight || 'N/A'}</p>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.is_qualitative ? (
-                          employeeQualitativeRatings[item.id] ? (
+                      {/* Employee Self Rating - Conditionally Rendered */}
+                      {!isSelfRatingDisabled && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.is_qualitative ? (
+                            employeeQualitativeRatings[item.id] ? (
+                              <div>
+                                <span className="text-sm font-semibold text-purple-600">
+                                  {(() => {
+                                    const ratingValue = employeeQualitativeRatings[item.id];
+                                    const matchingOption = qualitativeRatingOptions.find(opt => opt.rating_value === ratingValue);
+                                    return matchingOption ? matchingOption.label : ratingValue;
+                                  })()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">Not rated</span>
+                            )
+                          ) : empRating > 0 ? (
                             <div>
-                              <span className="text-sm font-semibold text-purple-600">
+                              <span className="text-sm font-semibold text-gray-900">
                                 {(() => {
-                                  const ratingValue = employeeQualitativeRatings[item.id];
-                                  const matchingOption = qualitativeRatingOptions.find(opt => opt.rating_value === ratingValue);
-                                  return matchingOption ? matchingOption.label : ratingValue;
+                                  const ratingValue = parseFloat(String(empRating));
+                                  if (Math.abs(ratingValue - 1.00) < 0.01) return '1.00';
+                                  if (Math.abs(ratingValue - 1.25) < 0.01) return '1.25';
+                                  if (Math.abs(ratingValue - 1.50) < 0.01) return '1.50';
+                                  return parseFloat(String(empRating)).toFixed(2);
                                 })()}
+                              </span>
+                              <span className="text-xs text-gray-500 ml-1 block">
+                                ({getRatingLabel(empRating)})
                               </span>
                             </div>
                           ) : (
                             <span className="text-sm text-gray-400">Not rated</span>
-                          )
-                        ) : empRating > 0 ? (
-                          <div>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {(() => {
-                                const ratingValue = parseFloat(String(empRating));
-                                if (Math.abs(ratingValue - 1.00) < 0.01) return '1.00';
-                                if (Math.abs(ratingValue - 1.25) < 0.01) return '1.25';
-                                if (Math.abs(ratingValue - 1.50) < 0.01) return '1.50';
-                                return parseFloat(String(empRating)).toFixed(2);
-                              })()}
-                            </span>
-                            <span className="text-xs text-gray-500 ml-1 block">
-                              ({getRatingLabel(empRating)})
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">Not rated</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {empComment && empComment !== 'N/A' ? (
-                          <button
-                            onClick={() => setTextModal({ isOpen: true, title: 'Employee Comment', value: empComment })}
-                            className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
-                          >
-                            <p className="truncate max-w-[200px]" title={empComment}>
-                              {empComment.length > 50 ? empComment.substring(0, 50) + '...' : empComment}
-                            </p>
-                          </button>
-                        ) : (
-                          <p className="text-sm text-gray-400">N/A</p>
-                        )}
-                      </td>
+                          )}
+                        </td>
+                      )}
+                      {/* Employee Comment - Conditionally Rendered */}
+                      {!isSelfRatingDisabled && (
+                        <td className="px-6 py-4">
+                          {empComment && empComment !== 'N/A' ? (
+                            <button
+                              onClick={() => setTextModal({ isOpen: true, title: 'Employee Comment', value: empComment })}
+                              className="text-left text-sm text-gray-700 hover:text-purple-600 transition-colors"
+                            >
+                              <p className="truncate max-w-[200px]" title={empComment}>
+                                {empComment.length > 50 ? empComment.substring(0, 50) + '...' : empComment}
+                              </p>
+                            </button>
+                          ) : (
+                            <p className="text-sm text-gray-400">N/A</p>
+                          )}
+                        </td>
+                      )}
+                      {/* Manager Rating */}
                       <td className="px-6 py-4">
                         {item.is_qualitative ? (
                           <div>
                             <select
                               value={qualitativeRatings[item.id] || ''}
                               onChange={(e) => {
-                                setQualitativeRatings({ ...qualitativeRatings, [item.id]: e.target.value });
+                                const val = e.target.value;
+                                const parsed = val === '' ? '' : parseInt(val, 10);
+                                setQualitativeRatings({ ...qualitativeRatings, [item.id]: parsed });
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                             >
                               <option value="">Select qualitative rating</option>
                               {qualitativeRatingOptions.map((opt) => (
-                                <option key={opt.rating_value} value={opt.label}>
+                                <option key={opt.id || opt.rating_value} value={opt.id || opt.rating_value}>
                                   {opt.label}
                                 </option>
                               ))}
@@ -352,7 +565,7 @@ const ManagerKPIReview: React.FC = () => {
                               value={mgrRating || 0}
                               onChange={(e) => {
                                 const selectedValue = parseFloat(e.target.value);
-                                console.log('🔄 [KPIReview] Select changed - Raw value:', e.target.value, 'Parsed:', selectedValue, 'Item ID:', item.id);
+
                                 handleRatingChange(item.id, selectedValue);
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -383,6 +596,35 @@ const ManagerKPIReview: React.FC = () => {
                           </div>
                         )}
                       </td>
+                      {/* Manager Rating % - Only for Actual vs Target and Goal Weight */}
+                      {(isActualValueMethod || isGoalWeightMethod) && (
+                        <td className="px-6 py-4">
+                          <input
+                            type="text"
+                            value={managerRatingPercentages[item.id] || managerRatingPercentage.replace('%', '')}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setManagerRatingPercentages({ 
+                                ...managerRatingPercentages, 
+                                [item.id]: value 
+                              });
+                            }}
+                            placeholder="0.00"
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-semibold ${
+                              isActualValueMethod ? (
+                                percentageValueObtainedNum >= 100 ? 'text-green-600' :
+                                percentageValueObtainedNum >= 70 ? 'text-orange-600' :
+                                percentageValueObtainedNum > 0 ? 'text-red-600' : 'text-gray-400'
+                              ) : (
+                                mgrRating >= 1.5 ? 'text-green-600' : 
+                                mgrRating >= 1.25 ? 'text-orange-600' : 
+                                mgrRating > 0 ? 'text-red-600' : 'text-gray-400'
+                              )
+                            }`}
+                          />
+                        </td>
+                      )}
+                      {/* Manager Comment */}
                       <td className="px-6 py-4">
                         <div className="flex items-start space-x-2">
                           <textarea
@@ -503,165 +745,461 @@ const ManagerKPIReview: React.FC = () => {
             </tbody>
           </table>
         </div>
-
-        {/* Average Ratings Summary */}
-        <div className="p-6 bg-gray-50 border-t border-gray-200">
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Employee Average Rating</p>
-              <p className="text-lg font-semibold text-gray-700">
-                {employeeAvg > 0 ? employeeAvg.toFixed(2) : 'N/A'}
-              </p>
-              <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Employee Final Rating</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {employeeFinalRating > 0 ? employeeFinalRating.toFixed(2) : 'N/A'}
-              </p>
-              {employeeFinalRating > 0 && (
-                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(employeeFinalRating)})</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Manager Average Rating</p>
-              <p className="text-lg font-semibold text-gray-700">
-                {managerAvg > 0 ? managerAvg.toFixed(2) : 'Not rated'}
-              </p>
-              <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Manager Final Rating</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {managerFinalRating > 0 ? managerFinalRating.toFixed(2) : 'Not rated'}
-              </p>
-              {managerFinalRating > 0 && (
-                <p className="text-sm text-gray-500 mt-1">({getRatingLabel(managerFinalRating)})</p>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Employee Accomplishments & Disappointments */}
-      {review && (review.accomplishments || review.major_accomplishments || review.disappointments || review.improvement_needed || review.future_plan) && (
+      {/* Employee Accomplishments & Disappointments - Hide when self-rating is disabled */}
+      {/* Also hide when Quarterly + Goal Weight + Self Rating Enabled */}
+      {!isSelfRatingDisabled && !shouldHidePerformanceReflection && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Performance Reflection</h2>
-          
-          <div className="space-y-6">
-            {/* Accomplishments Table */}
-            {accomplishments && accomplishments.length > 0 && (
-              <div>
-                <AccomplishmentsTable
-                  accomplishments={accomplishments}
-                  onChange={setAccomplishments}
-                  mode="manager"
-                  ratingOptions={ratingOptions.map(opt => ({ 
-                    value: opt.rating_value, 
-                    label: `${opt.rating_value.toFixed(2)} - ${opt.label}` 
-                  }))}
-                  managerRatingOptions={ratingOptions.map(opt => ({ 
-                    value: opt.rating_value, 
-                    label: `${opt.rating_value.toFixed(2)} - ${opt.label}` 
-                  }))}
-                />
+        
+        <div className="space-y-6">
+          {/* Accomplishments Table - Always show */}
+          <div>
+            <AccomplishmentsTable
+              accomplishments={accomplishments}
+              onChange={setAccomplishments}
+              mode="manager"
+              ratingOptions={ratingOptions.map(opt => ({ 
+                value: parseFloat(String(opt.rating_value)), 
+                label: `${parseFloat(String(opt.rating_value)).toFixed(2)} - ${opt.label}` 
+              }))}
+              managerRatingOptions={ratingOptions.map(opt => ({ 
+                value: parseFloat(String(opt.rating_value)), 
+                label: `${parseFloat(String(opt.rating_value)).toFixed(2)} - ${opt.label}` 
+              }))}
+            />
+          </div>
+
+          {/* Disappointments */}
+          {review.disappointments && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Challenges & Disappointments</h3>
               </div>
-            )}
-
-           
-
-            {/* Disappointments */}
-            {review.disappointments && (
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Challenges & Disappointments</h3>
-                <div className="bg-orange-50 p-4 rounded-lg mb-4">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Response</p>
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.disappointments}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Guidance</p>
+                    <textarea
+                      value={disappointmentsManagerComment}
+                      onChange={(e) => setDisappointmentsManagerComment(e.target.value)}
+                      placeholder="Provide guidance on addressing challenges..."
+                      rows={5}
+                      className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
                 </div>
-                
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Guidance</h3>
-                <textarea
-                  value={disappointmentsManagerComment}
-                  onChange={(e) => setDisappointmentsManagerComment(e.target.value)}
-                  placeholder="Provide guidance on addressing challenges..."
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Improvement Needed */}
-            {review.improvement_needed && (
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Suggestions for Organizational Improvement</h3>
-                <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.improvement_needed}</p>
+          {/* Improvement Needed */}
+          {review.improvement_needed && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Suggestions for Organizational Improvement</h3>
+              </div>
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Employee's Suggestions</p>
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.improvement_needed}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Manager's Response</p>
+                    <textarea
+                      value={improvementNeededManagerComment}
+                      onChange={(e) => setImprovementNeededManagerComment(e.target.value)}
+                      placeholder="Acknowledge employee's suggestions and provide response..."
+                      rows={5}
+                      className="w-full px-4 py-3 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
                 </div>
-                
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Your Response</h3>
-                <textarea
-                  value={improvementNeededManagerComment}
-                  onChange={(e) => setImprovementNeededManagerComment(e.target.value)}
-                  placeholder="Acknowledge employee's suggestions and provide response..."
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Future Plan */}
-            {review.future_plan && (
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Employee's Future Plans & Goals</h3>
-                <div className="bg-purple-50 p-4 rounded-lg">
+          {/* Future Plan */}
+          {review.future_plan && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-5 py-3 border-b border-gray-300">
+                <h3 className="text-md font-semibold text-gray-900">Future Plans & Goals</h3>
+              </div>
+              <div className="p-5">
+                <div className="bg-gray-50 p-4 rounded border border-gray-200 min-h-[100px]">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{review.future_plan}</p>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+      </div>
       )}
 
-      {/* Overall Manager Comments */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Manager Comments</h2>
-        <textarea
-          value={overallComment}
-          onChange={(e) => setOverallComment(e.target.value)}
-          placeholder="Provide your overall assessment of the employee's performance for this review period..."
-          rows={6}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-        />
-        <p className="text-xs text-gray-500 mt-2">
-          Summarize the employee's overall performance, highlighting strengths and areas for improvement.
-        </p>
+      {/* Performance Results Summary */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Performance Results Summary</h2>
+          <p className="text-sm text-gray-600 mt-1">Review of ratings and final scores</p>
+        </div>
+        
+        <div className="p-6 bg-gray-50">
+          <div className="grid grid-cols-2 gap-6">
+            {/* Employee Section - Show if self-rating enabled and not Actual vs Target */}
+            {!isSelfRatingDisabled && !calculationMethodName.includes('Actual vs Target') && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Employee Average Rating</p>
+                <p className="text-lg font-semibold text-gray-700">
+                  {employeeAvg > 0 ? employeeAvg.toFixed(2) : 'N/A'}
+                </p>
+                {/* Show employee rating percentage only for Normal Calculation */}
+                {calculationMethodName.includes('Normal') && employeeRatingPercentage !== null && (
+                  <p className="text-sm font-medium text-blue-600 mt-1">
+                    Rating %: {employeeRatingPercentage.toFixed(2)}%
+                  </p>
+                )}
+                <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Employee Final Rating</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {employeeFinalRating > 0 ? employeeFinalRating.toFixed(2) : 'N/A'}
+                </p>
+                {employeeFinalRating > 0 && (
+                  <>
+                    <p className="text-sm text-gray-500 mt-1">({getRatingLabel(employeeFinalRating)})</p>
+                    {/* Show employee final rating percentage only for Normal Calculation */}
+                    {calculationMethodName.includes('Normal') && employeeFinalRatingPercentage !== null && (
+                      <p className="text-sm font-medium text-blue-600 mt-2">
+                        Final Rating %: {employeeFinalRatingPercentage.toFixed(2)}%
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            <div className={isSelfRatingDisabled || calculationMethodName.includes('Actual vs Target') ? 'col-span-2' : ''}>
+              {calculationMethodName.includes('Actual vs Target') ? (
+                // Actual vs Target: Sum of all Manager Rating % values (exclude items with exclude_from_calculation = 1)
+                // Updated: Prioritize manually entered managerRatingPercentages over auto-calculated values
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Manager Final Rating Percentage</p>
+                  <p className="text-4xl font-bold text-purple-600">
+                    {(() => {
+                      let totalRatingPercentage = 0;
+                      // Filter out items excluded from calculation
+                      const includedItems = kpi?.items?.filter(item => !item.exclude_from_calculation || item.exclude_from_calculation === 0) || [];
+                      includedItems.forEach(item => {
+                        // ⭐ PRIORITY 1: Check if manager has manually entered a rating percentage
+                        const manualRatingPercentage = managerRatingPercentages[item.id];
+                        
+                        if (manualRatingPercentage && parseFloat(manualRatingPercentage) > 0) {
+                          // Use manually entered Manager Rating % directly
+                          totalRatingPercentage += parseFloat(manualRatingPercentage);
+                        } else {
+                          // ⭐ PRIORITY 2: Auto-calculate from Actual/Target values
+                          const actualValue = actualValues[item.id];
+                          const targetValue = targetValues[item.id] || item.target_value;
+                          const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+                          const targetValueNum = targetValue ? parseFloat(String(targetValue)) : 0;
+                          const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                          
+                          if (actualValue && targetValueNum > 0 && goalWeightNum > 0) {
+                            const percentageObtained = (parseFloat(actualValue) / targetValueNum) * 100;
+                            const ratingPercentage = percentageObtained * goalWeightNum;
+                            totalRatingPercentage += ratingPercentage;
+                          }
+                        }
+                      });
+                      return totalRatingPercentage > 0 ? `${totalRatingPercentage.toFixed(2)}%` : 'Not calculated';
+                    })()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Sum of Manager Rating % values (auto-calculated or manually entered)
+                  </p>
+                </div>
+              ) : calculationMethodName.includes('Goal Weight') ? (
+                // Goal Weight: Sum of weighted scores (exclude items with exclude_from_calculation = 1)
+                // Include accomplishments in calculation
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Manager Final Weighted Percentage</p>
+                  <p className="text-4xl font-bold text-purple-600">
+                    {(() => {
+                      let totalWeightedScore = 0;
+                      // Filter out items excluded from calculation
+                      const includedItems = kpi?.items?.filter(item => !item.exclude_from_calculation || item.exclude_from_calculation === 0) || [];
+                      includedItems.forEach(item => {
+                        const mgrRating = managerRatings[item.id] || 0;
+                        const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+                        const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                        
+                        if (mgrRating > 0 && goalWeightNum > 0) {
+                          const ratingPercentage = (mgrRating / 1.25) * 100;
+                          const weightedScore = ratingPercentage * goalWeightNum;
+                          totalWeightedScore += weightedScore;
+                        }
+                      });
+                      
+                      // Include accomplishments with manager_rating in calculation
+                      // Note: Accomplishments don't have explicit weights, so we distribute remaining weight equally
+                      const accomplishmentsWithRatings = accomplishments.filter(acc => 
+                        (acc.manager_rating !== null && acc.manager_rating !== undefined && acc.manager_rating > 0)
+                      );
+                      if (accomplishmentsWithRatings.length > 0) {
+                        const totalItemWeight = includedItems.reduce((sum, item) => {
+                          const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
+                          const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                          return sum + goalWeightNum;
+                        }, 0);
+                        const remainingWeight = Math.max(0, 1 - totalItemWeight);
+                        const accomplishmentWeight = accomplishmentsWithRatings.length > 0 
+                          ? remainingWeight / accomplishmentsWithRatings.length 
+                          : 0;
+                        
+                        accomplishmentsWithRatings.forEach(acc => {
+                          const rating = acc.manager_rating;
+                          if (rating !== null && rating !== undefined && rating > 0) {
+                            const ratingPercentage = (rating / 1.25) * 100;
+                            const weightedScore = ratingPercentage * accomplishmentWeight;
+                            totalWeightedScore += weightedScore;
+                          }
+                        });
+                      }
+                      
+                      return totalWeightedScore > 0 ? `${totalWeightedScore.toFixed(2)}%` : 'Not calculated';
+                    })()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Sum of (Rating/Max × 100) × Goal Weight for all items. Goal weights should total 100%.
+                  </p>
+                </div>
+              ) : (
+                // Normal Calculation: Display ratings and percentages
+                // Employee percentages from backend, Manager percentages calculated in real-time
+                <>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Manager Average Rating</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    {managerAvg > 0 ? managerAvg.toFixed(2) : 'Not rated'}
+                  </p>
+                  <p className="text-sm font-medium text-gray-600 mt-3 mb-1">Manager Final Rating</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {managerFinalRating > 0 ? managerFinalRating.toFixed(2) : 'Not rated'}
+                  </p>
+                  {managerFinalRating > 0 && (
+                    <>
+                      <p className="text-sm text-gray-500 mt-1">({getRatingLabel(managerFinalRating)})</p>
+                      {/* Show manager final rating percentage - calculated in real-time or from backend */}
+                      {managerFinalRatingPercentage !== null && (
+                        <p className="text-sm font-medium text-purple-600 mt-2">
+                          Manager Final Rating %: {managerFinalRatingPercentage.toFixed(2)}%
+                        </p>
+                      )}
+                    </>
+                  )}
+                  <p className="text-xs text-gray-500 mt-3">
+                    Percentage: (Total Score / Total Possible Score) × 100
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Signature Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="space-y-6">
-          <div>
-            <DatePicker
-              label="Review Date *"
-              value={reviewDate || undefined}
-              onChange={setReviewDate}
-              required
-            />
+      {/* Overall Manager Comments & Signature Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Overall Manager Comments */}
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Overall Manager Comments</h2>
+              <p className="text-sm text-gray-600">Summary of performance evaluation</p>
+            </div>
           </div>
-          <div>
-            <SignatureField
-              label="Manager Digital Signature *"
-              value={managerSignature}
-              onChange={setManagerSignature}
-              required
-              placeholder="Click and drag to sign"
+          <div className="relative">
+            <textarea
+              value={overallComment}
+              onChange={(e) => setOverallComment(e.target.value)}
+              placeholder="Provide your overall assessment of the employee's performance for this review period..."
+              rows={6}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 resize-none shadow-sm hover:border-gray-400"
             />
-            <p className="text-sm text-gray-600 mt-2">
-              By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
+            <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+              {overallComment.length} characters
+            </div>
+          </div>
+          <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-xs text-purple-800 leading-relaxed">
+              <strong>💡 Tip:</strong> Summarize the employee's overall performance, highlighting key strengths and areas for improvement. Be specific and constructive.
             </p>
+          </div>
+        </div>
+
+        {/* Signature Section */}
+        <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Review Completion</h2>
+              <p className="text-sm text-gray-600">Date and signature</p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="relative">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Review Date <span className="text-red-500">*</span>
+              </label>
+              <DatePicker
+                label=""
+                value={reviewDate || undefined}
+                onChange={setReviewDate}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-2">Select the date of this performance review</p>
+            </div>
+            
+            {/* Overall Manager Rating */}
+            <div className="pt-4 border-t border-gray-200">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Overall Manager Rating (1-5 Scale) <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={overallManagerRating}
+                onChange={(e) => setOverallManagerRating(Number(e.target.value))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              >
+                <option value={1}>1 - Poor Performance</option>
+                <option value={2}>2 - Below Expectations</option>
+                <option value={3}>3 - Meets Expectations</option>
+                <option value={4}>4 - Exceeds Expectations</option>
+                <option value={5}>5 - Outstanding Performance</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2">
+                This is your overall assessment of the employee's performance, independent of individual KPI item ratings
+              </p>
+            </div>
+
+            {/* Physical Meeting Confirmation - Manager Review */}
+            <div className="pt-4 border-t border-gray-200">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={managerReviewMeetingConfirmed}
+                    onChange={(e) => setManagerReviewMeetingConfirmed(e.target.checked)}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900">
+                      I confirm that a physical meeting was held for this performance review
+                    </span>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Please confirm that you had a physical meeting with the employee to discuss this performance review
+                    </p>
+                  </div>
+                </label>
+
+                {/* Conditional Meeting Details Fields */}
+                {managerReviewMeetingConfirmed && (
+                  <div className="mt-4 pl-8 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Meeting Location *
+                      </label>
+                      <input
+                        type="text"
+                        value={managerReviewMeetingLocation}
+                        onChange={(e) => setManagerReviewMeetingLocation(e.target.value)}
+                        placeholder="e.g., Conference Room A, Manager's Office"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Meeting Date *
+                        </label>
+                        <input
+                          type="date"
+                          value={managerReviewMeetingDate}
+                          onChange={(e) => setManagerReviewMeetingDate(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Meeting Time *
+                        </label>
+                        <input
+                          type="time"
+                          value={managerReviewMeetingTime}
+                          onChange={(e) => setManagerReviewMeetingTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="pt-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Manager Digital Signature <span className="text-red-500">*</span>
+              </label>
+              <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-1 hover:border-blue-400 transition-colors duration-200">
+                <SignatureField
+                  label=""
+                  value={managerSignature}
+                  onChange={setManagerSignature}
+                  required
+                  placeholder="Click and drag to sign"
+                />
+              </div>
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs text-blue-800 leading-relaxed">
+                    <strong>Confirmation:</strong> By signing, you confirm that you have reviewed this employee's performance and agree with the ratings provided.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
         <Button
           onClick={handleBack}
           variant="ghost"
           icon={FiArrowLeft}
+          className="hover:bg-gray-100"
         >
           Back
         </Button>
@@ -670,6 +1208,7 @@ const ManagerKPIReview: React.FC = () => {
             onClick={handleSaveDraft}
             variant="outline"
             icon={FiSave}
+            className="border-2 hover:bg-gray-50"
           >
             Save as Draft
           </Button>
@@ -679,11 +1218,24 @@ const ManagerKPIReview: React.FC = () => {
             variant="primary"
             icon={FiSend}
             loading={saving}
+            className="shadow-lg hover:shadow-xl transition-shadow duration-200"
           >
             Submit Review
           </Button>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        variant={confirmState.variant}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+      />
 
       {/* Text Modal */}
       <TextModal

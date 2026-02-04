@@ -86,7 +86,7 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
   setTextModal,
   mode = 'setting',
 }) => {
-  const canRemoveRow = (index: number) => kpiRows.length > minRows;
+  const canRemoveRow = () => kpiRows.length > minRows;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

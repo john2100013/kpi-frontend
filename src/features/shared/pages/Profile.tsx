@@ -10,7 +10,6 @@ import { Button } from '../../../components/common';
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
-  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signature, setSignature] = useState<string>('');
@@ -32,39 +31,16 @@ const Profile: React.FC = () => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
-    fetchUserProfile();
-  }, []);
-
-  useEffect(() => {
+    // User data already loaded from auth context, just initialize signature
     if (user?.signature) {
       setSavedSignature(user.signature);
-      if (!signature) {
-        setSignature(user.signature);
-        if (canvasRef.current) {
-          canvasRef.current.fromDataURL(user.signature);
-        }
+      setSignature(user.signature);
+      if (canvasRef.current) {
+        canvasRef.current.fromDataURL(user.signature);
       }
     }
-  }, [user?.signature]);
-
-  const fetchUserProfile = async () => {
-    try {
-      const response = await api.get('/auth/me');
-      const userData = response.data.user;
-      setUser(userData);
-      if (userData.signature) {
-        setSavedSignature(userData.signature);
-        setSignature(userData.signature);
-        if (canvasRef.current) {
-          canvasRef.current.fromDataURL(userData.signature);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(false);
+  }, [user]);
 
   const handleSignatureEnd = () => {
     if (canvasRef.current) {

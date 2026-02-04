@@ -3,6 +3,7 @@ import api from '../../services/api';
 
 // Types
 interface DepartmentStatistic {
+  department_id: number;
   department: string;
   total_employees: number;
   categories: {
@@ -57,8 +58,18 @@ export const fetchDepartmentStatistics = createAsyncThunk(
       if (filters.period) params.append('period', filters.period);
       if (filters.manager) params.append('manager', filters.manager);
 
+
       const response = await api.get(`/departments/statistics?${params.toString()}`);
-      return response.data;
+
+      // Log each department's statistics
+      if (response.data?.data?.statistics) {
+        response.data.data.statistics.forEach((dept: any) => {
+
+        });
+      }
+      
+      // Backend returns { success: true, data: { statistics: [...] } }
+      return response.data.data || response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch department statistics');
     }
@@ -125,8 +136,21 @@ const statisticsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchDepartmentStatistics.fulfilled, (state, action) => {
+
         state.loading = false;
-        state.departmentStatistics = Array.isArray(action.payload) ? action.payload : action.payload.statistics || [];
+        
+        // Handle multiple response formats
+        let statistics = [];
+        if (Array.isArray(action.payload)) {
+          statistics = action.payload;
+        } else if (action.payload?.statistics && Array.isArray(action.payload.statistics)) {
+          statistics = action.payload.statistics;
+        } else if (action.payload?.data?.statistics && Array.isArray(action.payload.data.statistics)) {
+          statistics = action.payload.data.statistics;
+        }
+        
+
+        state.departmentStatistics = statistics;
       })
       .addCase(fetchDepartmentStatistics.rejected, (state, action) => {
         state.loading = false;

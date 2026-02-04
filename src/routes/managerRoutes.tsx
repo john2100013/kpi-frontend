@@ -42,6 +42,14 @@ export const getManagerRoutes = (
   ProtectedRoute: React.FC<ProtectedRouteProps>,
   Layout: React.FC<LayoutProps>
 ) => {
+  // Wrapper component to log route matching
+  const ManagerKPIReviewWrapper: React.FC = () => {
+
+
+
+    return <ManagerKPIReview />;
+  };
+
   return (
     <>
       {/* Dashboard */}
@@ -51,6 +59,18 @@ export const getManagerRoutes = (
           <ProtectedRoute allowedRoles={['manager']}>
             <Layout>
               <ManagerDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* KPI Setting from Template - MUST come before :employeeId route */}
+      <Route
+        path="/manager/kpi-setting/template/:templateId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <KPISetting />
             </Layout>
           </ProtectedRoute>
         }
@@ -68,13 +88,25 @@ export const getManagerRoutes = (
         }
       />
 
+      {/* Start Review from KPI (must be before :reviewId route) */}
+      <Route
+        path="/manager/kpi-review/kpi/:kpiId"
+        element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <Layout>
+              <ManagerKPIReviewWrapper />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* KPI Review */}
       <Route
         path="/manager/kpi-review/:reviewId"
         element={
           <ProtectedRoute allowedRoles={['manager']}>
             <Layout>
-              <ManagerKPIReview />
+              <ManagerKPIReviewWrapper />
             </Layout>
           </ProtectedRoute>
         }
@@ -97,16 +129,6 @@ export const getManagerRoutes = (
           <ProtectedRoute allowedRoles={['manager']}>
             <Layout>
               <EmployeeSelection />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/manager/employees"
-        element={
-          <ProtectedRoute allowedRoles={['manager']}>
-            <Layout>
-              <Employees />
             </Layout>
           </ProtectedRoute>
         }

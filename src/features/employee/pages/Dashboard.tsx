@@ -1,12 +1,20 @@
-import React from 'react';
-import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiTarget, FiClock, FiCheckCircle, FiEye, FiFileText, FiSearch, FiBell, FiEdit, FiInfo } from 'react-icons/fi';
 import PasswordChangeModal from '../../../components/PasswordChangeModal';
 import { StatsCard, StatusCard, Button } from '../../../components/common';
 import { useEmployeeDashboard } from '../hooks';
 import { DashboardKPIRow } from '../components';
 import { KPI, KPIReview } from '../../../types';
+import { DepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
+import api from '../../../services/api';
 
-const EmployeeDashboard: React.FC = () => {
+interface EmployeeDashboardProps {
+  sharedKpis?: KPI[];
+  sharedReviews?: KPIReview[];
+}
+
+const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, sharedReviews }) => {
+
   const {
     filteredKpis,
     reviews,
@@ -30,14 +38,152 @@ const EmployeeDashboard: React.FC = () => {
     handleEditReview,
     getDashboardKPIStage,
     navigate,
-  } = useEmployeeDashboard();
+  } = useEmployeeDashboard({
+    initialKpis: sharedKpis,
+    initialReviews: sharedReviews,
+  });
 
-  if (loading) {
+  // Store department features (single API call for all KPIs since they belong to same department)
+  const [departmentFeatures, setDepartmentFeatures] = useState<DepartmentFeatures | null>(null);
+  const [featuresLoading, setFeaturesLoading] = useState(true);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Fetch department features once for the employee's department (applies to all their KPIs)
+  useEffect(() => {
+    const fetchDepartmentFeatures = async () => {
+      if (filteredKpis.length === 0) {
+        setFeaturesLoading(false);
+        return;
+      }
+
+      try {
+        // Single API call - all employee KPIs belong to the same department
+        const response = await api.get('/department-features/my-department');
+        if (response.data) {
+          setDepartmentFeatures(response.data);
+        }
+      } catch (err) {
+        // Fallback to default features if API fails
+        setDepartmentFeatures({
+          department_id: 0,
+          company_id: 0,
+          use_goal_weight_yearly: false,
+          use_goal_weight_quarterly: false,
+          use_actual_values_yearly: false,
+          use_actual_values_quarterly: false,
+          use_normal_calculation: true,
+          enable_employee_self_rating_quarterly: true,
+          enable_employee_self_rating_yearly: true,
+          is_default: true,
+        });
+      } finally {
+        setFeaturesLoading(false);
+      }
+    };
+
+    fetchDepartmentFeatures();
+  }, [filteredKpis.length]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedPeriod, selectedStatus]);
+
+  // Helper: Check if self-rating is enabled for a specific KPI
+  const isSelfRatingEnabledForKPI = (kpi: KPI): boolean => {
+    if (!departmentFeatures) return true;
+
+    const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+
+    if (kpiPeriod === 'yearly') {
+      return departmentFeatures.enable_employee_self_rating_yearly !== false;
+    } else {
+      return departmentFeatures.enable_employee_self_rating_quarterly !== false;
+    }
+  };
+
+  // Helper: Get calculation method for a specific KPI
+  const getCalculationMethod = (kpi: KPI): string => {
+    if (!departmentFeatures) return 'Normal Calculation';
+
+    const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
+
+    if (kpiPeriod === 'yearly') {
+      if (departmentFeatures.use_actual_values_yearly) return 'Actual vs Target Values';
+      if (departmentFeatures.use_goal_weight_yearly) return 'Goal Weight Calculation';
+    } else {
+      if (departmentFeatures.use_actual_values_quarterly) return 'Actual vs Target Values';
+      if (departmentFeatures.use_goal_weight_quarterly) return 'Goal Weight Calculation';
+    }
+
+    return 'Normal Calculation';
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredKpis.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedKpis = filteredKpis.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handlePageClick = (page: number) => {
+    setCurrentPage(page);
+  };
+
+
+  if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
+  // Check if any KPIs have self-rating disabled
+  const kpisWithDisabledSelfRating = filteredKpis.filter(kpi => !isSelfRatingEnabledForKPI(kpi));
+  const allDisabled = kpisWithDisabledSelfRating.length === filteredKpis.length && filteredKpis.length > 0;
+  const someDisabled = kpisWithDisabledSelfRating.length > 0 && kpisWithDisabledSelfRating.length < filteredKpis.length;
+
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Status Notice */}
+      {allDisabled && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-800">
+                <strong>Manager-Led Review Process:</strong> Your manager will initiate and conduct all KPI reviews.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {someDisabled && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>Mixed Review Process:</strong> Some KPIs have self-rating disabled and will be manager-led.
+                Check individual KPI badges for details.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My KPIs</h1>
@@ -247,9 +393,11 @@ const EmployeeDashboard: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredKpis.map((kpi: KPI) => {
+                paginatedKpis.map((kpi: KPI) => {
                   const review = reviews.find((r: KPIReview) => r.kpi_id === kpi.id);
                   const stageInfo = getDashboardKPIStage(kpi, reviews);
+                  const selfRatingEnabled = isSelfRatingEnabledForKPI(kpi);
+                  const calcMethod = getCalculationMethod(kpi);
 
                   return (
                     <DashboardKPIRow
@@ -262,6 +410,8 @@ const EmployeeDashboard: React.FC = () => {
                       onReview={handleReviewKPI}
                       onConfirm={handleConfirmReview}
                       onEdit={handleEditReview}
+                      isSelfRatingEnabled={selfRatingEnabled}
+                      calculationMethod={calcMethod}
                     />
                   );
                 })
@@ -269,6 +419,50 @@ const EmployeeDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredKpis.length > itemsPerPage && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(endIndex, filteredKpis.length)}</span> of{' '}
+                <span className="font-medium">{filteredKpis.length}</span> KPIs
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <div className="flex space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageClick(page)}
+                      className={`px-3 py-1 text-sm rounded-md ${
+                        currentPage === page
+                          ? 'bg-purple-600 text-white'
+                          : 'border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Password Change Modal */}

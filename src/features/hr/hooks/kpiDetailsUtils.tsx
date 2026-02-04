@@ -1,77 +1,190 @@
 /**
- * KPI Details Utility Functions
+ * KPI Details Utility Functions (Updated to match Manager implementation)
  */
 
-import { FiCheckCircle, FiClock, FiFileText } from 'react-icons/fi';
 import { KPI, KPIReview } from '../../../types';
-import { StageInfo } from '../types';
+
+export interface ItemRatings {
+  [key: number]: number;
+}
+
+export interface ItemComments {
+  [key: number]: string;
+}
+
+export interface ParsedReviewData {
+  employeeItemRatings: ItemRatings;
+  employeeItemComments: ItemComments;
+  managerItemRatings: ItemRatings;
+  managerItemComments: ItemComments;
+}
 
 /**
- * Get stage information based on KPI status and review
+ * Parse review data to extract item ratings and comments
+ * UPDATED: Now uses structured item_ratings data (same as Manager implementation)
  */
-export const getStageInfo = (kpi: KPI | null, review: KPIReview | null): StageInfo => {
-  if (!kpi) {
-    return {
-      stage: '',
-      color: '',
-      icon: null,
-    };
+export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
+  const employeeItemRatings: ItemRatings = {};
+  const employeeItemComments: ItemComments = {};
+  const managerItemRatings: ItemRatings = {};
+  const managerItemComments: ItemComments = {};
+
+  if (!review) {
+
+    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
   }
 
-  if (kpi.status === 'pending') {
-    return {
-      stage: 'KPI Setting - Awaiting Acknowledgement',
-      color: 'bg-orange-100 text-orange-700 border-orange-200',
-      icon: <FiClock className="text-xl" />,
-    };
-  }
 
-  if (kpi.status === 'acknowledged' && !review) {
-    return {
-      stage: 'KPI Acknowledged - Review Pending',
-      color: 'bg-blue-100 text-blue-700 border-blue-200',
-      icon: <FiFileText className="text-xl" />,
-    };
-  }
 
-  if (review) {
-    if (review.review_status === 'employee_submitted') {
-      return {
-        stage: 'Self-Rating Submitted - Awaiting Manager Review',
-        color: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-        icon: <FiClock className="text-xl" />,
-      };
+  // PRIORITY 1: Use structured `item_ratings` data (same as Manager implementation)
+  if ((review as any).item_ratings) {
+
+    
+    // Parse employee ratings from structured data
+    if ((review as any).item_ratings.employee) {
+      Object.entries((review as any).item_ratings.employee).forEach(([itemId, ratingData]: [string, any]) => {
+        const id = parseInt(itemId);
+        employeeItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
+        employeeItemComments[id] = ratingData.comment || '';
+      });
     }
 
-    if (review.review_status === 'manager_submitted' || review.review_status === 'completed') {
-      return {
-        stage: 'KPI Review Completed',
-        color: 'bg-green-100 text-green-700 border-green-200',
-        icon: <FiCheckCircle className="text-xl" />,
-      };
+    // Parse manager ratings from structured data
+    if ((review as any).item_ratings.manager) {
+      Object.entries((review as any).item_ratings.manager).forEach(([itemId, ratingData]: [string, any]) => {
+        const id = parseInt(itemId);
+        managerItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
+        managerItemComments[id] = ratingData.comment || '';
+      });
     }
 
-    if (review.review_status === 'pending') {
-      return {
-        stage: 'KPI Review - Self-Rating Required',
-        color: 'bg-purple-100 text-purple-700 border-purple-200',
-        icon: <FiFileText className="text-xl" />,
-      };
-    }
+
+    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
   }
 
-  return {
-    stage: 'In Progress',
-    color: 'bg-gray-100 text-gray-700 border-gray-200',
-    icon: <FiClock className="text-xl" />,
-  };
+  // FALLBACK: Try legacy JSON format in comment fields
+
+
+  // Parse employee ratings/comments from JSON in comment field
+  try {
+    const empData = JSON.parse(review.employee_comment || '{}');
+    if (empData.items && Array.isArray(empData.items)) {
+      empData.items.forEach((item: any) => {
+        if (item.item_id) {
+          employeeItemRatings[item.item_id] = item.rating || 0;
+          employeeItemComments[item.item_id] = item.comment || '';
+        }
+      });
+
+    }
+  } catch (error) {
+
+  }
+
+  // Parse manager ratings/comments from JSON in comment field
+  try {
+    const mgrData = JSON.parse(review.manager_comment || '{}');
+    if (mgrData.items && Array.isArray(mgrData.items)) {
+      mgrData.items.forEach((item: any) => {
+        if (item.item_id) {
+          managerItemRatings[item.item_id] = item.rating || 0;
+          managerItemComments[item.item_id] = item.comment || '';
+        }
+      });
+
+    }
+  } catch (error) {
+
+  }
+
+
+  return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
 };
 
 /**
- * Parse item ratings from review comment JSON or structured data
+ * Format rating value with validation
  */
+export const formatRating = (rating: number | string): string => {
+  const num = typeof rating === 'number' ? rating : parseFloat(String(rating || '0'));
+  return isNaN(num) ? '0.00' : num.toFixed(2);
+};
+
+/**
+ * Get rating expectation label
+ */
+export const getRatingLabel = (rating: number | string): string | null => {
+  const num = typeof rating === 'number' ? rating : parseFloat(String(rating || '0'));
+  if (isNaN(num) || num === 0) return null;
+  
+  if (num === 1.00) return 'Below';
+  if (num === 1.25) return 'Meets';
+  if (num === 1.50) return 'Exceeds';
+  return '';
+};
+
+/**
+ * Get overall rating label
+ */
+export const getOverallRatingLabel = (rating: number | string): string => {
+  const num = typeof rating === 'number' ? rating : parseFloat(String(rating || '0'));
+  if (isNaN(num) || num === 0) return 'Not Rated';
+  
+  if (num < 1.00) return 'Below Expectation';
+  if (num >= 1.00 && num < 1.25) return 'Meets Expectation';
+  if (num >= 1.25 && num < 1.50) return 'Exceeds Expectation';
+  if (num >= 1.50) return 'Far Exceeds Expectation';
+  return 'Not Rated';
+};
+
+/**
+ * Parse goal weight
+ */
+export const parseGoalWeight = (weight: string | number | null | undefined): string => {
+  if (!weight) return '0';
+  
+  const str = String(weight).replace('%', '');
+  const num = parseFloat(str);
+  return isNaN(num) ? '0' : num.toString();
+};
+
+/**
+ * Extract comment text from review (handles both JSON and plain text)
+ */
+export const extractCommentText = (comment: string | null | undefined): string => {
+  if (!comment) return '';
+  
+  try {
+    const parsed = JSON.parse(comment);
+    if (parsed.items) {
+      return parsed.items.map((i: any) => i.comment).filter(Boolean).join('\n\n');
+    }
+    return comment;
+  } catch {
+    return comment;
+  }
+};
+
+/**
+ * Filter KPI items to ensure they belong to the specific KPI
+ */
+export const filterKPIItems = (kpi: KPI | null, kpiId: number): KPI | null => {
+  if (!kpi) return null;
+  
+  const filteredKPI = { ...kpi };
+  
+  if (filteredKPI.items && Array.isArray(filteredKPI.items)) {
+    filteredKPI.items = filteredKPI.items.filter((item: any) => {
+      return item.kpi_id === kpiId || !item.kpi_id;
+    });
+
+  }
+  
+  return filteredKPI;
+};
+
+// Keep legacy functions for backward compatibility
 export const parseItemRatings = (commentJson: string | null, itemRatings?: any, role: 'employee' | 'manager' = 'employee'): { [key: number]: number } => {
-  const ratings: { [key: number]: number } = {};
+  const ratings: { [key: number]: number} = {};
   
   // NEW: First try to use structured item_ratings if available
   if (itemRatings && itemRatings[role]) {
@@ -101,9 +214,6 @@ export const parseItemRatings = (commentJson: string | null, itemRatings?: any, 
   return ratings;
 };
 
-/**
- * Parse item comments from review comment JSON or structured data
- */
 export const parseItemComments = (commentJson: string | null, itemRatings?: any, role: 'employee' | 'manager' = 'employee'): { [key: number]: string } => {
   const comments: { [key: number]: string } = {};
   
@@ -129,54 +239,8 @@ export const parseItemComments = (commentJson: string | null, itemRatings?: any,
       });
     }
   } catch {
-    // Not JSON
+    // Not JSON, use legacy format
   }
 
   return comments;
-};
-
-/**
- * Get rating label based on numeric rating
- */
-export const getRatingLabel = (rating: number): string => {
-  if (rating === 1.00) return 'Below';
-  if (rating === 1.25) return 'Meets';
-  if (rating === 1.50) return 'Exceeds';
-  return '';
-};
-
-/**
- * Get overall rating label
- */
-export const getOverallRatingLabel = (rating: number): string => {
-  if (rating >= 1.40) return 'Exceeds Expectation';
-  if (rating >= 1.15) return 'Meets Expectation';
-  return 'Below Expectation';
-};
-
-/**
- * Format rating value
- */
-export const formatRating = (rating: any): string => {
-  const numRating = typeof rating === 'number' ? rating : parseFloat(String(rating || '0'));
-  return isNaN(numRating) ? '0.00' : numRating.toFixed(2);
-};
-
-/**
- * Parse goal weight from string
- */
-export const parseGoalWeight = (goalWeight: any): number => {
-  if (!goalWeight) return 0;
-  
-  const weightStr = String(goalWeight).trim();
-  if (weightStr.endsWith('%')) {
-    return parseFloat(weightStr.replace('%', '')) / 100;
-  } else {
-    const weight = parseFloat(weightStr);
-    // If weight > 1, assume it's a percentage (e.g., 40 means 40%)
-    if (weight > 1) {
-      return weight / 100;
-    }
-    return weight;
-  }
 };

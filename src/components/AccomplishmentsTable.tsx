@@ -24,10 +24,12 @@ export const AccomplishmentsTable: React.FC<AccomplishmentsTableProps> = ({
   readonly = false
 }) => {
   const actualManagerRatingOptions = managerRatingOptions || ratingOptions;
+  
   const handleChange = (index: number, field: keyof Accomplishment, value: any) => {
     if (!onChange || readonly) return;
     const updated = [...accomplishments];
     updated[index] = { ...updated[index], [field]: value };
+
     onChange(updated);
   };
 
@@ -161,12 +163,12 @@ export const AccomplishmentsTable: React.FC<AccomplishmentsTableProps> = ({
                       <div>
                         <span className="font-semibold text-purple-600">
                           {acc.employee_rating !== null && acc.employee_rating !== undefined 
-                            ? acc.employee_rating.toFixed(2) 
+                            ? Number(acc.employee_rating).toFixed(2) 
                             : 'N/A'}
                         </span>
-                        {acc.employee_rating && acc.employee_rating > 0 && (
+                        {acc.employee_rating && Number(acc.employee_rating) > 0 && (
                           <span className="text-xs text-gray-500 block mt-1">
-                            {ratingOptions.find(opt => opt.value === acc.employee_rating)?.label.split(' - ')[1] || ''}
+                            {ratingOptions.find(opt => opt.value === Number(acc.employee_rating))?.label.split(' - ')[1] || ''}
                           </span>
                         )}
                       </div>
@@ -205,12 +207,12 @@ export const AccomplishmentsTable: React.FC<AccomplishmentsTableProps> = ({
                         <div>
                           <span className="font-semibold text-blue-600">
                             {acc.manager_rating !== null && acc.manager_rating !== undefined 
-                              ? acc.manager_rating.toFixed(2) 
+                              ? Number(acc.manager_rating).toFixed(2) 
                               : 'N/A'}
                           </span>
-                          {acc.manager_rating && acc.manager_rating > 0 && (
+                          {acc.manager_rating && Number(acc.manager_rating) > 0 && (
                             <span className="text-xs text-gray-500 block mt-1">
-                              {actualManagerRatingOptions.find(opt => opt.value === acc.manager_rating)?.label.split(' - ')[1] || ''}
+                              {actualManagerRatingOptions.find(opt => opt.value === Number(acc.manager_rating))?.label.split(' - ')[1] || ''}
                             </span>
                           )}
                         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { isSuperAdmin } from '../../../utils/roleUtils';
 import { superAdminDashboardService, DashboardStats, Company } from '../services/superAdminDashboardService';
 
 export const useSuperAdminDashboard = () => {
@@ -19,7 +20,7 @@ export const useSuperAdminDashboard = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user?.role !== 'super_admin') {
+    if (!user || !isSuperAdmin(user)) {
       navigate('/login');
       return;
     }
@@ -29,14 +30,11 @@ export const useSuperAdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsData, companiesData] = await Promise.all([
-        superAdminDashboardService.fetchDashboardStats(),
-        superAdminDashboardService.fetchRecentCompanies(5),
-      ]);
-      
-      setStats(statsData);
-      setRecentCompanies(companiesData);
+      const { stats, companies } = await superAdminDashboardService.fetchDashboardData();
+      setStats(stats);
+      setRecentCompanies(companies);
     } catch (err: any) {
+      toast.error('Failed to load dashboard data. Please try again.');
       setError(err.response?.data?.error || 'Failed to load dashboard data');
     } finally {
       setLoading(false);

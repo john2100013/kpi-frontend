@@ -2,6 +2,7 @@ import React from 'react';
 import { FiArrowLeft, FiSave, FiSend, FiEye } from 'react-icons/fi';
 import { Button, ConfirmDialog } from '../../../components/common';
 import { KPIFormTable } from '../components/KPIFormTable';
+import { EmployeeSelectionModal } from '../components/EmployeeSelectionModal';
 import { useManagerKPISetting } from '../hooks';
 
 const ManagerKPISetting: React.FC = () => {
@@ -19,12 +20,25 @@ const ManagerKPISetting: React.FC = () => {
     selectedPeriodSetting,
     textModal,
     confirmState,
+    // Template mode state
+    isTemplateMode,
+    employees,
+    departments,
+    employeesLoading,
+    selectedEmployeeIds,
+    // Physical Meeting Confirmation - Manager
+    managerMeetingConfirmed,
+    managerMeetingLocation,
+    managerMeetingDate,
+    managerMeetingTime,
+    //
     setKpiRows,
     setPeriod,
     setQuarter,
     setYear,
     setMeetingDate,
     setManagerSignature,
+    setSelectedPeriodSetting,
     setTextModal,
     handleKpiChange,
     handleQualitativeToggle,
@@ -37,31 +51,68 @@ const ManagerKPISetting: React.FC = () => {
     handleConfirm,
     handleCancel,
     getMinRowsForPeriod,
+    // Template mode handlers
+    handleSubmitToEmployees,
+    handleEmployeeSelectionChange,
+    // Physical Meeting Actions
+    setManagerMeetingConfirmed,
+    setManagerMeetingLocation,
+    setManagerMeetingDate,
+    setManagerMeetingTime,
+    // Template titles
+    templateTitles,
+    isDepartmentTemplateEnabled,
+    employeeDepartmentId,
   } = useManagerKPISetting();
+
+  // Debug logging
+
+
+
+
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-6">{/* Changed from space-y-6 to flex layout */}
+      {/* Main Form - Left Side */}
+      <div className={`flex-1 min-w-0 space-y-6 ${isTemplateMode ? 'pr-6' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button onClick={handleBack} variant="ghost" icon={FiArrowLeft} className="p-2" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Set KPI for Employee</h1>
-            <p className="text-sm text-gray-600 mt-1">Create new performance objective</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isTemplateMode ? 'Use KPI Template' : 'Set KPI for Employee'}
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              {isTemplateMode 
+                ? 'Review template and select employees to assign KPIs' 
+                : 'Create new performance objective'}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <Button onClick={handleSaveDraft} variant="outline" icon={FiSave}>Save as Draft</Button>
-          <Button onClick={handleSubmit} disabled={saving} variant="primary" icon={FiSend} loading={saving}>Submit KPI</Button>
+          {!isTemplateMode && (
+            <Button onClick={handleSaveDraft} variant="outline" icon={FiSave}>Save as Draft</Button>
+          )}
+          <Button 
+            onClick={isTemplateMode ? () => handleSubmitToEmployees(selectedEmployeeIds) : handleSubmit} 
+            disabled={saving || (isTemplateMode && selectedEmployeeIds.length === 0)} 
+            variant="primary" 
+            icon={FiSend} 
+            loading={saving}
+          >
+            {isTemplateMode ? `Send to ${selectedEmployeeIds.length} Employee${selectedEmployeeIds.length !== 1 ? 's' : ''}` : 'Submit KPI'}
+          </Button>
         </div>
       </div>
 
-      {/* Employee Information */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      {/* Employee Information - Only show in single employee mode */}
+      {!isTemplateMode && employee && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Employee Information</h2>
           <Button onClick={handleViewEmployeeKPIs} variant="primary" icon={FiEye} size="sm">View KPIs</Button>
@@ -86,6 +137,7 @@ const ManagerKPISetting: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Shared KPI Form */}
       <KPIFormTable
@@ -98,9 +150,38 @@ const ManagerKPISetting: React.FC = () => {
         onPeriodChange={(newPeriod) => {
           setPeriod(newPeriod);
           setQuarter('Q1');
+          // Clear selected period when switching period type
+          setSelectedPeriodSetting(null);
         }}
-        onQuarterChange={setQuarter}
-        onYearChange={setYear}
+        onQuarterChange={(newQuarter) => {
+          setQuarter(newQuarter);
+          // Find and set the selected period setting
+          const matchingPeriod = availablePeriods.find(
+            (p: any) => p.period_type === 'quarterly' && p.quarter === newQuarter && p.is_active
+          );
+          if (matchingPeriod) {
+            setSelectedPeriodSetting(matchingPeriod);
+            setYear(matchingPeriod.year);
+            if (matchingPeriod.start_date) {
+              setMeetingDate(new Date(matchingPeriod.start_date));
+            }
+          }
+        }}
+        onYearChange={(newYear) => {
+          setYear(newYear);
+          // For yearly periods, find and set the selected period setting
+          if (period === 'yearly') {
+            const matchingPeriod = availablePeriods.find(
+              (p: any) => p.period_type === 'yearly' && p.year === newYear && p.is_active
+            );
+            if (matchingPeriod) {
+              setSelectedPeriodSetting(matchingPeriod);
+              if (matchingPeriod.start_date) {
+                setMeetingDate(new Date(matchingPeriod.start_date));
+              }
+            }
+          }
+        }}
         meetingDate={meetingDate}
         onMeetingDateChange={setMeetingDate}
         kpiRows={kpiRows}
@@ -112,8 +193,20 @@ const ManagerKPISetting: React.FC = () => {
         handleRemoveRow={handleRemoveRow}
         managerSignature={managerSignature}
         onSignatureChange={setManagerSignature}
+        // Physical Meeting Confirmation Props
+        managerMeetingConfirmed={managerMeetingConfirmed}
+        onManagerMeetingConfirmedChange={setManagerMeetingConfirmed}
+        managerMeetingLocation={managerMeetingLocation}
+        onManagerMeetingLocationChange={setManagerMeetingLocation}
+        managerMeetingDate={managerMeetingDate}
+        onManagerMeetingDateChange={setManagerMeetingDate}
+        managerMeetingTime={managerMeetingTime}
+        onManagerMeetingTimeChange={setManagerMeetingTime}
         textModal={textModal}
         setTextModal={setTextModal}
+        templateTitles={templateTitles}
+        isDepartmentTemplateEnabled={isDepartmentTemplateEnabled}
+        employeeDepartmentId={employeeDepartmentId || undefined}
       />
 
       <ConfirmDialog
@@ -124,6 +217,22 @@ const ManagerKPISetting: React.FC = () => {
         message={confirmState.message}
         variant={confirmState.variant}
       />
+      </div>
+
+      {/* Employee Selection Panel - Right Side (only in template mode) */}
+      {isTemplateMode && (
+        <div className="w-80 sticky top-6 h-fit">
+          <EmployeeSelectionModal
+            isOpen={true}
+            onClose={() => {}} // No close in inline mode
+            employees={employees || []}
+            departments={departments || []}
+            onConfirm={handleEmployeeSelectionChange}
+            loading={employeesLoading || saving}
+            inline={true} // New prop to render as inline panel instead of modal
+          />
+        </div>
+      )}
     </div>
   );
 };

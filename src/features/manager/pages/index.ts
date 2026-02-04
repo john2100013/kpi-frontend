@@ -8,7 +8,7 @@ export { default as ManagerKPIReview } from './KPIReview';
 export { default as EmployeeSelection } from './EmployeeSelection';
 export { default as ReviewsList } from './ReviewsList';
 export { default as ManagerKPIList } from './KPIList';
-export { default as ManagerKPIDetails } from './KPIDetails';
+export { default as ManagerKPIDetails } from '../../shared/pages/KPIDetails';
 export { default as EmployeeKPIs } from './EmployeeKPIs';
 export { default as KPITemplates } from './KPITemplates';
 export { default as KPITemplateForm } from './KPITemplateForm';

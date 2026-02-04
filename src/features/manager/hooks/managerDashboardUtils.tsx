@@ -3,16 +3,40 @@
  */
 
 import React from 'react';
-import { FiClock, FiFileText, FiBell, FiCheckCircle, FiEdit, FiUsers } from 'react-icons/fi';
+import { FiClock, FiFileText, FiBell, FiCheckCircle, FiEdit, FiUsers, FiTarget } from 'react-icons/fi';
 import { KPI, KPIReview } from '../../../types';
 import { PeriodSetting } from '../types';
+
+/**
+ * Check if manager should initiate review based on KPI period and company settings
+ */
+export const shouldManagerInitiateReview = (
+  kpi: KPI,
+  companyFeatures: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
+): boolean => {
+  if (!companyFeatures) return false;
+  
+  // For quarterly KPIs, check quarterly self-rating setting
+  if (kpi.period === 'quarterly') {
+    return companyFeatures.enable_employee_self_rating_quarterly === false;
+  }
+  
+  // For yearly KPIs, check yearly self-rating setting
+  if (kpi.period === 'yearly' || kpi.period === 'Yearly') {
+    return companyFeatures.enable_employee_self_rating_yearly === false;
+  }
+  
+  // Default to quarterly setting for backward compatibility
+  return companyFeatures.enable_employee_self_rating_quarterly === false;
+};
 
 /**
  * Get KPI stage information
  */
 export const getKPIStage = (
   kpi: KPI,
-  reviews: KPIReview[]
+  reviews: KPIReview[],
+  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): { stage: string; color: string; icon: React.ReactNode } => {
   const review = reviews.find(r => r.kpi_id === kpi.id);
 
@@ -22,6 +46,18 @@ export const getKPIStage = (
       color: 'bg-orange-100 text-orange-700',
       icon: <FiClock className="inline" />
     };
+  }
+
+  // Check if this is a manager-initiated review (acknowledged but no review, self-rating disabled)
+  if (kpi.status === 'acknowledged' && !review && companyFeatures) {
+    const isManagerInitiated = shouldManagerInitiateReview(kpi, companyFeatures);
+    if (isManagerInitiated) {
+      return {
+        stage: 'You Initiate Review',
+        color: 'bg-purple-100 text-purple-700',
+        icon: <FiTarget className="inline" />
+      };
+    }
   }
 
   if (kpi.status === 'acknowledged' && !review) {
@@ -86,14 +122,17 @@ export const getKPIStage = (
  */
 export const getKPIStageWithProgress = (
   kpi: KPI,
-  reviews: KPIReview[]
+  reviews: KPIReview[],
+  companyFeatures?: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): { stage: string; color: string; icon: React.ReactNode; progress: number } => {
-  const stageInfo = getKPIStage(kpi, reviews);
+  const stageInfo = getKPIStage(kpi, reviews, companyFeatures);
   let progress = 45; // Default
 
   // Calculate progress based on stage
   if (stageInfo.stage === 'KPI Setting - Awaiting Acknowledgement') {
     progress = 25;
+  } else if (stageInfo.stage === 'You Initiate Review') {
+    progress = 50; // Manager needs to start review
   } else if (stageInfo.stage === 'KPI Acknowledged - Review Pending') {
     progress = 45;
   } else if (stageInfo.stage === 'KPI Review - Self-Rating Required') {
@@ -121,6 +160,7 @@ export const getCategoryLabel = (category: string): string => {
   const labels: { [key: string]: string } = {
     pending: 'KPI Setting - Awaiting Acknowledgement',
     acknowledged_review_pending: 'KPI Acknowledged - Review Pending',
+    manager_initiate_review: 'You Initiate Review',
     self_rating_submitted: 'Self-Rating Submitted - Awaiting Manager Review',
     awaiting_employee_confirmation: 'Awaiting Employee Confirmation',
     review_completed: 'KPI Review Completed',
@@ -138,6 +178,7 @@ export const getCategoryColor = (category: string): string => {
   const colors: { [key: string]: string } = {
     pending: 'bg-orange-100 text-orange-700 hover:bg-orange-200',
     acknowledged_review_pending: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+    manager_initiate_review: 'bg-purple-100 text-purple-700 hover:bg-purple-200',
     self_rating_submitted: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
     awaiting_employee_confirmation: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200',
     review_completed: 'bg-green-100 text-green-700 hover:bg-green-200',
@@ -159,6 +200,8 @@ export const getCategoryIcon = (category: string): React.ReactNode => {
     case 'acknowledged_review_pending':
     case 'self_rating_submitted':
       return <FiFileText className="inline mr-2" />;
+    case 'manager_initiate_review':
+      return <FiTarget className="inline mr-2" />;
     case 'awaiting_employee_confirmation':
       return <FiBell className="inline mr-2" />;
     case 'review_completed':

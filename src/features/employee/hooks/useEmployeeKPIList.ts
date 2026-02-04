@@ -1,34 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../services/api';
 import { KPI, KPIReview } from '../../../types';
 import { getKPIStage, getPrimaryAction, canEditReview } from './kpiListUtils';
+import api from '../../../services/api';
 
 export const useEmployeeKPIList = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [reviews, setReviews] = useState<KPIReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  
+  const hasFetchedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (hasFetchedRef.current) {
+      return;
+    }
     fetchData();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const fetchData = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
     try {
-      setLoading(true);
+      setLoading(true); 
       const [kpisRes, reviewsRes] = await Promise.all([
-        api.get('/kpis'),
-        api.get('/kpi-review'),
+        api.get('/kpis', { signal }),
+        api.get('/kpi-review', { signal }),
       ]);
 
-      setKpis(kpisRes.data.kpis || []);
+      setKpis(kpisRes?.data?.data?.kpis || []);
       setReviews(reviewsRes.data.reviews || []);
+      hasFetchedRef.current = true;
     } catch (error) {
-      console.error('Error fetching data:', error);
+        toast.error('Could not fetch your KPIs. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -54,12 +74,10 @@ export const useEmployeeKPIList = () => {
     navigate(`/employee/self-rating/${kpiId}`);
   };
 
-  // ADD: handleBack function
   const handleBack = () => {
     navigate(-1);
   };
 
-  // Filter logic
   const filteredKpis = kpis.filter((kpi) => {
     const matchesSearch =
       !searchTerm ||
@@ -68,7 +86,6 @@ export const useEmployeeKPIList = () => {
 
     const period = `${kpi.quarter} ${kpi.year}`;
     const matchesPeriod = !selectedPeriod || period === selectedPeriod;
-
     const matchesStatus = !selectedStatus || kpi.status === selectedStatus;
 
     return matchesSearch && matchesPeriod && matchesStatus;
@@ -95,10 +112,10 @@ export const useEmployeeKPIList = () => {
     handleReviewKPI,
     handleConfirmReview,
     handleEditReview,
-    handleBack, // ADD: Export handleBack
+    handleBack,
     getKPIStage,
     getPrimaryAction,
     canEditReview,
-    navigate, // ADD: Export navigate for use in components
+    navigate,
   };
 };

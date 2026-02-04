@@ -16,13 +16,13 @@ export const parseItemRatingsFromReview = (review: KPIReviewConfirmation): Parse
     managerItemComments: {},
   };
 
-  // NEW: First try to use structured item_ratings if available
+  // Only use structured `item_ratings` source. Do not fall back to legacy JSON fields.
   if (review.item_ratings) {
     // Parse employee ratings from structured data
     if (review.item_ratings.employee) {
       Object.entries(review.item_ratings.employee).forEach(([itemId, ratingData]: [string, any]) => {
         const id = parseInt(itemId);
-        result.employeeItemRatings[id] = parseFloat(ratingData.rating) || 0;
+        result.employeeItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
         result.employeeItemComments[id] = ratingData.comment || '';
       });
     }
@@ -31,45 +31,12 @@ export const parseItemRatingsFromReview = (review: KPIReviewConfirmation): Parse
     if (review.item_ratings.manager) {
       Object.entries(review.item_ratings.manager).forEach(([itemId, ratingData]: [string, any]) => {
         const id = parseInt(itemId);
-        result.managerItemRatings[id] = parseFloat(ratingData.rating) || 0;
+        result.managerItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
         result.managerItemComments[id] = ratingData.comment || '';
       });
     }
-
-    // If structured data exists, use it and skip JSON parsing
-    if (Object.keys(result.employeeItemRatings).length > 0 || Object.keys(result.managerItemRatings).length > 0) {
-      return result;
-    }
-  }
-
-  // FALLBACK: Parse from JSON (backward compatibility)
-  try {
-    const empData = JSON.parse(review.employee_comment || '{}');
-    if (empData.items && Array.isArray(empData.items)) {
-      empData.items.forEach((item: any) => {
-        if (item.item_id) {
-          result.employeeItemRatings[item.item_id] = item.rating || 0;
-          result.employeeItemComments[item.item_id] = item.comment || '';
-        }
-      });
-    }
-  } catch {
-    // Not JSON, use legacy format
-  }
-
-  // Parse manager ratings/comments
-  try {
-    const mgrData = JSON.parse(review.manager_comment || '{}');
-    if (mgrData.items && Array.isArray(mgrData.items)) {
-      mgrData.items.forEach((item: any) => {
-        if (item.item_id) {
-          result.managerItemRatings[item.item_id] = item.rating || 0;
-          result.managerItemComments[item.item_id] = item.comment || '';
-        }
-      });
-    }
-  } catch {
-    // Not JSON, use legacy format
+  } else {
+    // No structured ratings present - return empty parsed result (consumer will show Not Rated)
   }
 
   return result;
@@ -111,7 +78,7 @@ export const calculateRatingSummary = (
 };
 
 export const getRatingPercentage = (rating: number): string => {
-  return ((rating * 100) / 1.5).toFixed(1);
+  return ((rating * 100) / 1.25).toFixed(1);
 };
 
 export const getRatingDescription = (rating: number): string => {

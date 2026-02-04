@@ -14,7 +14,7 @@ interface Employee {
   manager_id?: number;
   manager_name?: string;
   status?: string;
-  phone?: string;
+  phone_number?: string;
   hire_date?: string;
   company_id?: number;
 }
@@ -66,14 +66,27 @@ export const fetchEmployees = createAsyncThunk(
       department?: string;
       manager?: number;
       status?: string;
+      companyId?: number;
+      managerId?: number;
     } = {},
     { rejectWithValue }
   ) => {
     try {
-      const response = await api.get('/employees', { params });
+      // Backend uses /users/list with role=employee parameter
+      const response = await api.get('/users/list', { 
+        params: { ...params, role: 'employee' } 
+      });
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch employees');
+      // Show user-friendly toast for server or network errors
+      const isServerError = error.response?.status >= 500;
+      const message = isServerError
+        ? 'Server issue, please try again later.'
+        : (error.response?.data?.message || 'Failed to fetch employees');
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error(message);
+      }
+      return rejectWithValue(message);
     }
   }
 );
@@ -85,8 +98,11 @@ export const fetchEmployeeById = createAsyncThunk(
   'employees/fetchById',
   async (id: number, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/employees/${id}`);
-      return response.data;
+      // Backend uses /users/list endpoint, filter by id
+      const response = await api.get('/users/list', { 
+        params: { userId: id, role: 'employee' } 
+      });
+      return response.data.users?.[0] || response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch employee');
     }
@@ -106,14 +122,15 @@ export const createEmployee = createAsyncThunk(
       department_id: number;
       position: string;
       manager_id?: number;
-      phone?: string;
+      phone_number?: string;
       hire_date?: string;
       password?: string;
     },
     { rejectWithValue }
   ) => {
     try {
-      const response = await api.post('/employees', data);
+      // Backend uses /users/create endpoint with role: 'employee'
+      const response = await api.post('/users/create', { ...data, role: 'employee' });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create employee');
@@ -139,14 +156,15 @@ export const updateEmployee = createAsyncThunk(
         department_id: number;
         position: string;
         manager_id?: number;
-        phone?: string;
+        phone_number?: string;
         status?: string;
       }>;
     },
     { rejectWithValue }
   ) => {
     try {
-      const response = await api.put(`/employees/${id}`, data);
+      // Backend uses POST /users/update/:userId endpoint
+      const response = await api.post(`/users/update/${id}`, data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update employee');
@@ -161,7 +179,8 @@ export const deleteEmployee = createAsyncThunk(
   'employees/delete',
   async (id: number, { rejectWithValue }) => {
     try {
-      await api.delete(`/employees/${id}`);
+      // Backend uses POST /users/update/:userId with status: 'inactive'
+      await api.post(`/users/update/${id}`, { status: 'inactive' });
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete employee');
@@ -179,7 +198,8 @@ export const uploadEmployeesExcel = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.post('/employees/upload', formData, {
+      // Backend uses /users/bulk-upload endpoint
+      const response = await api.post('/users/bulk-upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -256,9 +276,26 @@ const employeeSlice = createSlice({
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
         state.loading = false;
+
         
-        // Handle different response formats
-        if (action.payload.employees) {
+        // Backend returns { success: true, data: { users: [...], pagination: {...} } }
+        if (action.payload.data?.users) {
+          state.employees = action.payload.data.users;
+          state.pagination = action.payload.data.pagination || {
+            page: 1,
+            totalPages: 1,
+            total: action.payload.data.users.length,
+          };
+        } else if (action.payload.users) {
+          // Direct format: { users: [...], pagination: {...} }
+          state.employees = action.payload.users;
+          state.pagination = action.payload.pagination || {
+            page: 1,
+            totalPages: 1,
+            total: action.payload.users.length,
+          };
+        } else if (action.payload.employees) {
+          // Fallback for legacy format
           state.employees = action.payload.employees;
           state.pagination = {
             page: action.payload.page || 1,
@@ -268,12 +305,14 @@ const employeeSlice = createSlice({
         } else if (Array.isArray(action.payload)) {
           state.employees = action.payload;
         } else {
+          // Unexpected payload format, but not an error for user
           state.employees = [];
         }
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        // fetchEmployees rejected (log removed)
       });
 
     // Fetch employee by ID

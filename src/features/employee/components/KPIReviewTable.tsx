@@ -127,7 +127,7 @@ export const KPIReviewTable: React.FC<KPIReviewTableProps> = ({
                         {empRating.toFixed(2)}
                       </span>
                       <span className="text-xs text-gray-500">
-                        ({((empRating * 100) / 1.5).toFixed(1)}%)
+                        ({((empRating * 100) / 1.25).toFixed(1)}%)
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">{getRatingLabel(empRating)}</p>
@@ -156,7 +156,7 @@ export const KPIReviewTable: React.FC<KPIReviewTableProps> = ({
                             {mgrRating.toFixed(2)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            ({((mgrRating * 100) / 1.5).toFixed(1)}%)
+                            ({((mgrRating * 100) / 1.25).toFixed(1)}%)
                           </span>
                         </div>
                         <p className="text-xs text-gray-500">{getRatingLabel(mgrRating)}</p>

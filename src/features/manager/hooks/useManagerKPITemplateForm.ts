@@ -22,6 +22,21 @@ interface TextModalState {
   onChange?: (value: string) => void;
 }
 
+interface Department {
+  id: number;
+  name: string;
+  enable_template_titles: number;
+}
+
+interface TemplateTitle {
+  id: number;
+  title: string;
+  description: string;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface UseManagerKPITemplateFormReturn {
   isEditMode: boolean;
   loading: boolean;
@@ -38,6 +53,15 @@ interface UseManagerKPITemplateFormReturn {
   setQuarter: (quarter: string) => void;
   year: number;
   setYear: (year: number) => void;
+  // NEW: Department and Template Titles
+  departments: Department[];
+  selectedDepartmentId: number | null;
+  setSelectedDepartmentId: (id: number | null) => void;
+  useTemplateDropdown: boolean;
+  setUseTemplateDropdown: (use: boolean) => void;
+  templateTitles: TemplateTitle[];
+  isDepartmentTemplateEnabled: boolean;
+  // END NEW
   kpiItems: KPIItem[];
   setKpiItems: (items: KPIItem[]) => void;
   textModal: TextModalState;
@@ -46,8 +70,8 @@ interface UseManagerKPITemplateFormReturn {
   totalGoalWeight: number;
   handleAddRow: () => void;
   handleRemoveRow: (index: number) => void;
-  updateKPIItem: (index: number, field: string, value: string | boolean) => void;
-  handleQualitativeToggle: (index: number, isQualitative: boolean) => void;  // Added
+  updateKPIItem: (index: number, field: string, value: string | boolean | number) => void;
+  handleQualitativeToggle: (index: number, isQualitative: boolean) => void;
   openTextModal: (title: string, value: string, field: keyof KPIItem, rowIndex: number) => void;
   closeTextModal: () => void;
   handlePeriodChange: (newPeriod: 'quarterly' | 'yearly') => void;
@@ -66,6 +90,8 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
   const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
   const isEditMode = !!id;
 
+ 
+
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -75,6 +101,15 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
   const [selectedPeriodSetting, setSelectedPeriodSetting] = useState<any>(null);
   const [quarter, setQuarter] = useState('Q1');
   const [year, setYear] = useState(new Date().getFullYear());
+  
+  // NEW: Department and Template Titles
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+  const [useTemplateDropdown, setUseTemplateDropdown] = useState(false);
+  const [templateTitles, setTemplateTitles] = useState<TemplateTitle[]>([]);
+  const [isDepartmentTemplateEnabled, setIsDepartmentTemplateEnabled] = useState(false);
+  // END NEW
+  
   const [kpiItems, setKpiItems] = useState<KPIItem[]>(getInitialKPIItems());
 
   const [textModal, setTextModal] = useState<TextModalState>({
@@ -83,45 +118,131 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     value: '',
   });
 
+ 
+
   useEffect(() => {
+
     if (isEditMode) {
+
       fetchTemplate();
     }
     fetchAvailablePeriods();
+    fetchDepartments();
   }, [id]);
+
+  // Fetch template titles when department changes or useTemplateDropdown toggles
+  useEffect(() => {
+   
+    
+    if (selectedDepartmentId && useTemplateDropdown) {
+      fetchTemplateTitles(selectedDepartmentId);
+    } else {
+      setTemplateTitles([]);
+      setIsDepartmentTemplateEnabled(false);
+    }
+  }, [selectedDepartmentId, useTemplateDropdown]);
 
   const fetchAvailablePeriods = async () => {
     try {
       const response = await api.get('/settings/period-settings');
       setAvailablePeriods(response.data.settings || []);
     } catch (error) {
-      console.error('Error fetching periods:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch periods.');
+      }
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await api.get('/departments');
+      const depts = response.data?.data?.departments || response.data?.departments || [];
+     
+      setDepartments(depts);
+    } catch (error) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch departments.');
+      }
+    }
+  };
+
+  const fetchTemplateTitles = async (departmentId: number) => {
+    try {
+      const response = await api.get(`/kpi-template-titles/department/${departmentId}`);
+      const titles = response.data.titles || [];
+      const enabled = response.data.enabled || false;
+      
+   
+      
+      setTemplateTitles(titles);
+      setIsDepartmentTemplateEnabled(enabled);
+      
+      if (!enabled) {
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.error('Template titles are not enabled for this department.');
+        }
+        toast.warning('Template titles are not enabled for this department');
+      }
+    } catch (error) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch template titles.');
+      }
+      setTemplateTitles([]);
+      setIsDepartmentTemplateEnabled(false);
     }
   };
 
   const fetchTemplate = async () => {
     try {
-      const response = await api.get(`/kpi-templates/${id}`);
+      const response = await api.get(`/templates/${id}`);
+      
       const template = response.data.template;
+      const items = response.data.items; // FIX: Items are at response.data.items, not template.items
+      
       
       setTemplateName(template.template_name);
       setDescription(template.description || '');
       setPeriod(template.period === 'annual' ? 'yearly' : template.period);
       
-      if (template.items && template.items.length > 0) {
-        setKpiItems(template.items.map((item: any) => ({
-          title: item.title || '',
-          description: item.description || '',
-          current_performance_status: item.current_performance_status || '',
-          target_value: item.target_value || '',
-          expected_completion_date: item.expected_completion_date || '',
-          measure_unit: item.measure_unit || '',
-          goal_weight: item.goal_weight || '',
-          is_qualitative: item.is_qualitative || false,  // Load from backend
-        })));
+      
+      // NEW: Load department_id and use_template_titles
+      if (template.department_id) {
+
+        setSelectedDepartmentId(template.department_id);
+      }
+      
+      if (template.use_template_titles === 1) {
+
+        setUseTemplateDropdown(true);
+      }
+      
+      // Load template titles from response if available
+      if (response.data.templateTitles) {
+
+        setTemplateTitles(response.data.templateTitles);
+        setIsDepartmentTemplateEnabled(response.data.isDepartmentTemplateEnabled || false);
+      }
+      // END NEW
+      
+      if (items && items.length > 0) {
+        const mappedItems = items.map((item: any, index: number) => {
+        
+          return {
+            title: item.title || '',
+            description: item.description || '',
+            current_performance_status: item.current_performance_status || '',
+            target_value: item.target_value || '',
+            expected_completion_date: item.expected_completion_date || '',
+            measure_unit: item.measure_unit || '',
+            goal_weight: item.goal_weight || '',
+            is_qualitative: item.is_qualitative || false,
+            exclude_from_calculation: item.exclude_from_calculation || 0,
+          };
+        });
+        setKpiItems(mappedItems);
+      } else {
       }
     } catch (error) {
-      console.error('Error fetching template:', error);
       toast.error('Failed to load template');
       navigate('/manager/kpi-templates');
     } finally {
@@ -141,6 +262,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
         measure_unit: '',
         goal_weight: '',
         is_qualitative: false,
+        exclude_from_calculation: 0,
       },
     ]);
   };
@@ -153,8 +275,8 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     setKpiItems(kpiItems.filter((_, i) => i !== index));
   };
 
-  // Handle both string and boolean values
-  const updateKPIItem = (index: number, field: string, value: string | boolean) => {
+  // Handle string, boolean, and number values
+  const updateKPIItem = (index: number, field: string, value: string | boolean | number) => {
     const updated = [...kpiItems];
     if (field === 'is_qualitative' && typeof value === 'boolean') {
       updated[index] = { 
@@ -168,6 +290,8 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
           goal_weight: ''
         } : {})
       };
+    } else if (field === 'exclude_from_calculation' && typeof value === 'number') {
+      updated[index] = { ...updated[index], exclude_from_calculation: value };
     } else if (typeof value === 'string') {
       updated[index] = { ...updated[index], [field]: value };
     }
@@ -210,7 +334,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
   const handlePeriodChange = (newPeriod: 'quarterly' | 'yearly') => {
     setPeriod(newPeriod);
     
-    const backendPeriodType = newPeriod === 'yearly' ? 'annual' : 'quarterly';
+    const backendPeriodType = newPeriod; // Use the same value - no mapping needed
     const periodsOfType = availablePeriods.filter((p: any) => p.period_type === backendPeriodType && p.is_active);
     if (periodsOfType.length > 0) {
       const firstPeriod = periodsOfType[0];
@@ -241,7 +365,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     setYear(selectedYear);
     
     const periodSetting = availablePeriods.find(
-      (p: any) => p.period_type === 'annual' && 
+      (p: any) => p.period_type === 'yearly' && 
                   p.year === selectedYear &&
                   p.is_active
     );
@@ -251,64 +375,67 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     }
   };
 
-  const handleSubmit = async () => {
-    const validItems = getValidKPIItems(kpiItems);
-    const validation = validateTemplateForm(templateName, validItems, totalGoalWeight);
-    
-    if (!validation.valid) {
-      toast.error(validation.error || 'Validation failed');
-      return;
-    }
+const handleSubmit = async () => {
+  const validItems = getValidKPIItems(kpiItems);
+  const validation = validateTemplateForm(templateName, validItems, totalGoalWeight);
+  
+  if (!validation.valid) {
+    toast.error(validation.error || 'Validation failed');
+    return;
+  }
 
     // Ask for confirmation if no goal weights (same as KPI Setting)
-    if (validation.needsConfirmation) {
-      const confirmProceed = await confirm({
-        title: 'Continue without goal weights?',
-        message: 'Do you want to continue without entering goal weights for quantitative items?',
-        variant: 'warning',
-        confirmText: 'Continue',
-        cancelText: 'Cancel'
-      });
-      if (!confirmProceed) {
-        return;
-      }
+  if (validation.needsConfirmation) {
+    const confirmProceed = await confirm({
+      title: 'Continue without goal weights?',
+      message: 'Do you want to continue without entering goal weight?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
+    });
+    if (!confirmProceed) {
+      return;
+    }
+  }
+
+  setSaving(true);
+
+  try {
+    const payload = {
+      template_name: templateName,
+      description,
+      period: period === 'yearly' ? 'annual' : period,
+      period_setting_id: selectedPeriodSetting?.id,
+      department_id: selectedDepartmentId,
+      use_template_titles: useTemplateDropdown ? 1 : 0,
+      items: validItems.map(item => ({
+        title: item.title,
+        description: item.description,
+        current_performance_status: item.current_performance_status,
+        target_value: item.target_value,
+        expected_completion_date: item.expected_completion_date || null,
+        measure_unit: item.measure_unit,
+        goal_weight: item.goal_weight,
+        is_qualitative: item.is_qualitative || false,
+        exclude_from_calculation: item.exclude_from_calculation || 0,
+      })),
+    };
+
+    if (isEditMode) {
+      await api.put(`/templates/${id}`, payload);
+      toast.success('Template updated successfully!');
+    } else {
+      await api.post('/templates', payload);
+      toast.success('Template created successfully!');
     }
 
-    setSaving(true);
-
-    try {
-      const payload = {
-        template_name: templateName,
-        description,
-        period: period === 'yearly' ? 'annual' : period,
-        items: validItems.map(item => ({
-          title: item.title,
-          description: item.description,
-          current_performance_status: item.current_performance_status,
-          target_value: item.target_value,
-          expected_completion_date: item.expected_completion_date || null,
-          measure_unit: item.measure_unit,
-          goal_weight: item.goal_weight,
-          is_qualitative: item.is_qualitative || false,  // Send to backend
-        })),
-      };
-
-      if (isEditMode) {
-        await api.put(`/kpi-templates/${id}`, payload);
-        toast.success('Template updated successfully!');
-      } else {
-        await api.post('/kpi-templates', payload);
-        toast.success('Template created successfully!');
-      }
-
-      navigate('/manager/kpi-templates');
-    } catch (error: any) {
-      console.error('Error saving template:', error);
-      toast.error(error.response?.data?.error || 'Failed to save template');
-    } finally {
-      setSaving(false);
-    }
-  };
+    navigate('/manager/kpi-templates');
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || 'Failed to save template');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleBack = () => {
     navigate('/manager/kpi-templates');
@@ -330,6 +457,15 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     setQuarter,
     year,
     setYear,
+    // NEW: Department and Template Titles
+    departments,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    useTemplateDropdown,
+    setUseTemplateDropdown,
+    templateTitles,
+    isDepartmentTemplateEnabled,
+    // END NEW
     kpiItems,
     setKpiItems,
     textModal,
@@ -339,7 +475,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
     handleAddRow,
     handleRemoveRow,
     updateKPIItem,
-    handleQualitativeToggle,  // Added
+    handleQualitativeToggle,
     openTextModal,
     closeTextModal,
     handlePeriodChange,

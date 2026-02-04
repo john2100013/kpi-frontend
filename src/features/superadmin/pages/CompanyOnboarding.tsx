@@ -172,6 +172,13 @@ const CompanyOnboarding: React.FC = () => {
                   onChange={(e) => updateHRUser(index, 'email', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
+                <input
+                  type="text"
+                  placeholder="Payroll Number *"
+                  value={hr.payrollNumber}
+                  onChange={(e) => updateHRUser(index, 'payrollNumber', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
                 <div className="relative">
                   <input
                     type={showHRPasswords[index] ? "text" : "password"}
@@ -248,6 +255,13 @@ const CompanyOnboarding: React.FC = () => {
                   placeholder="Email *"
                   value={manager.email}
                   onChange={(e) => updateManager(index, 'email', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+                <input
+                  type="text"
+                  placeholder="Payroll Number *"
+                  value={manager.payrollNumber}
+                  onChange={(e) => updateManager(index, 'payrollNumber', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <div className="relative">
@@ -420,18 +434,21 @@ const CompanyOnboarding: React.FC = () => {
                 )}
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg text-left">
                   <p className="text-sm font-semibold mb-2">Excel File Structure:</p>
-                  <p className="text-xs text-gray-600 mb-2">Required columns (in this order):</p>
+                  <p className="text-xs text-gray-600 mb-2">Required columns:</p>
                   <ol className="text-xs text-gray-600 list-decimal list-inside space-y-1">
                     <li><strong>Name</strong> - Employee full name (required)</li>
+                    <li><strong>Email</strong> - Valid email address (required)</li>
                     <li><strong>Payroll Number</strong> - Unique payroll identifier (required)</li>
-                    <li><strong>National ID</strong> - National identification number (required)</li>
-                    <li><strong>Department</strong> - Department name (optional, must match departments from Step 1)</li>
+                    <li><strong>National ID</strong> - National identification number (optional)</li>
                     <li><strong>Position</strong> - Job position/title (optional)</li>
-                    <li><strong>Employment Date</strong> - Date format: YYYY-MM-DD or MM/DD/YYYY (optional)</li>
+                    <li><strong>Department</strong> - Department name (optional, must match departments from Step 1)</li>
                     <li><strong>Manager Email</strong> - Email of assigned manager (optional, must match manager emails from Step 3)</li>
+                    <li><strong>Employment Date</strong> - Date format: YYYY-MM-DD or MM/DD/YYYY (optional)</li>
+                    <li><strong>Role ID</strong> - Role identifier: 4=Employee (default), 2=Manager, 3=HR (optional)</li>
+                    <li><strong>Password</strong> - Custom password (optional, defaults to Africa.1)</li>
                   </ol>
                   <p className="text-xs text-gray-500 mt-3">
-                    <strong>Note:</strong> The first row should contain column headers. Rows with missing required fields will be skipped.
+                    <strong>Note:</strong> The first row should contain column headers. Rows with missing Name, Email, or Payroll Number will be skipped. Default password is Africa.1 if not provided.
                   </p>
                 </div>
               </div>

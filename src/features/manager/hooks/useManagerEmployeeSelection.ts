@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { User } from '../../../types';
@@ -48,6 +49,7 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     fetchReviews();
   }, []);
 
+  const toast = useToast();
   // Reset to page 1 when search query changes
   useEffect(() => {
     setCurrentPage(1);
@@ -55,13 +57,32 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
 
   const fetchEmployees = async () => {
     try {
-      // Fetch employees filtered by manager's assigned departments
-      const response = await api.get('/employees', {
-        params: { managerId: 'current' } // Backend will use authenticated user's ID
-      });
-      setEmployees(response.data.employees || []);
+      // Fetch from the manager service which uses correct endpoint
+      const response = await api.get('/users/list');
+      
+      // Parse response - backend returns: { success: true, data: { users: [...], pagination: {...} } }
+      let allUsers = [];
+      if (response.data.data && response.data.data.users && Array.isArray(response.data.data.users)) {
+        allUsers = response.data.data.users;
+      } else if (response.data.users && Array.isArray(response.data.users)) {
+        allUsers = response.data.users;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        allUsers = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        allUsers = response.data;
+      } else {
+        allUsers = [];
+      }
+      
+      
+      // Filter to get only employees (exclude managers, hr, superadmin)
+      const employees = allUsers.filter((user: any) => 
+        user.role_id !== 1 && user.role_id !== 2 && user.role_id !== 3
+      );
+      
+      setEmployees(employees);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -70,9 +91,10 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
   const fetchReviews = async () => {
     try {
       const response = await api.get('/kpi-review');
-      setReviews(response.data.reviews || []);
+      const reviews = response.data.reviews || response.data.data || [];
+      setReviews(reviews);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      toast.error('Server error. Please try reloading or try later.');
     }
   };
 

@@ -49,7 +49,9 @@ export const saveDraftToLocalStorage = (kpiId: number, draft: SelfRatingDraft): 
   try {
     localStorage.setItem(`kpi_draft_${kpiId}`, JSON.stringify(draft));
   } catch (error) {
-    console.error('Failed to save draft:', error);
+    if (typeof window !== 'undefined' && window.toast) {
+      window.toast.error('Could not save draft. Please try again.');
+    }
   }
 };
 
@@ -58,7 +60,6 @@ export const loadDraftFromLocalStorage = (kpiId: number): SelfRatingDraft | null
     const draft = localStorage.getItem(`kpi_draft_${kpiId}`);
     return draft ? JSON.parse(draft) : null;
   } catch (error) {
-    console.error('Failed to load draft:', error);
     return null;
   }
 };
@@ -67,7 +68,9 @@ export const clearDraftFromLocalStorage = (kpiId: number): void => {
   try {
     localStorage.removeItem(`kpi_draft_${kpiId}`);
   } catch (error) {
-    console.error('Failed to clear draft:', error);
+    if (typeof window !== 'undefined' && window.toast) {
+      window.toast.error('Could not clear draft. Please try again.');
+    }
   }
 };
 
@@ -110,7 +113,9 @@ export const parseExistingReviewData = (review: KPIReview) => {
     result.majorAccomplishments = commentData.major_accomplishments || review.major_accomplishments || '';
     result.disappointments = commentData.disappointments || review.disappointments || '';
   } catch (error) {
-    console.error('Failed to parse review data:', error);
+    if (typeof window !== 'undefined' && window.toast) {
+      window.toast.error('Could not load review data. Please try again.');
+    }
   }
 
   return result;

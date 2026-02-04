@@ -6,7 +6,6 @@ import {
   FiUsers,
   FiFileText,
   FiCheckCircle,
-  FiArrowRight,
   FiEye,
   FiEdit,
   FiCalendar,
@@ -14,35 +13,54 @@ import {
   FiBell,
   FiFilter,
   FiSave,
+  FiInfo,
+  FiSearch,
 } from 'react-icons/fi';
 import { useManagerDashboard, getCategoryLabel, getCategoryColor, getCategoryIcon, getPeriodLabel, getPeriodValue } from '../hooks';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const ManagerDashboard: React.FC = () => {
   const toast = useToast();
   const {
-    kpis,
     reviews,
     departmentStatistics,
     periodSettings,
     notifications,
     recentActivity,
+    recentKPIs,
+    selectedEmployeeId,
+    employeeKPIs,
+    loadingEmployeeKPIs,
+    employeeSearch,
+    setEmployeeSearch,
+    filteredEmployees,
     filters,
     selectedCategory,
     selectedDepartment,
     categoryEmployees,
+    kpisByCategory,
     defaultPeriod,
     savingDefault,
     managerDepartments,
     loading,
-    employeeStatusList,
+    kpiType,
+    selectedPeriodId,
+    quarterlyPeriods,
+    yearlyPeriods,
     setFilters,
     saveDefaultPeriod,
     handleCategoryClick,
     clearCategorySelection,
     handleNotificationClick,
     handleMarkNotificationRead,
+    handleEmployeeSelect,
+    shouldShowAsManagerInitiated,
     navigate,
+    handleKpiTypeChange,
+    handlePeriodChange,
   } = useManagerDashboard();
+
+  const { features, loading: featuresLoading } = useCompanyFeatures();
 
   const handleSaveDefaultPeriod = async () => {
     const success = await saveDefaultPeriod();
@@ -53,7 +71,7 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || featuresLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Loading...</div>
@@ -61,8 +79,25 @@ const ManagerDashboard: React.FC = () => {
     );
   }
 
+  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Disabled Notice for Managers */}
+      {!isSelfRatingEnabled && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>Manager-Led Review:</strong> Your organization uses a manager-led review process. 
+                You will be the one to start and conduct KPI reviews for your team members.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
@@ -97,20 +132,49 @@ const ManagerDashboard: React.FC = () => {
           <FiFilter className="text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">KPI Period</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">KPI Type</label>
             <select
-              value={filters.period}
-              onChange={(e) => setFilters({ ...filters, period: e.target.value })}
+              value={kpiType}
+              onChange={(e) => handleKpiTypeChange(e.target.value as 'quarterly' | 'yearly')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
-              <option value="">All Periods</option>
-              {periodSettings.map(setting => (
-                <option key={setting.id} value={getPeriodValue(setting)}>
-                  {getPeriodLabel(setting)}
-                </option>
-              ))}
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {kpiType === 'quarterly' ? 'Select Quarter' : 'Select Year'}
+            </label>
+            <select
+              value={selectedPeriodId || ''}
+              onChange={(e) => handlePeriodChange(e.target.value ? parseInt(e.target.value) : 0)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              disabled={(kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods).length === 0}
+            >
+              {kpiType === 'quarterly' ? (
+                quarterlyPeriods.length > 0 ? (
+                  quarterlyPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.quarter} {period.year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No quarterly periods available</option>
+                )
+              ) : (
+                yearlyPeriods.length > 0 ? (
+                  yearlyPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No yearly periods available</option>
+                )
+              )}
             </select>
           </div>
           <div>
@@ -121,7 +185,7 @@ const ManagerDashboard: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">All Departments</option>
-              {managerDepartments.map(dept => (
+              {(managerDepartments || []).map(dept => (
                 <option key={dept.id} value={dept.name}>
                   {dept.name}
                 </option>
@@ -208,7 +272,7 @@ const ManagerDashboard: React.FC = () => {
 
       {/* Department Statistics */}
       {!selectedCategory ? (
-        <div className="space-y-6">
+        <div className="space-y-6 department-overview">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Department Overview</h2>
           </div>
@@ -287,8 +351,8 @@ const ManagerDashboard: React.FC = () => {
             </div>
           )}
         </div>
-      ) : (
-        // Employee List View
+      ) : selectedCategory === 'no_kpi' ? (
+        // Employee List View (ONLY for No KPI category)
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <div>
@@ -338,33 +402,175 @@ const ManagerDashboard: React.FC = () => {
                         {employee.position}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-3">
-                          <Button
-                            variant="link"
-                            onClick={() => navigate(`/manager/employee-kpis/${employee.id}`)}
-                          >
-                            View KPIs
-                          </Button>
-                          {selectedCategory === 'review_rejected' && (
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => navigate(`/manager/employee-kpis/${employee.id}?status=rejected`)}
-                            >
-                              View Rejected KPI
-                            </Button>
-                          )}
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => navigate(`/manager/kpi-setting/${employee.id}`)}
-                          >
-                            Set KPI
-                          </Button>
-                        </div>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => navigate(`/manager/kpi-setting/${employee.id}`)}
+                        >
+                          Set KPI
+                        </Button>
                       </td>
                     </tr>
                   ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        // KPI List View (for all other categories)
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {selectedDepartment} - {getCategoryLabel(selectedCategory)}
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {kpisByCategory.length} KPI{kpisByCategory.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={clearCategorySelection}
+            >
+              Back to Overview
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payroll Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">KPI Title</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {kpisByCategory.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      No KPIs found in this category
+                    </td>
+                  </tr>
+                ) : (
+                  kpisByCategory.map((kpi) => {
+                    const isManagerInitiated = shouldShowAsManagerInitiated(kpi);
+                    const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
+                    
+                    return (
+                      <tr key={kpi.id} className={`hover:bg-gray-50 ${isManagerInitiated && selectedCategory === 'acknowledged_review_pending' ? 'bg-purple-50' : ''}`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{kpi.employee_name}</div>
+                          <div className="text-sm text-gray-500">{kpi.employee_email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {kpi.employee_payroll_number}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">{kpi.title || 'Untitled KPI'}</div>
+                          <div className="text-sm text-gray-500">{kpi.employee_department}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {kpi.period === 'quarterly' 
+                              ? `${kpi.quarter} ${kpi.year}` 
+                              : kpi.year}
+                          </div>
+                          {selectedCategory === 'acknowledged_review_pending' && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${
+                              isManagerInitiated ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {kpiPeriod} - {isManagerInitiated ? 'Self-rating disabled' : 'Employee self-rates'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {selectedCategory === 'acknowledged_review_pending' && isManagerInitiated ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                              You initiate review
+                            </span>
+                          ) : selectedCategory === 'acknowledged_review_pending' && !isManagerInitiated ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              Self rating Enabled, Waiting for employee to initiate
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              {kpi.status?.replace('_', ' ') || 'In Progress'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            {/* For "acknowledged_review_pending" with manager initiate */}
+                            {selectedCategory === 'acknowledged_review_pending' && isManagerInitiated ? (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/manager/kpi-review/kpi/${kpi.id}`)}
+                              >
+                                Start Review
+                              </Button>
+                            ) : 
+                            /* For "acknowledged_review_pending" with employee self-rate */
+                            selectedCategory === 'acknowledged_review_pending' && !isManagerInitiated ? (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={FiEye}
+                                onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                              >
+                                View KPI
+                              </Button>
+                            ) :
+                            /* For "self_rating_submitted" - awaiting manager review */
+                            selectedCategory === 'self_rating_submitted' ? (
+                              <>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Find the review for this KPI
+                                    const review = reviews.find(r => r.kpi_id === kpi.id);
+                                    if (review) {
+                                      navigate(`/manager/kpi-review/${review.id}`);
+                                    } else {
+                                      // If no review found, navigate to KPI details
+                                      navigate(`/manager/kpi-details/${kpi.id}`);
+                                    }
+                                  }}
+                                >
+                                  Review
+                                </Button>
+                                <span className="text-gray-300">|</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={FiEye}
+                                  onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                                >
+                                  View KPI
+                                </Button>
+                              </>
+                            ) : (
+                              /* For all other categories */
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                icon={FiEye}
+                                onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                              >
+                                View Details
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -374,15 +580,153 @@ const ManagerDashboard: React.FC = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Employee KPI Status - Left Column (2/3 width) */}
+        {/* Left Column (2/3 width) - Employee KPI Status & Recent KPIs */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Employee KPI Status Table */}
+          {/* Employee KPI Status Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Employee KPI Status</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Select an employee to view all their KPIs
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or payroll number..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={selectedEmployeeId || ''}
+                  onChange={(e) => handleEmployeeSelect(e.target.value ? parseInt(e.target.value) : null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[250px]"
+                >
+                  <option value="">Select Employee</option>
+                  {filteredEmployees.filter(emp => emp.role_id === 4 || emp.role === 'employee' || emp.role === 'employees').map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} - {emp.payroll_number || 'No Payroll'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              {loadingEmployeeKPIs ? (
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <p className="mt-2">Loading KPIs...</p>
+                </div>
+              ) : !selectedEmployeeId ? (
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <FiUsers className="mx-auto text-4xl text-gray-400 mb-2" />
+                  <p>Select an employee to view their KPIs</p>
+                </div>
+              ) : employeeKPIs.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <FiFileText className="mx-auto text-4xl text-gray-400 mb-2" />
+                  <p>No KPIs found for this employee</p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => navigate(`/manager/kpi-setting/${selectedEmployeeId}`)}
+                  >
+                    Set KPI
+                  </Button>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">KPI TITLE</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PERIOD</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STATUS</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">CREATED</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {employeeKPIs.map((kpi) => (
+                      <tr key={kpi.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-medium text-gray-900">{kpi.title}</p>
+                          <p className="text-xs text-gray-500">{kpi.items_count || 0} item(s)</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-900">
+                            {kpi.period === 'quarterly' 
+                              ? `${kpi.quarter} ${kpi.year}` 
+                              : kpi.year}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const stageInfo = (() => {
+                              switch (kpi.status) {
+                                case 'pending':
+                                  return { label: 'Pending Acknowledgement', color: 'bg-yellow-100 text-yellow-700' };
+                                case 'acknowledged_review_pending':
+                                  return { label: 'Acknowledged', color: 'bg-blue-100 text-blue-700' };
+                                case 'self_rating_submitted':
+                                  return { label: 'Self-Rating Submitted', color: 'bg-indigo-100 text-indigo-700' };
+                                case 'awaiting_employee_confirmation':
+                                  return { label: 'Awaiting Confirmation', color: 'bg-orange-100 text-orange-700' };
+                                case 'review_completed':
+                                  return { label: 'Review Completed', color: 'bg-green-100 text-green-700' };
+                                case 'review_rejected':
+                                  return { label: 'Review Rejected', color: 'bg-red-100 text-red-700' };
+                                default:
+                                  return { label: 'In Progress', color: 'bg-gray-100 text-gray-700' };
+                              }
+                            })();
+                            return (
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageInfo.color}`}>
+                                {stageInfo.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-600">
+                            {new Date(kpi.created_at).toLocaleDateString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            icon={FiEye}
+                            onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                          >
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Recent KPI Activity - below Employee KPI Status */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Employee KPI Status</h2>
-              <select className="px-4 py-2 border border-gray-300 rounded-lg text-sm">
-                <option>All Employees</option>
-              </select>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Recent KPI Activity</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Recent KPI Setting Completed & Reviews Completed
+                </p>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -390,133 +734,111 @@ const ManagerDashboard: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">EMPLOYEE</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">DEPARTMENT</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">KPIS</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STATUS</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PROGRESS</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PAYROLL</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">KPI TITLE</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PERIOD</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">CATEGORY</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {employeeStatusList.length === 0 ? (
+                  {recentKPIs.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                        No employees found
+                        No recent KPI activity
                       </td>
                     </tr>
                   ) : (
-                    employeeStatusList.map((emp) => {
-                      const latestKPI = kpis.find(k => k.employee_id === emp.id);
-                      return (
-                        <tr key={emp.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                <span className="text-purple-600 font-semibold">
-                                  {emp.name?.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">{emp.name}</p>
-                                <p className="text-sm text-gray-500">{emp.position || 'Employee'}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm text-gray-900">{emp.department || 'N/A'}</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm text-gray-900">
-                              {emp.kpiCount} Active
-                            </span>
-                            {latestKPI && (
-                              <p className="text-xs text-gray-500">
-                                {latestKPI.quarter} {latestKPI.year}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${emp.status.color}`}>
-                              {emp.status.stage}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-2">
-                              <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${
-                                    emp.status.progress === 100
-                                      ? 'bg-green-500'
-                                      : emp.status.progress >= 75
-                                      ? 'bg-orange-500'
-                                      : 'bg-blue-500'
-                                  }`}
-                                  style={{ width: `${emp.status.progress}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-gray-600 w-12 text-right">
-                                {emp.status.progress}%
+                    recentKPIs.map((kpi) => (
+                      <tr key={kpi.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                              <span className="text-purple-600 font-semibold">
+                                {kpi.employee_name?.charAt(0).toUpperCase()}
                               </span>
                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            {emp.status.stage === 'Self-Rating Submitted - Awaiting Manager Review' ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => {
-                                  if (latestKPI) {
-                                    const review = reviews.find(r => r.kpi_id === latestKPI.id);
-                                    if (review) {
-                                      navigate(`/manager/kpi-review/${review.id}`);
-                                    } else {
-                                      navigate(`/manager/kpi-details/${latestKPI.id}`);
-                                    }
-                                  }
-                                }}
-                              >
-                                Review
-                              </Button>
-                            ) : emp.status.stage === 'KPI Review Completed' ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => {
-                                  if (latestKPI) {
-                                    navigate(`/manager/kpi-details/${latestKPI.id}`);
-                                  }
-                                }}
-                              >
-                                View
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => navigate(`/manager/employee-kpis/${emp.id}`)}
-                              >
-                                Monitor
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
+                            <div>
+                              <p className="font-semibold text-gray-900">{kpi.employee_name}</p>
+                              <p className="text-sm text-gray-500">{kpi.employee_department}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-900">{kpi.employee_payroll || 'N/A'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-medium text-gray-900">{kpi.title}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-900">
+                            {kpi.period === 'quarterly' 
+                              ? `${kpi.quarter} ${kpi.year}` 
+                              : kpi.year}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            kpi.category_display === 'Review Completed' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {kpi.category_display}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            icon={FiEye}
+                            onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                          >
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="p-6 border-t border-gray-200">
-              <Button
-                variant="link"
-                icon={FiArrowRight}
-                iconPosition="right"
-                size="sm"
-                onClick={() => navigate('/manager/employees')}
-              >
-                View All Employees
-              </Button>
+            {/* Navigation Links at Bottom */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">View more KPIs by category:</p>
+                <div className="flex items-center space-x-3">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => navigate('/manager/kpi-list')}
+                  >
+                    All KPIs
+                  </Button>
+                  <span className="text-gray-300">|</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => navigate('/manager/reviews')}
+                  >
+                    Reviews
+                  </Button>
+                  <span className="text-gray-300">|</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      // Scroll to department overview to see categories
+                      const overviewSection = document.querySelector('.department-overview');
+                      if (overviewSection) {
+                        overviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                  >
+                    By Department
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -12,6 +12,8 @@ interface DashboardKPIRowProps {
   onReview: (kpiId: number) => void;
   onConfirm: (reviewId: number) => void;
   onEdit: (kpiId: number) => void;
+  isSelfRatingEnabled?: boolean;
+  calculationMethod?: string;
 }
 
 export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
@@ -23,11 +25,20 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
   onReview,
   onConfirm,
   onEdit,
+  isSelfRatingEnabled = true,
+  calculationMethod = 'Normal Calculation',
 }) => {
+  
+  // Backend may send either 'status' or 'review_status' field
+  const reviewStatus = (review as any)?.status || review?.review_status;
+  
+  // Use the passed prop for self-rating status
+  const kpiPeriodLabel = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
+  
   const isPending = kpi.status === 'pending';
-  const needsReview = kpi.status === 'acknowledged' && (!review || review.review_status === 'pending');
-  const needsConfirmation = review && review.review_status === 'manager_submitted';
-  const canEdit = review && review.review_status === 'employee_submitted';
+  const needsReview = kpi.status === 'acknowledged' && (!review || reviewStatus === 'pending') && isSelfRatingEnabled;
+  const needsConfirmation = review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation');
+  const canEdit = review && reviewStatus === 'employee_submitted' && isSelfRatingEnabled;
 
   return (
     <tr className="hover:bg-gray-50">
@@ -45,6 +56,18 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
         <p className="text-sm text-gray-600">
           {kpi.quarter} {kpi.year}
         </p>
+        {/* Show period-specific self-rating status badge */}
+        {isSelfRatingEnabled ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 mt-1">
+            {kpiPeriodLabel} - Self-rating enabled
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
+            {kpiPeriodLabel} - Self-rating disabled
+          </span>
+        )}
+        {/* Show calculation method */}
+        <p className="text-xs text-gray-500 mt-1">{calculationMethod}</p>
       </td>
       <td className="px-6 py-4">
         <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 w-fit ${stageInfo.color}`}>
@@ -91,7 +114,9 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => onConfirm(review.id)}
+                    onClick={() => {
+                      onConfirm(review.id);
+                    }}
                   >
                     Confirm
                   </Button>
