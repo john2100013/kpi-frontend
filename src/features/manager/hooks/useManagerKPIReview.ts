@@ -583,20 +583,17 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
       return;
     }
 
-    // Additional guard: ensure at least one manager rating is > 0 (avoid submitting all-zero payloads)
-    const managerValues = Object.values(managerRatings || {}).map(v => parseFloat(String(v)) || 0);
-    const hasAnyManagerRating = managerValues.some(v => v > 0) || (accomplishments && accomplishments.length > 0);
+    // Additional guard: ensure at least one manager rating exists (0 is valid)
+    const managerValues = Object.values(managerRatings || {}).filter(v => v !== null && v !== undefined);
+    const hasAnyManagerRating = managerValues.length > 0 || (accomplishments && accomplishments.length > 0);
     if (!hasAnyManagerRating) {
       toast.error('Please provide ratings for items before submitting the review');
       return;
     }
 
-    // Check if Performance Reflection should be hidden (Quarterly + Goal Weight + Self Rating Enabled)
+    // Check if Performance Reflection should be hidden (Quarterly KPIs)
     const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-    const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
-    const shouldHidePerformanceReflection = 
-      kpiPeriod === 'quarterly' && 
-      calculationMethodName.includes('Goal Weight');
+    const shouldHidePerformanceReflection = kpiPeriod === 'quarterly';
 
     // Only validate accomplishments if Performance Reflection section is visible
     if (!shouldHidePerformanceReflection) {

@@ -91,11 +91,10 @@ const ManagerKPIReview: React.FC = () => {
   // Get calculation method name based on KPI period
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
 
-  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
-  const shouldHidePerformanceReflection = 
-    kpiPeriod === 'quarterly' && 
-    calculationMethodName.includes('Goal Weight') && 
-    !isSelfRatingDisabled;
+  // NEW LOGIC: Hide Performance Reflection when KPI period is Quarterly
+  // Performance Reflection includes: Accomplishments, Disappointments, Improvement Needed, Future Plan
+  // Note: Overall Manager Rating and Overall Manager Comment remain visible
+  const shouldHidePerformanceReflection = kpiPeriod === 'quarterly';
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -488,7 +487,7 @@ const ManagerKPIReview: React.FC = () => {
                       {!isSelfRatingDisabled && (
                         <td className="px-6 py-4 whitespace-nowrap">
                           {item.is_qualitative ? (
-                            employeeQualitativeRatings[item.id] ? (
+                            employeeQualitativeRatings[item.id] !== null && employeeQualitativeRatings[item.id] !== undefined ? (
                               <div>
                                 <span className="text-sm font-semibold text-purple-600">
                                   {(() => {
@@ -501,7 +500,7 @@ const ManagerKPIReview: React.FC = () => {
                             ) : (
                               <span className="text-sm text-gray-400">Not rated</span>
                             )
-                          ) : empRating > 0 ? (
+                          ) : empRating !== null && empRating !== undefined ? (
                             <div>
                               <span className="text-sm font-semibold text-gray-900">
                                 {(() => {
@@ -562,7 +561,7 @@ const ManagerKPIReview: React.FC = () => {
                         ) : (
                           <div>
                             <select
-                              value={mgrRating || 0}
+                              value={mgrRating !== undefined && mgrRating !== null ? mgrRating : ''}
                               onChange={(e) => {
                                 const selectedValue = parseFloat(e.target.value);
 
@@ -570,7 +569,7 @@ const ManagerKPIReview: React.FC = () => {
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                             >
-                              <option value={0}>Select rating</option>
+                              <option value="">Select rating</option>
                               {ratingOptions.map((opt) => {
                                 const optValue = parseFloat(String(opt.rating_value));
                                 return (
@@ -580,7 +579,7 @@ const ManagerKPIReview: React.FC = () => {
                                 );
                               })}
                             </select>
-                            {mgrRating > 0 && (
+                            {mgrRating !== null && mgrRating !== undefined && (
                               <div className="mt-1">
                                 <span className="text-xs text-gray-500">
                                   {(() => {
@@ -698,7 +697,7 @@ const ManagerKPIReview: React.FC = () => {
                     <p className="text-sm text-gray-700">N/A</p>
                   </td>
                   <td className="px-6 py-4">
-                    {review.employee_rating ? (
+                    {review.employee_rating !== null && review.employee_rating !== undefined ? (
                       <div>
                         <span className="text-sm font-semibold text-gray-900">
                           {review.employee_rating === 1.00 ? '1.00' : review.employee_rating === 1.25 ? '1.25' : review.employee_rating === 1.50 ? '1.50' : review.employee_rating}
@@ -716,11 +715,11 @@ const ManagerKPIReview: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <select
-                      value={review.manager_rating || 0}
+                      value={review.manager_rating !== undefined && review.manager_rating !== null ? review.manager_rating : ''}
                       onChange={(e) => handleRatingChange(0, parseFloat(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     >
-                      <option value={0}>Select rating</option>
+                      <option value="">Select rating</option>
                       {ratingOptions.map((opt) => {
                         const optValue = parseFloat(String(opt.rating_value));
                         return (
@@ -950,7 +949,7 @@ const ManagerKPIReview: React.FC = () => {
                       // Include accomplishments with manager_rating in calculation
                       // Note: Accomplishments don't have explicit weights, so we distribute remaining weight equally
                       const accomplishmentsWithRatings = accomplishments.filter(acc => 
-                        (acc.manager_rating !== null && acc.manager_rating !== undefined && acc.manager_rating > 0)
+                        (acc.manager_rating !== null && acc.manager_rating !== undefined)
                       );
                       if (accomplishmentsWithRatings.length > 0) {
                         const totalItemWeight = includedItems.reduce((sum, item) => {
@@ -965,7 +964,7 @@ const ManagerKPIReview: React.FC = () => {
                         
                         accomplishmentsWithRatings.forEach(acc => {
                           const rating = acc.manager_rating;
-                          if (rating !== null && rating !== undefined && rating > 0) {
+                          if (rating !== null && rating !== undefined) {
                             const ratingPercentage = (rating / 1.25) * 100;
                             const weightedScore = ratingPercentage * accomplishmentWeight;
                             totalWeightedScore += weightedScore;
@@ -1077,19 +1076,31 @@ const ManagerKPIReview: React.FC = () => {
             {/* Overall Manager Rating */}
             <div className="pt-4 border-t border-gray-200">
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Overall Manager Rating (1-5 Scale) <span className="text-red-500">*</span>
+                Overall Manager Rating <span className="text-red-500">*</span>
               </label>
               <select
-                value={overallManagerRating}
+                value={overallManagerRating || ''}
                 onChange={(e) => setOverallManagerRating(Number(e.target.value))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 required
               >
-                <option value={1}>1 - Poor Performance</option>
-                <option value={2}>2 - Below Expectations</option>
-                <option value={3}>3 - Meets Expectations</option>
-                <option value={4}>4 - Exceeds Expectations</option>
-                <option value={5}>5 - Outstanding Performance</option>
+                <option value="">Select overall rating</option>
+                {ratingOptions.length > 0 ? (
+                  ratingOptions.map((opt) => {
+                    const optValue = parseFloat(String(opt.rating_value));
+                    return (
+                      <option key={opt.rating_value} value={optValue}>
+                        {opt.rating_value} - {opt.label}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <>
+                    <option value={1.0}>1.00 - Below Expectation</option>
+                    <option value={1.25}>1.25 - Meets Expectation</option>
+                    <option value={1.5}>1.50 - Exceeds Expectation</option>
+                  </>
+                )}
               </select>
               <p className="text-xs text-gray-500 mt-2">
                 This is your overall assessment of the employee's performance, independent of individual KPI item ratings

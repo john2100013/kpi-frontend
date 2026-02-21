@@ -58,11 +58,9 @@ const SelfRating: React.FC = () => {
   const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
   const isSelfRatingEnabled = kpi?.period ? isEmployeeSelfRatingEnabled(kpiPeriod) : false;
 
-  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
-  const shouldHidePerformanceReflection = 
-    kpiPeriod === 'quarterly' && 
-    calculationMethodName.includes('Goal Weight') && 
-    isSelfRatingEnabled;
+  // NEW LOGIC: Hide Performance Reflection when KPI period is Quarterly
+  // Performance Reflection includes: Accomplishments, Disappointments, Improvement Needed, Future Plan
+  const shouldHidePerformanceReflection = kpiPeriod === 'quarterly';
 
 
   if (loading) {
@@ -245,7 +243,7 @@ const SelfRating: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {kpi.items && kpi.items.length > 0 ? (
                 kpi.items.map((item: KPIItem, index: number) => {
-                  const itemRating = ratings[item.id] || 0;
+                  const itemRating = ratings[item.id] !== undefined && ratings[item.id] !== null ? ratings[item.id] : '';
                   const itemComment = comments[item.id] || '';
                   const isQualitative = item.is_qualitative;
                   return (
@@ -366,7 +364,7 @@ const SelfRating: React.FC = () => {
                           {isQualitative ? (
                             <>
                               <select
-                                value={itemRating || 0}
+                                value={itemRating === '' ? '' : itemRating}
                                 onChange={(e) => {
                                   const selectedValue = parseFloat(e.target.value);
                                   if (!isNaN(selectedValue)) {
@@ -375,7 +373,7 @@ const SelfRating: React.FC = () => {
                                 }}
                                 className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-purple-50"
                               >
-                                <option value={0}>Select qualitative rating</option>
+                                <option value="">Select qualitative rating</option>
                                 {qualitativeRatingOptions.length > 0 ? (
                                   qualitativeRatingOptions.map((opt: RatingOption, idx: number) => {
                                     const optValue =
@@ -397,7 +395,7 @@ const SelfRating: React.FC = () => {
                                   </option>
                                 )}
                               </select>
-                              {itemRating > 0 && qualitativeRatingOptions.length > 0 && (
+                              {itemRating !== null && itemRating !== undefined && qualitativeRatingOptions.length > 0 && (
                                 <div className="mt-1">
                                   <span className="text-sm font-semibold text-purple-700">
                                     {qualitativeRatingOptions.find((opt: RatingOption) => 
@@ -410,7 +408,7 @@ const SelfRating: React.FC = () => {
                           ) : (
                             <>
                               <select
-                                value={itemRating || 0}
+                                value={itemRating === '' ? '' : itemRating}
                                 onChange={(e) => {
                                   const selectedValue = parseFloat(e.target.value);
                                   if (!isNaN(selectedValue)) {
@@ -419,7 +417,7 @@ const SelfRating: React.FC = () => {
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                               >
-                                <option value={0}>Select rating</option>
+                                <option value="">Select rating</option>
                                 {ratingOptions.length > 0 ? (
                                   ratingOptions.map((opt: RatingOption, idx: number) => {
                                     const optValue =
@@ -443,11 +441,16 @@ const SelfRating: React.FC = () => {
                                   </>
                                 )}
                               </select>
-                              {itemRating > 0 && (
+                              {itemRating !== null && itemRating !== undefined && itemRating !== '' && (
                                 <div className="mt-1">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {getRatingLabel(itemRating)}
+                                    {getRatingLabel(Number(itemRating))}
                                   </span>
+                                </div>
+                              )}
+                              {itemRating === '' && (
+                                <div className="mt-1">
+                                  <span className="text-xs text-gray-500">Not Rated</span>
                                 </div>
                               )}
                             </>
@@ -519,7 +522,7 @@ const SelfRating: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="space-y-2">
                       <select
-                        value={ratings[0] || 0}
+                        value={ratings[0] !== undefined && ratings[0] !== null ? ratings[0] : ''}
                         onChange={(e) => {
                           const selectedValue = parseFloat(e.target.value);
                           if (!isNaN(selectedValue)) {
@@ -528,7 +531,7 @@ const SelfRating: React.FC = () => {
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       >
-                        <option value={0}>Select rating</option>
+                        <option value="">Select rating</option>
                         {ratingOptions.length > 0 ? (
                           ratingOptions.map((opt: RatingOption) => {
                             const optValue =

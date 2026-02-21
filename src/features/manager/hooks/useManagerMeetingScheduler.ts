@@ -87,28 +87,38 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
         api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
       ]);
 
-      const users = employeesRes.data.data || employeesRes.data.users || [];
-      const employees = users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3);
+      const users = employeesRes.data.data?.users || employeesRes.data.data || employeesRes.data.users || [];
+      const employees = Array.isArray(users) ? users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3) : [];
+      
+      // Parse KPIs - handle multiple response structures
+      const kpisData = kpisRes.data.kpis || kpisRes.data.data?.kpis || kpisRes.data.data || [];
+      const kpisArray = Array.isArray(kpisData) ? kpisData : [];
+      
+      // Parse Reviews - handle multiple response structures  
+      const reviewsData = reviewsRes.data.reviews || reviewsRes.data.data?.reviews || reviewsRes.data.data || [];
+      const reviewsArray = Array.isArray(reviewsData) ? reviewsData : [];
+      
       setEmployees(employees);
-      setKpis(kpisRes.data.kpis || kpisRes.data.data || []);
-      setReviews(reviewsRes.data.reviews || reviewsRes.data.data || []);
+      setKpis(kpisArray);
+      setReviews(reviewsArray);
 
       // Pre-select if kpiId or reviewId is provided
       if (kpiId) {
-        const kpi = (kpisRes.data.kpis || []).find((k: KPI) => k.id === parseInt(kpiId));
+        const kpi = kpisArray.find((k: KPI) => k.id === parseInt(kpiId));
         if (kpi) {
           setMeetingType('kpi_setting');
           setSelectedKpiId(parseInt(kpiId));
         }
       } else if (reviewId) {
-        const review = (reviewsRes.data.reviews || []).find((r: KPIReview) => r.id === parseInt(reviewId));
+        const review = reviewsArray.find((r: KPIReview) => r.id === parseInt(reviewId));
         if (review) {
           setMeetingType('kpi_review');
           setSelectedReviewId(parseInt(reviewId));
         }
       }
-    } catch (error) {
-      toast.error('Server error. Please try reloading or try later.');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Server error. Please try reloading or try later.';
+      toast.error(`Failed to load data: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -168,12 +178,12 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
 
   // Filter KPIs and reviews by selected employee
   const filteredKPIs = selectedEmployeeId 
-    ? kpis.filter(k => k.employee_id === selectedEmployeeId)
-    : kpis;
+    ? (Array.isArray(kpis) ? kpis.filter(k => k.employee_id === selectedEmployeeId) : [])
+    : (Array.isArray(kpis) ? kpis : []);
 
   const filteredReviews = selectedEmployeeId
-    ? reviews.filter(r => r.employee_id === selectedEmployeeId)
-    : reviews;
+    ? (Array.isArray(reviews) ? reviews.filter(r => r.employee_id === selectedEmployeeId) : [])
+    : (Array.isArray(reviews) ? reviews : []);
 
   return {
     loading,

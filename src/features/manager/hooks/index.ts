@@ -42,8 +42,4 @@ export type { ItemRatings, ItemComments, ParsedReviewData } from '../../shared/h
 export type { KPIRow, KPIFormData } from './kpiSettingUtils';
 export type { KPITemplate } from './useManagerKPITemplates';
 export type { KPIItem } from './useManagerKPITemplateForm';
-
-// Placeholder - will be implemented during manager refactoring
-export const useManagerMeetingScheduler = () => {
-  throw new Error('useManagerMeetingScheduler not yet implemented - pending manager feature refactoring');
-};
+export { useManagerMeetingScheduler } from './useManagerMeetingScheduler';

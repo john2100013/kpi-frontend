@@ -35,17 +35,28 @@ const initialState: AuthState = {
 // Async thunks
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ payrollNumber, password }: { payrollNumber: string; password: string }, { rejectWithValue }) => {
+  async ({ 
+    payrollNumber, 
+    email, 
+    password 
+  }: { 
+    payrollNumber?: string; 
+    email?: string; 
+    password: string 
+  }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/login', {
-        payroll_number: payrollNumber,
-        password,
-      });
+      const requestBody: any = { password };
+      
+      if (email) {
+        requestBody.email = email;
+      } else if (payrollNumber) {
+        requestBody.payroll_number = payrollNumber;
+      }
 
-   
+      const response = await api.post('/auth/login', requestBody);
+
       if (response.data.csrfToken) {
         setCSRFToken(response.data.csrfToken);
-      } else {
       }
 
       return response.data;

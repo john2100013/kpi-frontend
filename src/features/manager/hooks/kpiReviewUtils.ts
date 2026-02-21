@@ -204,10 +204,10 @@ export const validateAllItemsRated = (
       return true;
     }
 
-    // Validate quantitative items - accept any numeric rating > 0 (still required even if excluded from calculation)
+    // Validate quantitative items - accept any numeric rating >= 0 (still required even if excluded from calculation)
     const rating = managerRatings[item.id];
     const ratingNum = !isNaN(parseFloat(String(rating))) ? parseFloat(String(rating)) : NaN;
-    const isValid = rating !== undefined && rating !== null && !isNaN(ratingNum) && ratingNum > 0;
+    const isValid = rating !== undefined && rating !== null && !isNaN(ratingNum) && ratingNum >= 0;
     if (!isValid) {
       missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating ?? null, parsed: isNaN(ratingNum) ? null : ratingNum });
       return false;

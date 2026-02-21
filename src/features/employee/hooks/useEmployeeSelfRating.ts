@@ -209,12 +209,9 @@ export const useEmployeeSelfRating = () => {
   const handleSubmit = async () => {
     if (!kpiId || !kpi) return;
 
-    // Check if Performance Reflection should be hidden (Quarterly + Goal Weight + Self Rating Enabled)
+    // Check if Performance Reflection should be hidden (Quarterly KPIs)
     const kpiPeriod = kpi?.period?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-    const calculationMethodName = kpi?.period ? getCalculationMethodName(kpi.period) : 'Normal Calculation';
-    const shouldHidePerformanceReflection = 
-      kpiPeriod === 'quarterly' && 
-      calculationMethodName.includes('Goal Weight');
+    const shouldHidePerformanceReflection = kpiPeriod === 'quarterly';
 
     // Only validate accomplishments if Performance Reflection section is visible
     if (!shouldHidePerformanceReflection) {
@@ -239,7 +236,10 @@ export const useEmployeeSelfRating = () => {
 
     // Validate all KPIs have ratings (excluding qualitative ones)
     const itemsNeedingRatings = kpi.items?.filter((item: any) => !item.is_qualitative) || [];
-    const allRated = itemsNeedingRatings.every((item: any) => ratings[item.id] > 0);
+    const allRated = itemsNeedingRatings.every((item: any) => {
+      const rating = ratings[item.id];
+      return rating !== null && rating !== undefined;
+    });
 
     if (!allRated) {
       toast.error('Please provide ratings for all KPIs before submitting');
@@ -263,7 +263,7 @@ export const useEmployeeSelfRating = () => {
       const itemsIncludedInCalculation = itemsNeedingRatings.filter((item: any) => !item.exclude_from_calculation || item.exclude_from_calculation === 0);
       const itemRatingValues = itemsIncludedInCalculation.map((item: any) => ratings[item.id] || 0);
       const accomplishmentRatings = accomplishments
-        .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0)
+        .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined)
         .map(acc => Number(acc.employee_rating) || 0);
       const allRatings = [...itemRatingValues, ...accomplishmentRatings];
       const averageRating = allRatings.length > 0 
@@ -462,7 +462,7 @@ export const useEmployeeSelfRating = () => {
   const completion = (() => {
     const itemsNeedingRatings = kpi?.items?.filter((item: any) => !item.is_qualitative) || [];
     if (itemsNeedingRatings.length === 0) return 100;
-    const ratedCount = itemsNeedingRatings.filter((item: any) => ratings[item.id] > 0).length;
+    const ratedCount = itemsNeedingRatings.filter((item: any) => ratings[item.id] !== null && ratings[item.id] !== undefined).length;
     return Math.round((ratedCount / itemsNeedingRatings.length) * 100);
   })();
 

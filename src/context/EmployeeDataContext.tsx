@@ -74,8 +74,8 @@ export const EmployeeDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   return (
     <EmployeeDataContext.Provider
       value={{
-        sharedKpis: kpis,
-        sharedReviews: reviews,
+        sharedKpis,
+        sharedReviews,
         sharedDepartmentFeatures,
         dataFetched,
         loading,

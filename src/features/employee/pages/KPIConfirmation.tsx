@@ -78,12 +78,9 @@ const KPIConfirmation: React.FC = () => {
   // 2. AND calculation method is NOT Actual vs Target (!isActualValueMethod = true)
   const shouldShowEmployeeColumns = !isSelfRatingDisabled && !isActualValueMethod;
 
-  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  // NEW LOGIC: Hide Performance Reflection when KPI period is Quarterly
   const reviewPeriodNormalized = reviewPeriod?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-  const shouldHidePerformanceReflection = 
-    reviewPeriodNormalized === 'quarterly' && 
-    calculationMethodName.includes('Goal Weight') && 
-    !isSelfRatingDisabled;
+  const shouldHidePerformanceReflection = reviewPeriodNormalized === 'quarterly';
 
   
 

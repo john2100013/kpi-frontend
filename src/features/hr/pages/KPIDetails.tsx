@@ -56,12 +56,9 @@ const HRKPIDetails: React.FC = () => {
   // Show employee columns ONLY if self-rating is enabled AND NOT using Actual vs Target
   const shouldShowEmployeeColumns = !isSelfRatingDisabled && !isActualValueMethod;
   
-  // NEW LOGIC: Hide Performance Reflection when Quarterly + Goal Weight + Self Rating Enabled
+  // NEW LOGIC: Hide Performance Reflection when KPI period is Quarterly
   const reviewPeriodNormalized = reviewPeriod?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
-  const shouldHidePerformanceReflection = 
-    reviewPeriodNormalized === 'quarterly' && 
-    calculationMethodName.includes('Goal Weight') && 
-    !isSelfRatingDisabled;
+  const shouldHidePerformanceReflection = reviewPeriodNormalized === 'quarterly';
   
  
 
