@@ -5,7 +5,7 @@
  * Handles complex review workflow with ratings, comments, and signatures.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
@@ -87,6 +87,8 @@ interface UseManagerKPIReviewReturn {
   managerReviewMeetingDate: string;
   managerReviewMeetingTime: string;
   overallManagerRating: number;
+  aiGeneratedReport: string;
+  aiReportFocus: string;
   
   // Actions
   setManagerRatings: (ratings: ItemRatingsMap) => void;
@@ -118,6 +120,8 @@ interface UseManagerKPIReviewReturn {
   setManagerReviewMeetingDate: (date: string) => void;
   setManagerReviewMeetingTime: (time: string) => void;
   setOverallManagerRating: (rating: number) => void;
+  setAiGeneratedReport: (report: string) => void;
+  setAiReportFocus: (focus: string) => void;
   // Confirm dialog
   confirmState: any;
   handleConfirm: () => void;
@@ -169,9 +173,13 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   const [managerReviewMeetingDate, setManagerReviewMeetingDate] = useState('');
   const [managerReviewMeetingTime, setManagerReviewMeetingTime] = useState('');
   const [overallManagerRating, setOverallManagerRating] = useState<number>(5);
+  
+  // AI Report Generation
+  const [aiGeneratedReport, setAiGeneratedReport] = useState<string>('');
+  const [aiReportFocus, setAiReportFocus] = useState<string>('comprehensive');
 
   // Get calculation method from department features
-  const { getCalculationMethodName } = useCompanyFeatures(kpi?.id);
+  useCompanyFeatures(kpi?.id);
 
   useEffect(() => {
  
@@ -362,9 +370,6 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         const mgrQualitativeRatings: ItemRatingsMap = {};
         const mgrQualitativeComments: ItemCommentsMap = {};
         const mgrActualValues: Record<number, string> = {};
-        const mgrTargetValues: Record<number, string> = {};
-        const mgrGoalWeights: Record<number, string> = {};
-        const mgrCurrentStatuses: Record<number, string> = {};
         
         if (reviewData.item_ratings && reviewData.item_ratings.manager) {
           Object.entries(reviewData.item_ratings.manager).forEach(([itemIdStr, ratingData]: [string, any]) => {
@@ -718,6 +723,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           manager_review_meeting_date: managerReviewMeetingConfirmed ? managerReviewMeetingDate : null,
           manager_review_meeting_time: managerReviewMeetingConfirmed ? managerReviewMeetingTime : null,
           overall_manager_rating: overallManagerRating,
+          // AI Generated Report
+          ai_generated_report: aiGeneratedReport || null,
+          ai_report_focus: aiGeneratedReport ? aiReportFocus : null,
         };
 
         
@@ -726,7 +734,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         
         
         // Log each item's data to verify what's being sent
-        managerRatingsArray.forEach((item, index) => {
+        managerRatingsArray.forEach((item) => {
          
           
           // Warn about missing critical data
@@ -926,6 +934,8 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     managerReviewMeetingDate,
     managerReviewMeetingTime,
     overallManagerRating,
+    aiGeneratedReport,
+    aiReportFocus,
     
     // Actions
     setManagerRatings,
@@ -957,6 +967,8 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
     setManagerReviewMeetingDate,
     setManagerReviewMeetingTime,
     setOverallManagerRating,
+    setAiGeneratedReport,
+    setAiReportFocus,
     // Confirm dialog
     confirmState,
     handleConfirm,

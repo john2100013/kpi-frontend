@@ -59,6 +59,9 @@ const ManagerKPISetting: React.FC = () => {
     setManagerMeetingLocation,
     setManagerMeetingDate,
     setManagerMeetingTime,
+    // Sales KPI Confirmation
+    salesKpiConfirmed,
+    setSalesKpiConfirmed,
     // Template titles
     templateTitles,
     isDepartmentTemplateEnabled,
@@ -207,6 +210,9 @@ const ManagerKPISetting: React.FC = () => {
         templateTitles={templateTitles}
         isDepartmentTemplateEnabled={isDepartmentTemplateEnabled}
         employeeDepartmentId={employeeDepartmentId || undefined}
+        // Sales KPI Confirmation
+        salesKpiConfirmed={salesKpiConfirmed}
+        onSalesKpiConfirmedChange={setSalesKpiConfirmed}
       />
 
       <ConfirmDialog

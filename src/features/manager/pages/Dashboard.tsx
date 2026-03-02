@@ -15,6 +15,8 @@ import {
   FiSave,
   FiInfo,
   FiSearch,
+  FiChevronDown,
+  FiCheck,
 } from 'react-icons/fi';
 import { useManagerDashboard, getCategoryLabel, getCategoryColor, getCategoryIcon, getPeriodLabel, getPeriodValue } from '../hooks';
 import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
@@ -24,6 +26,8 @@ const ManagerDashboard: React.FC = () => {
   const {
     reviews,
     departmentStatistics,
+    filteredDepartmentStatistics,
+    visibleDepartments,
     periodSettings,
     notifications,
     recentActivity,
@@ -55,12 +59,15 @@ const ManagerDashboard: React.FC = () => {
     handleMarkNotificationRead,
     handleEmployeeSelect,
     shouldShowAsManagerInitiated,
+    toggleDepartmentVisibility,
+    toggleAllDepartments,
     navigate,
     handleKpiTypeChange,
     handlePeriodChange,
   } = useManagerDashboard();
 
   const { features, loading: featuresLoading } = useCompanyFeatures();
+  const [showDepartmentFilter, setShowDepartmentFilter] = React.useState(false);
 
   const handleSaveDefaultPeriod = async () => {
     const success = await saveDefaultPeriod();
@@ -219,7 +226,7 @@ const ManagerDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <StatsCard
           title="Total Employees"
-          value={departmentStatistics.reduce((sum, stat) => sum + stat.total_employees, 0)}
+          value={filteredDepartmentStatistics.reduce((sum, stat) => sum + stat.total_employees, 0)}
           icon={<FiUsers />}
           iconBgColor="bg-purple-100"
           iconColor="text-purple-600"
@@ -227,7 +234,7 @@ const ManagerDashboard: React.FC = () => {
         
         <StatsCard
           title="Total KPIs"
-          value={departmentStatistics.reduce((sum, stat) => 
+          value={filteredDepartmentStatistics.reduce((sum, stat) => 
             sum + stat.categories.pending + stat.categories.acknowledged_review_pending + 
             stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
             stat.categories.review_completed + stat.categories.review_rejected +
@@ -239,7 +246,7 @@ const ManagerDashboard: React.FC = () => {
         
         <StatsCard
           title="KPI Review Completed"
-          value={departmentStatistics.reduce((sum, stat) => sum + stat.categories.review_completed, 0)}
+          value={filteredDepartmentStatistics.reduce((sum, stat) => sum + stat.categories.review_completed, 0)}
           icon={<FiCheckCircle />}
           iconBgColor="bg-green-100"
           iconColor="text-green-600"
@@ -249,7 +256,7 @@ const ManagerDashboard: React.FC = () => {
         
         <StatsCard
           title="KPI Setting Completed"
-          value={departmentStatistics.reduce((sum, stat) => 
+          value={filteredDepartmentStatistics.reduce((sum, stat) => 
             sum + stat.categories.acknowledged_review_pending + 
             stat.categories.self_rating_submitted + 
             stat.categories.awaiting_employee_confirmation +
@@ -263,7 +270,7 @@ const ManagerDashboard: React.FC = () => {
         
         <StatsCard
           title="Employees without KPI"
-          value={departmentStatistics.reduce((sum, stat) => sum + stat.categories.no_kpi, 0)}
+          value={filteredDepartmentStatistics.reduce((sum, stat) => sum + stat.categories.no_kpi, 0)}
           icon={<FiUsers />}
           iconBgColor="bg-gray-100"
           iconColor="text-gray-600"
@@ -275,8 +282,66 @@ const ManagerDashboard: React.FC = () => {
         <div className="space-y-6 department-overview">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Department Overview</h2>
+            
+            {/* Department Filter Dropdown */}
+            {departmentStatistics.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowDepartmentFilter(!showDepartmentFilter)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <FiFilter className="text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Filter Departments ({visibleDepartments.size}/{departmentStatistics.length})
+                  </span>
+                  <FiChevronDown className={`text-gray-600 transition-transform ${showDepartmentFilter ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showDepartmentFilter && (
+                  <>
+                    {/* Backdrop to close dropdown */}
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setShowDepartmentFilter(false)}
+                    />
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
+                      <div className="p-3 border-b border-gray-200">
+                        <button
+                          onClick={toggleAllDepartments}
+                          className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                        >
+                          <span>
+                            {visibleDepartments.size === departmentStatistics.length ? 'Deselect All' : 'Select All'}
+                          </span>
+                          {visibleDepartments.size === departmentStatistics.length && (
+                            <FiCheck className="text-purple-600" />
+                          )}
+                        </button>
+                      </div>
+                      
+                      <div className="p-2">
+                        {departmentStatistics.map((stat: any) => (
+                          <button
+                            key={stat.department}
+                            onClick={() => toggleDepartmentVisibility(stat.department)}
+                            className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 rounded transition-colors"
+                          >
+                            <span className="text-gray-700">{stat.department}</span>
+                            {visibleDepartments.has(stat.department) && (
+                              <FiCheck className="text-green-600" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          {departmentStatistics.map((stat: any) => {
+          {filteredDepartmentStatistics.map((stat: any) => {
             const totalKPIs = stat.categories.pending + stat.categories.acknowledged_review_pending + 
                              stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
                              stat.categories.review_completed + stat.categories.review_rejected +
@@ -345,9 +410,13 @@ const ManagerDashboard: React.FC = () => {
           );
         })}
 
-          {departmentStatistics.length === 0 && (
+          {filteredDepartmentStatistics.length === 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <p className="text-gray-500">No department statistics available</p>
+              <p className="text-gray-500">
+                {departmentStatistics.length === 0 
+                  ? 'No department statistics available' 
+                  : 'No departments selected. Use the filter above to select departments to display.'}
+              </p>
             </div>
           )}
         </div>
@@ -443,6 +512,7 @@ const ManagerDashboard: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payroll Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">KPI Title</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -452,7 +522,7 @@ const ManagerDashboard: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {kpisByCategory.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       No KPIs found in this category
                     </td>
                   </tr>
@@ -460,9 +530,10 @@ const ManagerDashboard: React.FC = () => {
                   kpisByCategory.map((kpi) => {
                     const isManagerInitiated = shouldShowAsManagerInitiated(kpi);
                     const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
+                    const isOversightOnly = kpi.is_primary === 0;
                     
                     return (
-                      <tr key={kpi.id} className={`hover:bg-gray-50 ${isManagerInitiated && selectedCategory === 'acknowledged_review_pending' ? 'bg-purple-50' : ''}`}>
+                      <tr key={kpi.id} className={`hover:bg-gray-50 ${isOversightOnly ? 'bg-blue-50' : isManagerInitiated && selectedCategory === 'acknowledged_review_pending' ? 'bg-purple-50' : ''}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{kpi.employee_name}</div>
                           <div className="text-sm text-gray-500">{kpi.employee_email}</div>
@@ -470,9 +541,16 @@ const ManagerDashboard: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {kpi.employee_payroll_number}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{kpi.employee_department}</div>
+                          {isOversightOnly && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
+                              Oversight Only
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="text-sm font-medium text-gray-900">{kpi.title || 'Untitled KPI'}</div>
-                          <div className="text-sm text-gray-500">{kpi.employee_department}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
@@ -507,13 +585,34 @@ const ManagerDashboard: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             {/* For "acknowledged_review_pending" with manager initiate */}
                             {selectedCategory === 'acknowledged_review_pending' && isManagerInitiated ? (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => navigate(`/manager/kpi-review/kpi/${kpi.id}`)}
-                              >
-                                Start Review
-                              </Button>
+                              isOversightOnly ? (
+                                <div className="flex flex-col space-y-1">
+                                  <span className="text-xs text-gray-600 italic">
+                                    You are the top-level manager.
+                                  </span>
+                                  {kpi.assigned_manager_name && (
+                                    <span className="text-xs text-gray-600">
+                                      {kpi.assigned_manager_name} will review this.
+                                    </span>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={FiEye}
+                                    onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                                  >
+                                    View KPI
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => navigate(`/manager/kpi-review/kpi/${kpi.id}`)}
+                                >
+                                  Start Review
+                                </Button>
+                              )
                             ) : 
                             /* For "acknowledged_review_pending" with employee self-rate */
                             selectedCategory === 'acknowledged_review_pending' && !isManagerInitiated ? (
@@ -528,33 +627,54 @@ const ManagerDashboard: React.FC = () => {
                             ) :
                             /* For "self_rating_submitted" - awaiting manager review */
                             selectedCategory === 'self_rating_submitted' ? (
-                              <>
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => {
-                                    // Find the review for this KPI
-                                    const review = reviews.find(r => r.kpi_id === kpi.id);
-                                    if (review) {
-                                      navigate(`/manager/kpi-review/${review.id}`);
-                                    } else {
-                                      // If no review found, navigate to KPI details
-                                      navigate(`/manager/kpi-details/${kpi.id}`);
-                                    }
-                                  }}
-                                >
-                                  Review
-                                </Button>
-                                <span className="text-gray-300">|</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  icon={FiEye}
-                                  onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
-                                >
-                                  View KPI
-                                </Button>
-                              </>
+                              isOversightOnly ? (
+                                <div className="flex flex-col space-y-1">
+                                  <span className="text-xs text-gray-600 italic">
+                                    You are the top-level manager.
+                                  </span>
+                                  {kpi.assigned_manager_name && (
+                                    <span className="text-xs text-gray-600">
+                                      {kpi.assigned_manager_name} will review this.
+                                    </span>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={FiEye}
+                                    onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                                  >
+                                    View KPI
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Find the review for this KPI
+                                      const review = reviews.find(r => r.kpi_id === kpi.id);
+                                      if (review) {
+                                        navigate(`/manager/kpi-review/${review.id}`);
+                                      } else {
+                                        // If no review found, navigate to KPI details
+                                        navigate(`/manager/kpi-details/${kpi.id}`);
+                                      }
+                                    }}
+                                  >
+                                    Review
+                                  </Button>
+                                  <span className="text-gray-300">|</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={FiEye}
+                                    onClick={() => navigate(`/manager/kpi-details/${kpi.id}`)}
+                                  >
+                                    View KPI
+                                  </Button>
+                                </>
+                              )
                             ) : (
                               /* For all other categories */
                               <Button

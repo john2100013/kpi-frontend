@@ -17,6 +17,7 @@ export interface KPIRowData {
   is_qualitative: boolean;  // Required, not optional
   exclude_from_calculation?: number;  // 0 = included, 1 = excluded from calculation
   measure_criteria?: string;
+  is_sales_kpi?: boolean;  // Indicates if this KPI is for sales (used for bonus calculations)
 }
 
 // Template title interface
@@ -92,6 +93,10 @@ interface KPIFormTableProps {
   // Control for showing dropdown
   useTemplateDropdown?: boolean;
   onUseTemplateDropdownChange?: (use: boolean) => void;
+  
+  // Sales KPI Confirmation
+  salesKpiConfirmed?: boolean;
+  onSalesKpiConfirmedChange?: (confirmed: boolean) => void;
 }
 
 export const KPIFormTable: React.FC<KPIFormTableProps> = ({
@@ -129,6 +134,8 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
   employeeDepartmentId,
   useTemplateDropdown = false,
   onUseTemplateDropdownChange,
+  salesKpiConfirmed = false,
+  onSalesKpiConfirmedChange,
 }) => {
   const canRemoveRow = (_index: number) => kpiRows.length > minRows;
 
@@ -308,6 +315,26 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
             </Button>
           </div>
 
+          {/* Sales KPI Note */}
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-green-900 mb-1">Sales KPI Information</h4>
+                <p className="text-sm text-green-800">
+                  <strong>Important:</strong> If this employee has sales responsibilities, please enter the Sales KPI in the <strong className="text-green-900">first row (highlighted in green)</strong>. This helps the system calculate bonuses accurately based on sales performance.
+                </p>
+                <p className="text-xs text-green-700 mt-2">
+                  Note: Not all employees or departments have sales KPIs. This is optional and only applies to sales-related positions.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="overflow-x-auto max-w-full">
             <table className="w-full border-collapse" style={{ minWidth: '1600px' }}>
               <thead>
@@ -331,9 +358,14 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
               </thead>
               <tbody>
                 {kpiRows.map((kpi, index) => (
-                  <tr key={index}>
-                    <td className="border border-gray-200 p-2 text-center">
-                      <span className="font-semibold text-gray-700">{index + 1}</span>
+                  <tr key={index} className={index === 0 ? 'bg-green-50' : ''}>
+                    <td className={`border border-gray-200 p-2 text-center ${index === 0 ? 'bg-green-100' : ''}`}>
+                      <div className="flex flex-col items-center">
+                        <span className={`font-semibold ${index === 0 ? 'text-green-700' : 'text-gray-700'}`}>{index + 1}</span>
+                        {index === 0 && (
+                          <span className="text-xs text-green-600 font-medium mt-1">Sales</span>
+                        )}
+                      </div>
                     </td>
                     
                     {/* SHOW CHECKBOX IN BOTH MODES - Remove the mode condition */}
@@ -518,6 +550,33 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
           </div>
         </div>
 
+        {/* Sales KPI Confirmation Checkbox */}
+        {mode === 'setting' && onSalesKpiConfirmedChange && (
+          <div className="mt-6 border-t border-gray-200 pt-6">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={salesKpiConfirmed || false}
+                  onChange={(e) => onSalesKpiConfirmedChange(e.target.checked)}
+                  className="w-5 h-5 text-amber-600 rounded focus:ring-amber-500 mt-0.5"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-gray-900">
+                    I confirm that if this employee has sales KPI, it has been entered in the first row (highlighted in green)
+                  </span>
+                  <p className="text-xs text-gray-600 mt-1">
+                    This helps ensure accurate bonus calculations. If this employee does not have sales responsibilities, you can still submit without checking this box.
+                  </p>
+                  <p className="text-xs text-amber-700 mt-2 font-medium">
+                    ⚠ Optional: Not all employees have sales KPIs. This is just a reminder for those who do.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Physical Meeting Confirmation - Manager */}
         {mode === 'setting' && onManagerMeetingConfirmedChange && (
           <div className="mt-6 border-t border-gray-200 pt-6">
@@ -576,6 +635,7 @@ export const KPIFormTable: React.FC<KPIFormTableProps> = ({
                       </label>
                       <input
                         type="time"
+                        step="60"
                         value={managerMeetingTime || ''}
                         onChange={(e) => onManagerMeetingTimeChange?.(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"

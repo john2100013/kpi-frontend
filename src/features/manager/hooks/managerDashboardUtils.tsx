@@ -38,7 +38,11 @@ export const getKPIStage = (
   reviews: KPIReview[],
   companyFeatures?: { enable_employee_self_rating_quarterly?: boolean; enable_employee_self_rating_yearly?: boolean } | null
 ): { stage: string; color: string; icon: React.ReactNode } => {
+  // Find ANY review (including drafts) for status checking
   const review = reviews.find(r => r.kpi_id === kpi.id);
+  
+  // Find SUBMITTED review (excluding drafts) for "Review Pending" check
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
   if (kpi.status === 'pending') {
     return {
@@ -48,8 +52,8 @@ export const getKPIStage = (
     };
   }
 
-  // Check if this is a manager-initiated review (acknowledged but no review, self-rating disabled)
-  if (kpi.status === 'acknowledged' && !review && companyFeatures) {
+  // Check if this is a manager-initiated review (acknowledged but no SUBMITTED review, self-rating disabled)
+  if (kpi.status === 'acknowledged' && !submittedReview && companyFeatures) {
     const isManagerInitiated = shouldManagerInitiateReview(kpi, companyFeatures);
     if (isManagerInitiated) {
       return {
@@ -60,7 +64,8 @@ export const getKPIStage = (
     }
   }
 
-  if (kpi.status === 'acknowledged' && !review) {
+  // Check for SUBMITTED review, not drafts
+  if (kpi.status === 'acknowledged' && !submittedReview) {
     return {
       stage: 'KPI Acknowledged - Review Pending',
       color: 'bg-blue-100 text-blue-700',

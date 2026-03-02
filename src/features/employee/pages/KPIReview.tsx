@@ -32,7 +32,6 @@ const SelfRating: React.FC = () => {
     averageRating,
     completion,
     employeeRatingPercentage,
-    goalWeights,
     setEmployeeSignature,
     setReviewDate,
     setMajorAccomplishments,
@@ -80,29 +79,34 @@ const SelfRating: React.FC = () => {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col space-y-3">
+        <div className="flex items-start space-x-3 sm:space-x-4">
           <Button
             onClick={() => navigate(-1)}
             variant="ghost"
             size="sm"
             icon={FiArrowLeft}
-            className="p-2"
+            className="p-2 flex-shrink-0"
           />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               {kpi.period === 'quarterly' ? 'Quarterly' : 'Yearly'} KPI Self-Rating
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               {kpi.quarter} {kpi.year} • {kpi.period === 'quarterly' ? 'Jan - Mar' : 'Jan - Dec'}{' '}
               {kpi.year} • Due: March 31, {kpi.year}
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <Button onClick={handleSaveDraft} variant="secondary" icon={FiSave}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+          <Button 
+            onClick={handleSaveDraft} 
+            variant="secondary" 
+            icon={FiSave}
+            className="w-full sm:w-auto"
+          >
             Save as Draft
           </Button>
           <Button
@@ -111,6 +115,7 @@ const SelfRating: React.FC = () => {
             variant="primary"
             icon={FiSend}
             loading={saving}
+            className="w-full sm:w-auto"
           >
             Submit Self-Rating
           </Button>
@@ -118,11 +123,11 @@ const SelfRating: React.FC = () => {
       </div>
 
       {/* Instructions and Calculation Settings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Self-Rating Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">Self-Rating Instructions</h3>
-          <ul className="space-y-2 text-sm text-blue-800 list-disc list-inside">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
+          <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-3">Self-Rating Instructions</h3>
+          <ul className="space-y-2 text-xs sm:text-sm text-blue-800 list-disc list-inside">
             <li>
               Provide honest and accurate self-assessments based on your actual achievements during
               this quarter
@@ -138,8 +143,8 @@ const SelfRating: React.FC = () => {
         </div>
 
         {/* Department Calculation Settings */}
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-6">
-          <h3 className="font-semibold text-purple-900 mb-4">Department Calculation Settings</h3>
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 sm:p-6">
+          <h3 className="text-sm sm:text-base font-semibold text-purple-900 mb-4">Department Calculation Settings</h3>
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-1">

@@ -3,20 +3,34 @@
  * 
  * Custom hook for managing reviews list page state and logic.
  * Now includes acknowledged KPIs waiting for manager to initiate review
+ * UPDATED: Supports filtering between all reviews and primary department reviews only
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { KPIReview, KPI } from '../../../types';
 import { useDepartmentFeatures, DepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
 
+interface ManagerDepartment {
+  id: number;
+  name: string;
+  is_primary: number;
+  assigned_at: string;
+  employee_count: number;
+  active_kpi_count: number;
+}
+
 interface UseManagerReviewsListReturn {
   reviews: KPIReview[];
   acknowledgedKPIs: KPI[];
   loading: boolean;
   pendingCount: number;
+  reviewFilter: 'all' | 'primary-only';
+  managerDepartments: ManagerDepartment[];
+  filteredReviews: KPIReview[];
+  filteredAcknowledgedKPIs: KPI[];
   getStatusColor: (status: string) => string;
   handleBack: () => void;
   handleReview: (reviewId: number) => void;
@@ -25,6 +39,7 @@ interface UseManagerReviewsListReturn {
   handleView: (reviewId: number) => void;
   handleStartReview: (kpiId: number) => void;
   shouldShowAsManagerInitiated: (kpi: KPI) => boolean;
+  setReviewFilter: (filter: 'all' | 'primary-only') => void;
 }
 
 export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
@@ -32,6 +47,8 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
   const [reviews, setReviews] = useState<KPIReview[]>([]);
   const [acknowledgedKPIs, setAcknowledgedKPIs] = useState<KPI[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'primary-only'>('all');
+  const [managerDepartments, setManagerDepartments] = useState<ManagerDepartment[]>([]);
   const toast = useToast();
   const { fetchDepartmentFeaturesById } = useDepartmentFeatures();
   
@@ -44,16 +61,19 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
 
   const fetchData = async () => {
     try {
-      // Fetch both reviews and acknowledged KPIs waiting for review
-      const [reviewsResponse, kpisResponse] = await Promise.all([
+      // Fetch reviews, acknowledged KPIs, and manager departments with access levels
+      const [reviewsResponse, kpisResponse, departmentsResponse] = await Promise.all([
         api.get('/kpi-review'),
-        api.get('/kpis/acknowledged-review-pending')
+        api.get('/kpis/acknowledged-review-pending'),
+        api.get('/users/managers/departments-with-access')
       ]);
       
       // Handle nested response structure: response.data.data.kpis OR response.data.kpis
       const acknowledgedKPIsData = kpisResponse.data.data?.kpis || kpisResponse.data.kpis || [];
       const reviewsData = reviewsResponse.data.data?.reviews || reviewsResponse.data.reviews || [];
+      const departmentsData = departmentsResponse.data.departments || [];
       
+     
       // Extract unique employee department IDs from acknowledged KPIs
       const employeeDeptIds = [...new Set(
         acknowledgedKPIsData
@@ -73,15 +93,39 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
       );
       
       setEmployeeDeptFeaturesCache(newCache);
-      
       setReviews(reviewsData);
       setAcknowledgedKPIs(acknowledgedKPIsData);
+      setManagerDepartments(departmentsData);
     } catch (error) {
       toast.error('Could not fetch manager reviews data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter reviews based on selected filter
+  const filteredReviews = useMemo(() => {
+    
+    
+    if (reviewFilter === 'primary-only') {
+      const filtered = reviews.filter(r => r.is_primary === 1);
+      return filtered;
+    }
+    
+    return reviews;
+  }, [reviews, reviewFilter]);
+
+  // Filter acknowledged KPIs based on selected filter
+  const filteredAcknowledgedKPIs = useMemo(() => {
+   
+    
+    if (reviewFilter === 'primary-only') {
+      const filtered = acknowledgedKPIs.filter(kpi => kpi.is_primary === 1);
+      return filtered;
+    }
+    
+    return acknowledgedKPIs;
+  }, [acknowledgedKPIs, reviewFilter]);
 
   // Check if a KPI should be shown as "Manager to initiate" based on period and settings
   // CHECKS THE EMPLOYEE'S DEPARTMENT FEATURES
@@ -102,9 +146,9 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
     return false;
   };
 
-  const pendingCount = reviews.filter(
+  const pendingCount = filteredReviews.filter(
     r => r.review_status === 'employee_submitted' || r.review_status === 'pending'
-  ).length + acknowledgedKPIs.filter(shouldShowAsManagerInitiated).length;
+  ).length + filteredAcknowledgedKPIs.filter(shouldShowAsManagerInitiated).length;
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -153,6 +197,10 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
     acknowledgedKPIs,
     loading,
     pendingCount,
+    reviewFilter,
+    managerDepartments,
+    filteredReviews,
+    filteredAcknowledgedKPIs,
     getStatusColor,
     handleBack,
     handleReview,
@@ -161,5 +209,6 @@ export const useManagerReviewsList = (): UseManagerReviewsListReturn => {
     handleView,
     handleStartReview,
     shouldShowAsManagerInitiated,
+    setReviewFilter,
   };
 };

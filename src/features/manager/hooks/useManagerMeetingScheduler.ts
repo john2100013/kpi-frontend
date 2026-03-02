@@ -158,11 +158,12 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
         meetingData.review_id = selectedReviewId;
       }
 
-      await api.post('/meetings', meetingData);
-      toast.success('Meeting scheduled successfully! Email notifications have been sent.');
+      await api.post('/meetings/schedule', meetingData);
+      toast.success('Meeting scheduled successfully! Email notifications are being sent.');
       navigate('/manager/dashboard');
     } catch (error: any) {
-      toast.error('Failed to schedule meeting. Please try again.');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to schedule meeting. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -176,14 +177,24 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
     navigate(-1);
   };
 
-  // Filter KPIs and reviews by selected employee
-  const filteredKPIs = selectedEmployeeId 
-    ? (Array.isArray(kpis) ? kpis.filter(k => k.employee_id === selectedEmployeeId) : [])
-    : (Array.isArray(kpis) ? kpis : []);
+  // Filter KPIs and reviews by selected employee and deduplicate by ID
+  const filteredKPIs = (() => {
+    const filtered = selectedEmployeeId 
+      ? (Array.isArray(kpis) ? kpis.filter(k => k.employee_id === selectedEmployeeId) : [])
+      : (Array.isArray(kpis) ? kpis : []);
+    // Deduplicate by ID
+    const uniqueMap = new Map(filtered.map(k => [k.id, k]));
+    return Array.from(uniqueMap.values());
+  })();
 
-  const filteredReviews = selectedEmployeeId
-    ? (Array.isArray(reviews) ? reviews.filter(r => r.employee_id === selectedEmployeeId) : [])
-    : (Array.isArray(reviews) ? reviews : []);
+  const filteredReviews = (() => {
+    const filtered = selectedEmployeeId
+      ? (Array.isArray(reviews) ? reviews.filter(r => r.employee_id === selectedEmployeeId) : [])
+      : (Array.isArray(reviews) ? reviews : []);
+    // Deduplicate by ID
+    const uniqueMap = new Map(filtered.map(r => [r.id, r]));
+    return Array.from(uniqueMap.values());
+  })();
 
   return {
     loading,

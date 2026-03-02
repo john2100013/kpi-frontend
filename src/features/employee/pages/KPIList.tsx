@@ -101,28 +101,28 @@ const KPIList: React.FC = () => {
   const someDisabled = kpisWithDisabledSelfRating.length > 0 && kpisWithDisabledSelfRating.length < kpis.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
         <Button
           onClick={handleBack}
           variant="ghost"
           icon={FiArrowLeft}
-          className="p-2"
+          className="p-2 self-start"
         />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My KPIs</h1>
-          <p className="text-sm text-gray-600 mt-1">View all your KPIs and their current status</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My KPIs</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">View all your KPIs and their current status</p>
         </div>
       </div>
 
       {/* Self-Rating Disabled Notice */}
       {allDisabled && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-start space-x-3">
-            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiInfo className="text-blue-600 text-base sm:text-lg flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-blue-800">
+              <p className="text-xs sm:text-sm text-blue-800">
                 <strong>Manager-Led Review:</strong> Your organization uses a manager-led review process. 
                 You can view your KPIs, but reviews will be initiated by your manager.
               </p>
@@ -131,11 +131,11 @@ const KPIList: React.FC = () => {
         </div>
       )}
       {someDisabled && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <div className="flex items-start space-x-3">
-            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiInfo className="text-purple-600 text-base sm:text-lg flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-purple-800">
+              <p className="text-xs sm:text-sm text-purple-800">
                 <strong>Mixed Review Process:</strong> Some KPIs have self-rating disabled and will be manager-led.
                 Check individual KPI badges for details.
               </p>
@@ -146,8 +146,8 @@ const KPIList: React.FC = () => {
 
       {/* KPI Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             All KPIs ({kpis.length})
           </h2>
         </div>
@@ -175,7 +175,7 @@ const KPIList: React.FC = () => {
                   const isSelfRatingEnabled = isSelfRatingEnabledForKPI(kpi);
                   const calculationMethod = getCalculationMethod(kpi);
                   const stageInfo = getKPIStage(kpi, reviews, isSelfRatingEnabled);
-                  const primaryAction = getPrimaryAction(kpi, review, navigate);
+                  const primaryAction = getPrimaryAction(kpi, review, reviews, navigate);
                   const showEditButton = canEditReview(review);
 
                   return (

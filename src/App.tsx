@@ -52,6 +52,22 @@ import {
   ReviewReport,
 } from './features/hr';
 
+// Manager Rating Pages - HR
+import ManagerRatingOptions from './features/hr/pages/ManagerRatingOptions';
+import ManagerRatingTemplates from './features/hr/pages/ManagerRatingTemplates';
+import ManagerRatingTemplateForm from './features/hr/pages/ManagerRatingTemplateForm';
+import ManagerRatingAssignments from './features/hr/pages/ManagerRatingAssignments';
+import ManagerRatingAssign from './features/hr/pages/ManagerRatingAssign';
+import ManagerRatingSubmissions from './features/hr/pages/ManagerRatingSubmissions';
+import ManagerRatingDepartmentEmployees from './features/hr/pages/ManagerRatingDepartmentEmployees';
+import ManagerRatingResults from './features/hr/pages/ManagerRatingResults';
+import EmailMonitor from './features/hr/pages/EmailMonitor';
+import BonusManagement from './features/hr/pages/BonusManagement';
+
+// Manager Rating Pages - Employee
+import EmployeeManagerRatingList from './features/employee/pages/EmployeeManagerRatingList';
+import EmployeeManagerRating from './features/employee/pages/EmployeeManagerRating';
+
 // Analytics Pages
 import { DepartmentAnalytics } from './features/analytics';
 
@@ -712,6 +728,28 @@ function AppRoutes() {
         }
       />
 
+      {/* Manager Rating Routes - Employee */}
+      <Route
+        path="/employee/manager-rating"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
+            <Layout>
+              <EmployeeManagerRatingList />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/employee/manager-rating/:id"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.EMPLOYEE]}>
+            <Layout>
+              <EmployeeManagerRating />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* HR Routes */}
       <Route
         path="/hr/dashboard"
@@ -814,6 +852,26 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/hr/email-monitor"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <EmailMonitor />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/bonus"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <BonusManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/hr/rejected-kpis"
         element={
           <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
@@ -879,6 +937,102 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={[ROLE_IDS.HR, ROLE_IDS.MANAGER, ROLE_IDS.SUPER_ADMIN]}>
             <Layout>
               <Employees />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Manager Rating Routes - HR */}
+      <Route
+        path="/hr/manager-rating"
+        element={<Navigate to="/hr/manager-rating/assignments" replace />}
+      />
+      <Route
+        path="/hr/manager-rating/options"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingOptions />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/templates"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingTemplates />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/templates/create"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingTemplateForm />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/templates/:id"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingTemplateForm />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/assignments"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingAssignments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/assignments/create"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingAssign />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/assignments/:id/department-employees"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingDepartmentEmployees />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/assignments/:id/submissions"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingSubmissions />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/manager-rating/results/:id"
+        element={
+          <ProtectedRoute allowedRoles={[ROLE_IDS.HR]}>
+            <Layout>
+              <ManagerRatingResults />
             </Layout>
           </ProtectedRoute>
         }

@@ -36,6 +36,10 @@ interface FormData {
   manager_id: string;
   password: string;
   confirmPassword: string;
+  has_sales_component: boolean;
+  quarterly_variable_amount: number;
+  yearly_variable_amount: number;
+  permission_level?: number; // For HR users: 5 = Senior HR, 6 = HR Assistant
 }
 
 const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess, companyId, companyName, preSelectedRoleId }) => {
@@ -53,6 +57,10 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
     manager_id: '',
     password: '',
     confirmPassword: '',
+    has_sales_component: false,
+    quarterly_variable_amount: 0,
+    yearly_variable_amount: 0,
+    permission_level: undefined,
   });
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -119,8 +127,14 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     setError('');
   };
 
@@ -143,6 +157,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
     }
     if (!formData.role_id) {
       setError('Role is required');
+      return false;
+    }
+    
+    // Permission level validation for HR (role_id: 3)
+    if ((formData.role_id === '3' || preSelectedRoleId === '3') && !formData.permission_level) {
+      setError('HR Access Level is required for HR users');
       return false;
     }
     
@@ -191,15 +211,20 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
         role_id: parseInt(formData.role_id),
         department_id: formData.department_id ? parseInt(formData.department_id) : null,
         manager_id: formData.manager_id ? parseInt(formData.manager_id) : null,
+        // Bonus configuration fields
+        has_sales_component: formData.has_sales_component ? 1 : 0,
+        quarterly_variable_amount: formData.quarterly_variable_amount,
+        yearly_variable_amount: formData.yearly_variable_amount,
         // Include password only for managers and HR, employees get default 'Africa.1'
         ...(isManagerOrHR && formData.password ? { password: formData.password } : {}),
+        // Include permission_level only for HR users
+        ...(formData.role_id === '3' && formData.permission_level ? { permission_level: formData.permission_level } : {}),
       };
 
 
 
-      const response = await api.post('/users/create', payload);
-      
 
+      await api.post('/users/create', payload);
       
       toast.success('User created successfully');
       
@@ -216,11 +241,14 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
         manager_id: '',
         password: '',
         confirmPassword: '',
+        has_sales_component: false,
+        quarterly_variable_amount: 0,
+        yearly_variable_amount: 0,
       });
 
       onSuccess();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to create user';
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to create user. Please check your input and try again.';
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -243,6 +271,9 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
         manager_id: '',
         password: '',
         confirmPassword: '',
+        has_sales_component: false,
+        quarterly_variable_amount: 0,
+        yearly_variable_amount: 0,
       });
       setError('');
       onClose();
@@ -437,6 +468,28 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
                     <p className="text-xs text-gray-500 mt-1">Company is set based on your current filter</p>
                   </div>
 
+                  {/* Permission Level for HR users */}
+                  {preSelectedRoleId === '3' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        HR Access Level <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="permission_level"
+                        value={formData.permission_level || ''}
+                        onChange={(e) => setFormData({ ...formData, permission_level: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        disabled={loading}
+                        required
+                      >
+                        <option value="">-- Select Access Level --</option>
+                        <option value="5">Senior HR (Full Access)</option>
+                        <option value="6">HR Assistant (Limited Access)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Determines bonus management access rights</p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Department {formData.role_id === '4' && <span className="text-red-500">*</span>}
@@ -497,6 +550,83 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSuccess,
                       {managers.length > 1 && (
                         <p className="text-xs text-gray-500 mt-1">Multiple managers in this department - please select one</p>
                       )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bonus Configuration Section */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-semibold text-green-900 mb-3">Bonus Configuration</h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="has_sales_component"
+                        checked={formData.has_sales_component}
+                        onChange={handleInputChange}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        disabled={loading}
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        This employee has a sales component
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Check this if the employee's bonus includes sales performance
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quarterly Variable Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="quarterly_variable_amount"
+                        value={formData.quarterly_variable_amount}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0.00"
+                        disabled={loading}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Base amount for quarterly bonus calculation
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Yearly Variable Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="yearly_variable_amount"
+                        value={formData.yearly_variable_amount}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0.00"
+                        disabled={loading}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Base amount for yearly bonus calculation
+                      </p>
+                    </div>
+                  </div>
+
+                  {formData.has_sales_component && (
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <p className="text-xs text-blue-700">
+                        <strong>Note:</strong> Sales and KPI percentages must add up to 100%. 
+                        Common splits: 80/20, 70/30. For employees without sales component, use 0/100.
+                      </p>
                     </div>
                   )}
                 </div>

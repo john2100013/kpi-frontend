@@ -65,6 +65,7 @@ export const useManagerDashboard = () => {
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [quarterlyPeriods, setQuarterlyPeriods] = useState<PeriodSetting[]>([]);
   const [yearlyPeriods, setYearlyPeriods] = useState<PeriodSetting[]>([]);
+  const [visibleDepartments, setVisibleDepartments] = useState<Set<string>>(new Set());
 
   const isLoading = loading || kpisLoading || statsLoading;
 
@@ -105,6 +106,17 @@ export const useManagerDashboard = () => {
     if (filters.department) params.department = filters.department;
     dispatch(fetchDepartmentStatistics(params));
   }, [dispatch, filters.period, filters.department]);
+
+  // Initialize visible departments when department statistics are loaded
+  useEffect(() => {
+    if (departmentStatistics && departmentStatistics.length > 0) {
+      // By default, show all departments
+      if (visibleDepartments.size === 0) {
+        const allDepts = new Set(departmentStatistics.map((stat: any) => stat.department));
+        setVisibleDepartments(allDepts);
+      }
+    }
+  }, [departmentStatistics]);
 
   const fetchInitialData = async () => {
     try {
@@ -345,11 +357,43 @@ export const useManagerDashboard = () => {
     return false;
   };
 
+  // Handle department visibility toggle
+  const toggleDepartmentVisibility = (department: string) => {
+    setVisibleDepartments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(department)) {
+        newSet.delete(department);
+      } else {
+        newSet.add(department);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle all departments visibility
+  const toggleAllDepartments = () => {
+    if (visibleDepartments.size === departmentStatistics.length) {
+      // If all are visible, hide all
+      setVisibleDepartments(new Set());
+    } else {
+      // Otherwise, show all
+      const allDepts = new Set(departmentStatistics.map((stat: any) => stat.department));
+      setVisibleDepartments(allDepts);
+    }
+  };
+
+  // Filter department statistics based on visible departments
+  const filteredDepartmentStatistics = departmentStatistics.filter((stat: any) => 
+    visibleDepartments.has(stat.department)
+  );
+
   return {
     // State
     kpis,
     reviews,
     departmentStatistics,
+    filteredDepartmentStatistics,
+    visibleDepartments,
     departmentsList,
     periodSettings,
     notifications,
@@ -393,6 +437,8 @@ export const useManagerDashboard = () => {
     getEmployeeKPICount,
     getEmployeeKPIStatus,
     shouldShowAsManagerInitiated,
+    toggleDepartmentVisibility,
+    toggleAllDepartments,
     navigate,
     handleKpiTypeChange,
     handlePeriodChange,

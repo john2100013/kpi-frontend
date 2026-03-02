@@ -3,7 +3,8 @@ import SignatureField from '../../../components/SignatureField';
 import DatePicker from '../../../components/DatePicker';
 import TextModal from '../../../components/TextModal';
 import AccomplishmentsTable from '../../../components/AccomplishmentsTable';
-import { FiArrowLeft, FiSave, FiSend, FiExternalLink } from 'react-icons/fi';
+import { AIReportGenerator } from '../components/AIReportGenerator';
+import { FiArrowLeft, FiSave, FiSend, FiExternalLink, FiFileText } from 'react-icons/fi';
 import { Button, ConfirmDialog } from '../../../components/common';
 import { useManagerKPIReview } from '../hooks';
 import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
@@ -95,6 +96,9 @@ const ManagerKPIReview: React.FC = () => {
   // Performance Reflection includes: Accomplishments, Disappointments, Improvement Needed, Future Plan
   // Note: Overall Manager Rating and Overall Manager Comment remain visible
   const shouldHidePerformanceReflection = kpiPeriod === 'quarterly';
+
+  // State to control AI Report visibility (hidden by default)
+  const [showAIReport, setShowAIReport] = React.useState(false);
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -1164,6 +1168,7 @@ const ManagerKPIReview: React.FC = () => {
                         </label>
                         <input
                           type="time"
+                          step="60"
                           value={managerReviewMeetingTime}
                           onChange={(e) => setManagerReviewMeetingTime(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -1203,6 +1208,65 @@ const ManagerKPIReview: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Report Toggle */}
+      <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-sm border border-purple-200 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <FiFileText className="text-purple-600 text-xl" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">AI-Powered Report Generation</h3>
+              <p className="text-sm text-gray-600">Generate a comprehensive AI analysis report</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium text-gray-700">Do you want to generate report?</span>
+            <button
+              onClick={() => setShowAIReport(!showAIReport)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                showAIReport ? 'bg-purple-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showAIReport ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* AI-Powered Report Generation */}
+      {showAIReport && review && review.id && kpi && (
+        <AIReportGenerator 
+          reviewId={review.id}
+          employeeName={review.employee_name || 'Employee'}
+          formData={{
+            kpis: kpi?.items?.map((item: any) => ({
+              name: item.title || item.kpi_name || 'Untitled KPI',
+              managerRating: managerRatings[item.id] || null,
+              managerComment: managerComments[item.id] || '',
+              employeeRating: employeeRatings[item.id] || null,
+              employeeComment: employeeComments[item.id] || '',
+              actualValue: actualValues[item.id] || '',
+              targetValue: targetValues[item.id] || item.target_value || '',
+              weight: goalWeights[item.id] || item.goal_weight || '',
+              performanceStatus: currentPerformanceStatuses[item.id] || item.current_performance_status || '',
+              managerPercentage: managerRatingPercentages[item.id] || null
+            })) || [],
+            managerComments: managerComments,
+            qualitativeComments: qualitativeComments,
+            overallComment: overallComment,
+            accomplishments: accomplishments,
+            disappointments: disappointmentsManagerComment,
+            improvements: improvementNeededManagerComment,
+            overallRating: overallManagerRating
+          }}
+        />
+      )}
 
       {/* Action Buttons */}
       <div className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">

@@ -8,14 +8,17 @@ import { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import { User } from '../../../types';
+import { User, ManagerDepartmentAssignment } from '../../../types';
 
 interface UseManagerEmployeeSelectionReturn {
   employees: User[];
   loading: boolean;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  departmentFilter: 'all' | 'primary';
+  setDepartmentFilter: (filter: 'all' | 'primary') => void;
   reviews: any[];
+  managerDepartments: ManagerDepartmentAssignment[];
   currentPage: number;
   employeesPerPage: number;
   filteredEmployees: User[];
@@ -40,20 +43,23 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState<'all' | 'primary'>('all');
   const [reviews, setReviews] = useState<any[]>([]);
+  const [managerDepartments, setManagerDepartments] = useState<ManagerDepartmentAssignment[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const employeesPerPage = 15;
 
   useEffect(() => {
     fetchEmployees();
     fetchReviews();
+    fetchManagerDepartments();
   }, []);
 
   const toast = useToast();
-  // Reset to page 1 when search query changes
+  // Reset to page 1 when search query or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, departmentFilter]);
 
   const fetchEmployees = async () => {
     try {
@@ -88,6 +94,17 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     }
   };
 
+  const fetchManagerDepartments = async () => {
+    try {
+      const response = await api.get('/departments/manager/my-departments');
+      const departments = response.data.data?.departments || response.data.data?.assignments || [];
+      setManagerDepartments(departments);
+    } catch (error) {
+      toast.error('Unable to load your departments. Please refresh the page.');
+      setManagerDepartments([]);
+    }
+  };
+
   const fetchReviews = async () => {
     try {
       const response = await api.get('/kpi-review');
@@ -98,11 +115,17 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     }
   };
 
-  const filteredEmployees = employees.filter((emp) =>
-    emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    emp.payroll_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    emp.department?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEmployees = employees.filter((emp) => {
+    // Apply search filter
+    const matchesSearch = emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.payroll_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.department?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Apply department filter
+    const matchesDepartmentFilter = departmentFilter === 'all' || emp.is_primary === 1;
+    
+    return matchesSearch && matchesDepartmentFilter;
+  });
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredEmployees.length / employeesPerPage);
@@ -157,7 +180,10 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     loading,
     searchQuery,
     setSearchQuery,
+    departmentFilter,
+    setDepartmentFilter,
     reviews,
+    managerDepartments,
     currentPage,
     employeesPerPage,
     filteredEmployees,

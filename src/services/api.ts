@@ -11,7 +11,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  timeout: 15000,
+  timeout: 30000, // 30 seconds default (AI requests override to 45s)
 });
 
 // Initialize CSRF token from sessionStorage (persists across page refreshes)

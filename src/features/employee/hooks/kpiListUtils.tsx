@@ -9,8 +9,11 @@ export interface KPIStageInfo {
 }
 
 export const getKPIStage = (kpi: KPI, reviews: KPIReview[], isSelfRatingEnabled: boolean = true): KPIStageInfo => {
-  // Find review for this KPI
+  // Find ANY review (including drafts) for status checking
   const review = reviews.find(r => r.kpi_id === kpi.id);
+  
+  // Find SUBMITTED review (excluding drafts) for "Review Pending" check
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
   if (kpi.status === 'pending') {
     return {
@@ -20,7 +23,8 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[], isSelfRatingEnabled:
     };
   }
 
-  if (kpi.status === 'acknowledged' && !review) {
+  // Check for SUBMITTED review, not drafts
+  if (kpi.status === 'acknowledged' && !submittedReview) {
     // If self-rating is disabled, show Manager Will Initiate Review
     if (!isSelfRatingEnabled) {
       return {
@@ -93,6 +97,7 @@ export interface KPIActionInfo {
 export const getPrimaryAction = (
   kpi: KPI,
   review: KPIReview | undefined,
+  reviews: KPIReview[],
   navigate: (path: string) => void
 ): KPIActionInfo => {
   if (kpi.status === 'pending') {
@@ -109,7 +114,9 @@ export const getPrimaryAction = (
     };
   }
 
-  if (kpi.status === 'acknowledged' && (!review || review.review_status === 'pending')) {
+  // Check for SUBMITTED review, not drafts (allow Review KPI button if only draft exists)
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
+  if (kpi.status === 'acknowledged' && (!submittedReview || submittedReview.review_status === 'pending')) {
     return {
       label: 'Review KPI',
       onClick: () => navigate(`/employee/self-rating/${kpi.id}`)

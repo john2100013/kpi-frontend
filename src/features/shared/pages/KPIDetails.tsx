@@ -3,11 +3,10 @@ import { FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiUser, FiEdit, FiAler
 import TextModal from '../../../components/TextModal';
 import { Button } from '../../../components/common';
 import { useManagerKPIDetails } from '../../manager/hooks';
-import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
+import { useDepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
 import {
   getRatingPercentage,
   getRatingDescription,
-  getItemRatingDescription,
 } from '../../employee/hooks/kpiConfirmationUtils';
 
 const ManagerKPIDetails: React.FC = () => {
@@ -31,26 +30,57 @@ const ManagerKPIDetails: React.FC = () => {
   } = useManagerKPIDetails();
   
   // Department features for conditional display
-  const { getCalculationMethodName, isEmployeeSelfRatingEnabled, features } = useCompanyFeatures(review?.kpi_id);
+  // Use department features for the employee's department by passing kpiId
   
+  
+  
+  
+  // Log parsed review data
+  // eslint-disable-next-line no-console
+  
+  
+  // Fetch department features for this KPI's employee department
+  const { features: deptFeatures, getCalculationMethodName, isEmployeeSelfRatingEnabled } = useDepartmentFeatures(kpi?.id);
+
   // Get review period
   const reviewPeriod = (review as any)?.period || kpi?.period || 'quarterly';
-  
+
   // Get calculation method name based on KPI period
-  const calculationMethodName = reviewPeriod ? getCalculationMethodName(reviewPeriod) : 'Normal Calculation';
-  const isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+  let calculationMethodName = 'Normal Calculation';
+  let isSelfRatingDisabled = true;
+  let isActualValueMethod = false;
+  if (deptFeatures) {
+    calculationMethodName = getCalculationMethodName(reviewPeriod);
+    isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+    // Use department features directly for self-rating check
+    if (reviewPeriod) {
+      if (reviewPeriod.toLowerCase() === 'yearly') {
+        isSelfRatingDisabled = !deptFeatures.enable_employee_self_rating_yearly;
+      } else {
+        isSelfRatingDisabled = !deptFeatures.enable_employee_self_rating_quarterly;
+      }
+    }
+   
+  } else {
+    // Fallback to old logic if department features not loaded
+    calculationMethodName = getCalculationMethodName(reviewPeriod);
+    isActualValueMethod = calculationMethodName.includes('Actual vs Target');
+    isSelfRatingDisabled = reviewPeriod ? !isEmployeeSelfRatingEnabled(reviewPeriod) : true;
+    // Logging for debug
+    // eslint-disable-next-line no-console
+  }
+
+  // Show employee columns if:
+  // 1. Self-rating is enabled for this period, OR
+  // 2. Employee has already submitted ratings (show historical data)
+  const hasEmployeeRatingData = review && (review.employee_rating !== null && review.employee_rating !== undefined);
+  const shouldShowEmployeeColumns = !isSelfRatingDisabled || hasEmployeeRatingData;
   
-  // Determine if self-rating is disabled
-  const isSelfRatingDisabled = reviewPeriod ? !isEmployeeSelfRatingEnabled(reviewPeriod) : true;
   
-  // Show employee columns ONLY if self-rating is enabled AND NOT using Actual vs Target
-  const shouldShowEmployeeColumns = !isSelfRatingDisabled && !isActualValueMethod;
-  
+
   // NEW LOGIC: Hide Performance Reflection when KPI period is Quarterly
   const reviewPeriodNormalized = reviewPeriod?.toLowerCase() === 'yearly' ? 'yearly' : 'quarterly';
   const shouldHidePerformanceReflection = reviewPeriodNormalized === 'quarterly';
-  
-  
 
   if (loading || !kpi) {
     return <div className="p-6">Loading...</div>;
@@ -59,66 +89,66 @@ const ManagerKPIDetails: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
         <Button
           onClick={handleBack}
           variant="ghost"
           icon={FiArrowLeft}
-          className="p-2"
+          className="p-2 self-start"
         />
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">KPI Form Details</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">KPI Form Details</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
             {kpi.quarter} {kpi.year} • {kpi.period === 'quarterly' ? 'Quarterly' : 'Yearly'} • {kpi.items?.length || kpi.item_count || 0} KPI Item{(kpi.items?.length || kpi.item_count || 0) !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className={`px-4 py-2 rounded-lg border flex items-center space-x-2 ${stageInfo.color}`}>
-          {stageInfo.icon === 'clock' && <FiClock className="text-xl" />}
-          {stageInfo.icon === 'file' && <FiFileText className="text-xl" />}
-          {stageInfo.icon === 'check' && <FiCheckCircle className="text-xl" />}
-          <span className="font-medium">{stageInfo.stage}</span>
+        <div className={`px-3 sm:px-4 py-2 rounded-lg border flex items-center space-x-2 ${stageInfo.color} self-start sm:self-auto`}>
+          {stageInfo.icon === 'clock' && <FiClock className="text-lg sm:text-xl" />}
+          {stageInfo.icon === 'file' && <FiFileText className="text-lg sm:text-xl" />}
+          {stageInfo.icon === 'check' && <FiCheckCircle className="text-lg sm:text-xl" />}
+          <span className="font-medium text-sm sm:text-base">{stageInfo.stage}</span>
         </div>
       </div>
 
       {/* Employee Information */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Information</h2>
-        <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Employee Information</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
             <FiUser className="text-purple-600 text-2xl" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 flex-1">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Employee Name</p>
-              <p className="font-semibold text-gray-900">{kpi.employee_name}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-1">Employee Name</p>
+              <p className="font-semibold text-sm sm:text-base text-gray-900">{kpi.employee_name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Department</p>
-              <p className="font-semibold text-gray-900">{kpi.employee_department}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-1">Department</p>
+              <p className="font-semibold text-sm sm:text-base text-gray-900">{kpi.employee_department}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Position</p>
-              <p className="font-semibold text-gray-900">{kpi.employee_name}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-1">Position</p>
+              <p className="font-semibold text-sm sm:text-base text-gray-900">{kpi.employee_name}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* KPI Items Table with Ratings */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">KPI Review & Rating</h2>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">KPI Review & Rating</h2>
         
         {/* Calculation Method Display */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-start space-x-3">
-            <FiAlertCircle className="text-blue-600 text-xl mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiAlertCircle className="text-blue-600 text-lg sm:text-xl mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-1">Review Configuration</h3>
-              <p className="text-sm text-blue-800 mb-1">
+              <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-1">Review Configuration</h3>
+              <p className="text-xs sm:text-sm text-blue-800 mb-1">
                 <span className="font-medium">Calculation Method:</span>{' '}
                 <span className="font-semibold">{calculationMethodName || 'Normal Calculation'}</span>
               </p>
-              <p className="text-sm text-blue-700">
+              <p className="text-xs sm:text-sm text-blue-700">
                 <span className="font-medium">Employee Self-Rating:</span> {isSelfRatingDisabled ? '❌ Disabled' : '✅ Enabled'}
               </p>
             </div>
@@ -236,10 +266,20 @@ const ManagerKPIDetails: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {kpi.items && kpi.items.length > 0 ? (
                 kpi.items.map((item, index) => {
-                  const empRating = parsedReviewData.employeeItemRatings[item.id] || 0;
-                  const empComment = parsedReviewData.employeeItemComments[item.id] || '';
+                  // Try to get ratings from parsed data first
+                  let empRating = parsedReviewData.employeeItemRatings[item.id] || 0;
+                  let empComment = parsedReviewData.employeeItemComments[item.id] || '';
                   const mgrRating = parsedReviewData.managerItemRatings[item.id] || 0;
                   const mgrComment = parsedReviewData.managerItemComments[item.id] || '';
+                  
+                  // Fallback: If review has items with ratings attached, use those
+                  if ((empRating === 0 || !empComment) && (review as any)?.items) {
+                    const reviewItem = (review as any).items.find((ri: any) => ri.id === item.id);
+                    if (reviewItem) {
+                      empRating = reviewItem.employee_rating ? parseFloat(String(reviewItem.employee_rating)) : empRating;
+                      empComment = reviewItem.employee_comment || empComment;
+                    }
+                  }
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
@@ -629,7 +669,7 @@ const ManagerKPIDetails: React.FC = () => {
             /* For Normal/Goal Weight: Show traditional rating cards */
             <div className="mt-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Total Rating Summary</h3>
-              {false && review && (() => {
+              {review && (() => {
                 const validReview = review!; // Non-null assertion for hidden code
                 return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

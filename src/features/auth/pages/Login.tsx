@@ -128,7 +128,7 @@ const Login: React.FC = () => {
               onClick={() => setShowPassword(!showPassword)}
               variant="ghost"
               size="sm"
-              className="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700 p-0"
+              className="absolute right-3 top-[30px] text-gray-500 hover:text-gray-700 p-0"
             >
               {showPassword ? (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

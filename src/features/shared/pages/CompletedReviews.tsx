@@ -63,7 +63,7 @@ const CompletedReviews: React.FC = () => {
   const fetchData = async () => {
     try {
       // Use the dedicated endpoint for review-completed KPIs
-      const kpisRes = await api.get('/kpis/review-completed').catch(err => {
+      const kpisRes = await api.get('/kpis/review-completed').catch(() => {
         return { data: { data: { kpis: [] } } };
       });
 
@@ -146,6 +146,38 @@ const CompletedReviews: React.FC = () => {
       toast.error(error.response?.data?.error || 'Failed to download PDF');
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const handleDownloadAIReport = async (reviewId: number) => {
+    try {
+      const response = await api.get(`/ai-reports/download/${reviewId}`, {
+        responseType: 'blob',
+      });
+
+      // Get filename from response headers if available
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = 'AI_Performance_Report.pdf';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1];
+        }
+      }
+
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('AI Report downloaded successfully!');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to download AI report');
     }
   };
 
@@ -366,6 +398,7 @@ const CompletedReviews: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">PERIOD</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">RATINGS</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">COMPLETED DATE</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">AI REPORT</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STATUS</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ACTION</th>
               </tr>
@@ -373,7 +406,7 @@ const CompletedReviews: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {completedKPIs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                     No completed reviews found for {(() => {
                       const currentPeriods = kpiType === 'quarterly' ? quarterlyPeriods : yearlyPeriods;
                       const selectedPeriod = currentPeriods.find((p: PeriodSetting) => p.id === selectedPeriodId);
@@ -438,6 +471,20 @@ const CompletedReviews: React.FC = () => {
                         </p>
                       </td>
                       <td className="px-6 py-4">
+                        {(kpi as any).ai_report_pdf_filename ? (
+                          <button
+                            onClick={() => handleDownloadAIReport(reviewId)}
+                            className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
+                            title="Download AI Performance Report"
+                          >
+                            <FiDownload className="text-sm" />
+                            <span>AI Report</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">Not Generated</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 w-fit ${statusInfo.color}`}>
                           <FiCheckCircle className="text-sm" />
                           <span>{statusInfo.status}</span>
@@ -464,14 +511,14 @@ const CompletedReviews: React.FC = () => {
                               
                               navigate(path);
                               
-                              // navigation log removed
                             }}
                             className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
                           >
                             <FiEye className="text-sm" />
                             <span>View</span>
                           </button>
-                          {user?.role_id === ROLE_IDS.HR && (
+                          {/* Performance button hidden as requested */}
+                          {/* {user?.role_id === ROLE_IDS.HR && (
                             <button
                               onClick={() => {
                                 navigate(`/hr/employee-performance/${kpi.employee_id}`);
@@ -482,7 +529,7 @@ const CompletedReviews: React.FC = () => {
                               <FiUser className="text-sm" />
                               <span>Performance</span>
                             </button>
-                          )}
+                          )} */}
                           <button
                             onClick={() => handleDownloadPDF(kpi)}
                             disabled={downloading === kpi.id}

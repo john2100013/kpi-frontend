@@ -9,7 +9,6 @@ import {
   FiUsers,
   FiFileText,
   FiCheckCircle,
-  FiArrowRight,
   FiEye,
   FiEdit,
   FiCalendar,
@@ -95,19 +94,19 @@ const ManagerDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const [, reviewsRes, notificationsRes, activityRes, employeesRes] = await Promise.all([
-        api.get('/kpis').catch(err => {
+        api.get('/kpis').catch(() => {
           return { data: { kpis: [] } };
         }),
-        api.get('/kpi-review').catch(err => {
+        api.get('/kpi-review').catch(() => {
           return { data: { reviews: [] } };
         }),
-        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
+        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(() => {
           return { data: { notifications: [] } };
         }),
-        api.get('/notifications/activity').catch(err => {
+        api.get('/notifications/activity').catch(() => {
           return { data: { activities: [] } };
         }),
-        api.get('/employees').catch(err => {
+        api.get('/employees').catch(() => {
           return { data: { employees: [] } };
         }),
       ]);
@@ -172,12 +171,14 @@ const ManagerDashboard: React.FC = () => {
 
   const getKPIStage = (kpi: KPI): { stage: string; color: string; progress: number } => {
     const review = reviews.find(r => r.kpi_id === kpi.id);
+    // Check for submitted review (non-draft) to determine if employee has completed their review
+    const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
     if (kpi.status === 'pending') {
       return { stage: 'Pending Review', color: 'bg-orange-100 text-orange-700', progress: 25 };
     }
 
-    if (kpi.status === 'acknowledged' && !review) {
+    if (kpi.status === 'acknowledged' && !submittedReview) {
       return { stage: 'In Progress', color: 'bg-blue-100 text-blue-700', progress: 45 };
     }
 

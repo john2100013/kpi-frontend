@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { saveDraft, loadDraft, clearDraft } from '../../../store/slices/reviewDraftSlice';
 import api from '../../../services/api';
 import { KPI, Accomplishment } from '../../../types';
 import { RatingOption } from '../types';
@@ -19,6 +21,8 @@ export const useEmployeeSelfRating = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const dispatch = useAppDispatch();
+  const { currentDraft, saving: draftSaving, lastSaved } = useAppSelector((state) => state.reviewDraft);
 
 
   const [kpi, setKpi] = useState<KPI | null>(null);
@@ -26,7 +30,7 @@ export const useEmployeeSelfRating = () => {
   const [saving, setSaving] = useState(false);
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [comments, setComments] = useState<Record<number, string>>({});
-  const [goalWeights, setGoalWeights] = useState<Record<number, string>>({});
+  const [goalWeights] = useState<Record<number, string>>({});
   const [employeeSignature, setEmployeeSignature] = useState('');
   const [reviewDate, setReviewDate] = useState<Date | null>(new Date()); // Changed to Date | null
   const [ratingOptions, setRatingOptions] = useState<RatingOption[]>([]);
@@ -44,6 +48,7 @@ export const useEmployeeSelfRating = () => {
     title: '',
     value: '',
   });
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   // Get calculation method from department features
   const { getCalculationMethodName } = useCompanyFeatures(Number(kpiId));
@@ -51,10 +56,12 @@ export const useEmployeeSelfRating = () => {
   useEffect(() => {
     if (kpiId) {
       fetchKPIDetails();
+      // Load draft from backend
+      dispatch(loadDraft(Number(kpiId)));
     } else {
       // No kpiId in useEffect (log removed)
     }
-  }, [kpiId]);
+  }, [kpiId, dispatch]);
 
   // Fetch rating options when KPI period is known
   useEffect(() => {
@@ -62,6 +69,76 @@ export const useEmployeeSelfRating = () => {
       fetchRatingOptions(kpi.period);
     }
   }, [kpi]);
+
+  // Load draft data into form when currentDraft is loaded
+  useEffect(() => {
+   
+
+    if (currentDraft && !draftLoaded && kpi) {
+     
+
+      // Only load if KPI status is 'acknowledged' (not yet submitted)
+      if (kpi.status === 'acknowledged') {
+
+        // Load ratings from item_ratings
+        if (currentDraft.item_ratings && Array.isArray(currentDraft.item_ratings)) {
+          const draftRatings: Record<number, number> = {};
+          const draftComments: Record<number, string> = {};
+          
+
+          currentDraft.item_ratings.forEach((rating: any) => {
+            
+
+            if (rating.kpi_item_id) {
+              draftRatings[rating.kpi_item_id] = rating.quantitative_rating || 0;
+              draftComments[rating.kpi_item_id] = rating.employee_comment || rating.rating_comment || '';
+              
+            }
+          });
+          
+          
+          setRatings(draftRatings);
+          setComments(draftComments);
+        } else {
+          console.warn('[useEmployeeSelfRating] No item_ratings found or not an array');
+        }
+        
+        // Load other form fields
+        if (currentDraft.employee_signature) {
+          setEmployeeSignature(currentDraft.employee_signature);
+        }
+        if (currentDraft.major_accomplishments) {
+          setMajorAccomplishments(currentDraft.major_accomplishments);
+        }
+        if (currentDraft.disappointments) {
+          setDisappointments(currentDraft.disappointments);
+        }
+        if (currentDraft.improvement_needed) {
+          setImprovementNeeded(currentDraft.improvement_needed);
+        }
+        if (currentDraft.future_plan) {
+          setFuturePlan(currentDraft.future_plan);
+        }
+        
+        // Load accomplishments
+        if (currentDraft.accomplishments && Array.isArray(currentDraft.accomplishments) && currentDraft.accomplishments.length > 0) {
+          setAccomplishments(currentDraft.accomplishments);
+        }
+        
+        setDraftLoaded(true);
+        toast.success('Draft loaded successfully!');
+      } else {
+      }
+    }
+  }, [currentDraft, draftLoaded, kpi, toast]);
+
+  // Log calculated values for debugging
+  useEffect(() => {
+    if (kpi && Object.keys(ratings).length > 0) {
+
+      
+    }
+  }, [ratings, comments, kpi]);
 
   const fetchKPIDetails = async () => {
     if (!kpiId) {
@@ -185,24 +262,52 @@ export const useEmployeeSelfRating = () => {
   const handleSaveDraft = async () => {
     if (!kpiId || !kpi) return;
 
+
     try {
-      setSaving(true);
-      // Save draft logic here
+      // Calculate ratings for draft
+      const itemsNeedingRatings = kpi.items?.filter((item: any) => !item.is_qualitative) || [];
+      const itemsIncludedInCalculation = itemsNeedingRatings.filter((item: any) => !item.exclude_from_calculation || item.exclude_from_calculation === 0);
+      const itemRatingValues = itemsIncludedInCalculation.map((item: any) => ratings[item.id] || 0);
+      const accomplishmentRatings = accomplishments
+        .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined)
+        .map(acc => Number(acc.employee_rating) || 0);
+      const allRatings = [...itemRatingValues, ...accomplishmentRatings];
+      const averageRating = allRatings.length > 0 
+        ? allRatings.reduce((sum: number, rating: number) => sum + rating, 0) / allRatings.length
+        : 0;
+      
+      // Prepare item ratings array
+      const allItems = kpi.items || [];
+      const itemRatings = allItems.map((item: any) => ({
+        item_id: item.id,
+        rating: ratings[item.id] || 0,
+        comment: comments[item.id] || '',
+        is_qualitative: item.is_qualitative || false,
+      }));
+
+     
+
       const draftData = {
-        ratings,
-        comments,
-        employeeSignature,
-        reviewDate: reviewDate?.toISOString(),
-        majorAccomplishments,
-        disappointments,
-        improvementNeeded,
+        overall_rating: averageRating,
+        average_rating: averageRating,
+        employee_rating_percentage: employeeRatingPercentage,
+        item_ratings: itemRatings,
+        employee_signature: employeeSignature,
+        review_period: kpi?.period || 'quarterly',
+        review_quarter: kpi?.quarter,
+        review_year: kpi?.year,
+        major_accomplishments: majorAccomplishments,
+        disappointments: disappointments,
+        improvement_needed: improvementNeeded,
+        accomplishments: accomplishments,
+        future_plan: futurePlan,
       };
-      localStorage.setItem(`self-rating-draft-${kpiId}`, JSON.stringify(draftData));
+      
+      // Save using Redux
+      await dispatch(saveDraft({ kpiId: Number(kpiId), draftData })).unwrap();
       toast.success('Draft saved successfully!');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to save draft');
-    } finally {
-      setSaving(false);
+      toast.error(error || 'Failed to save draft');
     }
   };
 
@@ -260,56 +365,21 @@ export const useEmployeeSelfRating = () => {
       setSaving(true);
       
       // Calculate average rating (from numeric items + accomplishments) - exclude items marked with exclude_from_calculation = 1
-      const itemsIncludedInCalculation = itemsNeedingRatings.filter((item: any) => !item.exclude_from_calculation || item.exclude_from_calculation === 0);
-      const itemRatingValues = itemsIncludedInCalculation.map((item: any) => ratings[item.id] || 0);
-      const accomplishmentRatings = accomplishments
-        .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined)
-        .map(acc => Number(acc.employee_rating) || 0);
-      const allRatings = [...itemRatingValues, ...accomplishmentRatings];
-      const averageRating = allRatings.length > 0 
-        ? allRatings.reduce((sum: number, rating: number) => sum + rating, 0) / allRatings.length
-        : 0;
       
       // Round to nearest allowed value
-      const allowedRatings = [1.00, 1.25, 1.50];
-      const roundedRating = allowedRatings.reduce((prev, curr) => 
-        Math.abs(curr - averageRating) < Math.abs(prev - averageRating) ? curr : prev
-      );
       
       // Prepare item ratings array - proper REST API structure
-      const allItems = kpi.items || [];
-      const itemRatings = allItems.map((item: any) => ({
-        item_id: item.id,
-        rating: ratings[item.id] || 0,
-        comment: comments[item.id] || '',
-        is_qualitative: item.is_qualitative || false,
-      }));
 
       
 
    
 
 
-      const submitResponse = await api.post(`/kpi-review/${kpiId}/self-rating`, {
-        overall_rating: roundedRating,
-        average_rating: averageRating,
-        employee_rating_percentage: employeeRatingPercentage,
-        item_ratings: itemRatings,
-        employee_signature: employeeSignature,
-        review_period: kpi?.period || 'quarterly',
-        review_quarter: kpi?.quarter,
-        review_year: kpi?.year,
-        major_accomplishments: majorAccomplishments,
-        disappointments: disappointments,
-        improvement_needed: improvementNeeded,
-        accomplishments: accomplishments,
-        future_plan: futurePlan,
-      });
       
      
       
       // Clear draft
-      localStorage.removeItem(`self-rating-draft-${kpiId}`);
+      dispatch(clearDraft());
       
       toast.success('Self-rating submitted successfully!');
       navigate('/employee/dashboard');
@@ -487,6 +557,10 @@ export const useEmployeeSelfRating = () => {
     averageRating,
     completion,
     employeeRatingPercentage,
+    draftSaving,
+    draftLoaded,
+    lastSaved,
+    currentDraft,
     setEmployeeSignature,
     setReviewDate, // Now returns Date | null
     setMajorAccomplishments,

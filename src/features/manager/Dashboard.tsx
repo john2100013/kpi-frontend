@@ -193,12 +193,14 @@ const ManagerDashboard: React.FC = () => {
 
   const getKPIStage = (kpi: KPI): { stage: string; color: string; progress: number } => {
     const review = reviews.find(r => r.kpi_id === kpi.id);
+    // Check for submitted review (non-draft) to determine if employee has completed their review
+    const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
     if (kpi.status === 'pending') {
       return { stage: 'Pending Review', color: 'bg-orange-100 text-orange-700', progress: 25 };
     }
 
-    if (kpi.status === 'acknowledged' && !review) {
+    if (kpi.status === 'acknowledged' && !submittedReview) {
       return { stage: 'In Progress', color: 'bg-blue-100 text-blue-700', progress: 45 };
     }
 

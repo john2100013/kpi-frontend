@@ -46,7 +46,7 @@ export const useDepartmentFeatures = (kpiId?: number, initialData?: DepartmentFe
       }
       setFeatures(response?.data ?? null);
     } catch (err: any) {
-        toast.error('Could not fetch department features. Please try again.');
+        toast.error('Unable to load department features. Using default settings.');
         setError(err.response?.data?.error || 'Failed to fetch department features');
         
         // Set default features on error

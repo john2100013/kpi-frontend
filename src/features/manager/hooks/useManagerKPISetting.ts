@@ -64,6 +64,9 @@ interface UseManagerKPISettingReturn {
   managerMeetingDate: string;
   managerMeetingTime: string;
   
+  // Sales KPI Confirmation
+  salesKpiConfirmed: boolean;
+  
   // Actions
   setKpiRows: (rows: KPIRow[]) => void;
   setPeriod: (period: 'quarterly' | 'yearly') => void;
@@ -92,6 +95,9 @@ interface UseManagerKPISettingReturn {
   setManagerMeetingLocation: (location: string) => void;
   setManagerMeetingDate: (date: string) => void;
   setManagerMeetingTime: (time: string) => void;
+  
+  // Sales KPI Actions
+  setSalesKpiConfirmed: (confirmed: boolean) => void;
 }
 
 export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
@@ -125,6 +131,9 @@ export const useManagerKPISetting = (): UseManagerKPISettingReturn => {
   const [managerMeetingLocation, setManagerMeetingLocation] = useState('');
   const [managerMeetingDate, setManagerMeetingDate] = useState('');
   const [managerMeetingTime, setManagerMeetingTime] = useState('');
+  
+  // Sales KPI Confirmation
+  const [salesKpiConfirmed, setSalesKpiConfirmed] = useState(false);
   
   // Template mode state
   const [employees, setEmployees] = useState<any[]>([]);
@@ -393,6 +402,20 @@ const handleSubmit = async () => {
     }
   }
 
+  // Sales KPI confirmation check
+  if (!salesKpiConfirmed) {
+    const confirmProceed = await confirm({
+      title: 'Sales KPI Not Confirmed',
+      message: 'You did not check the sales KPI confirmation. Are you sure this employee does not have sales KPI? If they do, please ensure it is entered in the first row (highlighted in green).',
+      variant: 'warning',
+      confirmText: 'Continue Without Sales KPI',
+      cancelText: 'Go Back to Review'
+    });
+    if (!confirmProceed) {
+      return;
+    }
+  }
+
     // Goal weights validation
   const weightValidation = validateGoalWeights(kpiRows);
   if (!weightValidation.isValid) {
@@ -642,9 +665,41 @@ const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
       })
     );
 
-    await Promise.all(promises);
+    const results = await Promise.all(promises);
 
-    toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
+    // Track email results
+    let totalEmailsSent = 0;
+    let totalEmailsFailed = 0;
+    
+    results.forEach((response) => {
+      if (response.data.emailResults) {
+        const { employee, hr } = response.data.emailResults;
+        
+        // Count employee email
+        if (employee?.sent) totalEmailsSent++;
+        
+        // Count HR emails
+        if (hr?.sent) totalEmailsSent += hr.sent;
+        if (hr?.failed) totalEmailsFailed += hr.failed;
+      }
+    });
+
+    // Show appropriate toast based on email results
+    if (totalEmailsFailed > 0) {
+      toast.warning(
+        `KPIs assigned to ${selectedEmployeeIds.length} employee(s). ` +
+        `${totalEmailsSent} notification email(s) sent, ${totalEmailsFailed} failed. ` +
+        `Check Email Monitor for details.`
+      );
+    } else if (totalEmailsSent > 0) {
+      toast.success(
+        `KPIs sent to ${selectedEmployeeIds.length} employee(s)! ` +
+        `All ${totalEmailsSent} notification emails sent successfully.`
+      );
+    } else {
+      toast.success(`KPI successfully sent to ${selectedEmployeeIds.length} employee(s)!`);
+    }
+    
     navigate('/manager/dashboard');
   } catch (error: any) {
     toast.error(error.response?.data?.error || 'Failed to send KPIs to employees');
@@ -688,6 +743,8 @@ const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
     managerMeetingLocation,
     managerMeetingDate,
     managerMeetingTime,
+    // Sales KPI Confirmation
+    salesKpiConfirmed,
     
     // Actions
     setKpiRows,
@@ -717,5 +774,7 @@ const handleSubmitToEmployees = async (selectedEmployeeIds: number[]) => {
     setManagerMeetingLocation,
     setManagerMeetingDate,
     setManagerMeetingTime,
+    // Sales KPI Actions
+    setSalesKpiConfirmed,
   };
 };

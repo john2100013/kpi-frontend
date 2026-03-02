@@ -11,3 +11,5 @@ export * from './RejectedKPIStatCard';
 export * from './RejectedKPITable';
 export * from './KPIInformationCard';
 export * from './KPIRejectionCard';
+export { default as BonusAdjustmentModal } from './BonusAdjustmentModal';
+export { default as ManagerRatingNav } from './ManagerRatingNav';

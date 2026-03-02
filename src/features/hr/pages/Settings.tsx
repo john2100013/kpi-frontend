@@ -58,6 +58,14 @@ const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Handle hash-based navigation
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['periods', 'reminders', 'daily', 'email-notifications', 'rating-options'].includes(hash)) {
+      setActiveTab(hash as any);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings();
   }, []);

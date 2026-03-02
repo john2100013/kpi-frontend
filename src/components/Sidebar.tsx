@@ -21,6 +21,8 @@ import {
   FiCheck,
   FiClipboard,
   FiFlag,
+  FiStar,
+  FiDollarSign,
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -37,9 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose, 
   initialKpis, 
   initialReviews,
-  isCollapsed,
-  onToggleCollapse 
-}) => {
+  isCollapsed}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, selectedCompany } = useAuth();
@@ -57,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [pendingAcknowledgementsCount, setPendingAcknowledgementsCount] = useState<number>(0);
   const [pendingEmployeeReviewsCount, setPendingEmployeeReviewsCount] = useState<number>(0);
+  const [hasBonusAccess, setHasBonusAccess] = useState<boolean>(true); // Default true for non-HR users
   const toast = useToast();
 
   const isActive = (path: string) => location.pathname === path;
@@ -70,6 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       } else {
         fetchEmployeeCounts();
       }
+    } else if (isHR(user)) {
+      // Fetch module permissions for HR users
+      fetchModulePermissions();
     }
   }, [user?.id]);
 
@@ -96,8 +100,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     setPendingAcknowledgementsCount(pendingAcknowledgements);
     const acknowledgedKPIs = kpis.filter((kpi: any) => kpi.status === 'acknowledged');
     const needReview = acknowledgedKPIs.filter((kpi: any) => {
-      const review = reviews.find((r: any) => r.kpi_id === kpi.id);
-      return !review || review.review_status === 'pending';
+      // Only count KPIs with NO submitted review (exclude drafts)
+      const submittedReview = reviews.find((r: any) => r.kpi_id === kpi.id && r.is_draft !== true);
+      return !submittedReview || submittedReview.review_status === 'pending';
     }).length;
     setPendingEmployeeReviewsCount(needReview);
   };
@@ -123,6 +128,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     } catch (error) {
       setPendingAcknowledgementsCount(0);
       setPendingEmployeeReviewsCount(0);
+    }
+  };
+
+  const fetchModulePermissions = async () => {
+    try {
+      const response = await api.get('/module-permissions/my-permissions');
+      const permissions = response.data.data || [];
+      
+      // Check if user has access to bonus_management module
+      const bonusPermission = permissions.find((p: any) => p.module_name === 'bonus_management');
+      const hasAccess = bonusPermission ? bonusPermission.can_view === 1 : false;
+      setHasBonusAccess(hasAccess);
+    } catch (error) {
+       toast.error('Internal Server Error. Please try again or refresh the page.');
+      // Default to false for safety - if we can't check, deny access
+      setHasBonusAccess(false);
     }
   };
   
@@ -173,6 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       icon: FiClipboard,
       badge: pendingEmployeeReviewsCount > 0 ? pendingEmployeeReviewsCount : undefined
     },
+    { path: '/employee/manager-rating', label: 'Manager Rating', icon: FiStar },
     { path: '/employee/kpi-setting-completed', label: 'KPI Setting Completed', icon: FiFlag },
     { path: '/employee/completed-reviews', label: 'Completed Reviews', icon: FiCheck },
   ];
@@ -187,7 +209,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     { path: '/hr/acknowledged-kpis', label: 'Acknowledged KPIs', icon: FiCheckCircle },
     { path: '/hr/completed-reviews', label: 'Completed Reviews', icon: FiCheck },
     { path: '/hr/review-report', label: 'Review Report', icon: FiFileText },
-    { path: '/hr/email-templates', label: 'Email Templates', icon: FiMail },
+    { path: '/hr/manager-rating/assignments', label: 'Manager Rating', icon: FiStar },
+    { path: '/hr/bonus', label: 'Bonus Management', icon: FiDollarSign },
+    { path: '/hr/email-monitor', label: 'Email Monitor', icon: FiMail },
     { path: '/hr/settings', label: 'Settings', icon: FiSettings },
   ];
 
@@ -211,7 +235,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       return employeeNavItems;
     }
     if (isHR(user)) {
-      return hrNavItems;
+      // Filter bonus management based on permissions
+      return hrNavItems.filter(item => {
+        if (item.path === '/hr/bonus') {
+          return hasBonusAccess;
+        }
+        return true;
+      });
     }
     
     return [];
@@ -228,7 +258,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {/* Sidebar */}
-on the       <aside
+      <aside
         className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 ${isCollapsed ? 'w-24' : 'w-64'}`}

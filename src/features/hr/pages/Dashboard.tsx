@@ -2,7 +2,7 @@ import React from 'react';
 import NotificationItem from '../../../components/NotificationItem';
 import { StatsCard, Button } from '../../../components/common';
 import { useToast } from '../../../context/ToastContext';
-import { FiFilter, FiEye, FiCheckCircle, FiFileText, FiBell, FiUsers, FiSave, FiSearch } from 'react-icons/fi';
+import { FiFilter, FiEye, FiCheckCircle, FiFileText, FiBell, FiUsers, FiSave, FiSearch, FiChevronDown, FiCheck } from 'react-icons/fi';
 import { useHRDashboard, getKPIStage, getCategoryLabel, getCategoryColor, getCategoryIcon, getPeriodLabel, getPeriodValue } from '../hooks';
 
 const HRDashboard: React.FC = () => {
@@ -11,6 +11,8 @@ const HRDashboard: React.FC = () => {
     kpis,
     reviews,
     departmentStatistics,
+    filteredDepartmentStatistics,
+    visibleDepartments,
     departmentsList,
     periodSettings,
     notifications,
@@ -40,6 +42,8 @@ const HRDashboard: React.FC = () => {
     handleMarkNotificationRead,
     handleEmployeeSelect,
     clearCategorySelection,
+    toggleDepartmentVisibility,
+    toggleAllDepartments,
     navigate,
     handleKpiTypeChange,
     handlePeriodChange,
@@ -49,6 +53,8 @@ const HRDashboard: React.FC = () => {
   React.useEffect(() => {
   
   }, [periodSettings, departmentsList]);
+
+  const [showDepartmentFilter, setShowDepartmentFilter] = React.useState(false);
 
   const handleSaveDefaultPeriod = async () => {
     const success = await saveDefaultPeriod(filters.period);
@@ -209,7 +215,7 @@ const HRDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <StatsCard
           title="Total Employees"
-          value={departmentStatistics.reduce((sum, stat) => sum + stat.total_employees, 0)}
+          value={filteredDepartmentStatistics.reduce((sum, stat) => sum + stat.total_employees, 0)}
           icon={<FiUsers />}
           iconBgColor="bg-purple-100"
           iconColor="text-purple-600"
@@ -217,7 +223,7 @@ const HRDashboard: React.FC = () => {
         
         <StatsCard
           title="Total KPIs"
-          value={departmentStatistics.reduce((sum, stat) => {
+          value={filteredDepartmentStatistics.reduce((sum, stat) => {
             if (!stat.categories) return sum;
             return sum + stat.categories.pending + stat.categories.acknowledged_review_pending + 
               stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
@@ -231,7 +237,7 @@ const HRDashboard: React.FC = () => {
         
         <StatsCard
           title="KPI Review Completed"
-          value={departmentStatistics.reduce((sum, stat) => {
+          value={filteredDepartmentStatistics.reduce((sum, stat) => {
             if (!stat.categories) return sum;
             return sum + stat.categories.review_completed;
           }, 0)}
@@ -244,7 +250,7 @@ const HRDashboard: React.FC = () => {
         
         <StatsCard
           title="KPI Setting Completed"
-          value={departmentStatistics.reduce((sum, stat) => {
+          value={filteredDepartmentStatistics.reduce((sum, stat) => {
             if (!stat.categories) return sum;
             return sum + stat.categories.acknowledged_review_pending + 
               stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
@@ -258,7 +264,7 @@ const HRDashboard: React.FC = () => {
         
         <StatsCard
           title="Employees without KPI"
-          value={departmentStatistics.reduce((sum, stat) => {
+          value={filteredDepartmentStatistics.reduce((sum, stat) => {
             if (!stat.categories) return sum;
             return sum + stat.categories.no_kpi;
           }, 0)}
@@ -273,8 +279,66 @@ const HRDashboard: React.FC = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Department Overview</h2>
+            
+            {/* Department Filter Dropdown */}
+            {departmentStatistics.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowDepartmentFilter(!showDepartmentFilter)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <FiFilter className="text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Filter Departments ({visibleDepartments.size}/{departmentStatistics.length})
+                  </span>
+                  <FiChevronDown className={`text-gray-600 transition-transform ${showDepartmentFilter ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showDepartmentFilter && (
+                  <>
+                    {/* Backdrop to close dropdown */}
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setShowDepartmentFilter(false)}
+                    />
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
+                      <div className="p-3 border-b border-gray-200">
+                        <button
+                          onClick={toggleAllDepartments}
+                          className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                        >
+                          <span>
+                            {visibleDepartments.size === departmentStatistics.length ? 'Deselect All' : 'Select All'}
+                          </span>
+                          {visibleDepartments.size === departmentStatistics.length && (
+                            <FiCheck className="text-purple-600" />
+                          )}
+                        </button>
+                      </div>
+                      
+                      <div className="p-2">
+                        {departmentStatistics.map((stat: any) => (
+                          <button
+                            key={stat.department}
+                            onClick={() => toggleDepartmentVisibility(stat.department)}
+                            className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 rounded transition-colors"
+                          >
+                            <span className="text-gray-700">{stat.department}</span>
+                            {visibleDepartments.has(stat.department) && (
+                              <FiCheck className="text-green-600" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          {departmentStatistics.map((stat) => {
+          {filteredDepartmentStatistics.map((stat) => {
             const totalKPIs = stat.categories.pending + stat.categories.acknowledged_review_pending + 
                              stat.categories.self_rating_submitted + stat.categories.awaiting_employee_confirmation +
                              stat.categories.review_completed + stat.categories.review_rejected +
@@ -350,9 +414,13 @@ const HRDashboard: React.FC = () => {
             );
           })}
 
-          {departmentStatistics.length === 0 && (
+          {filteredDepartmentStatistics.length === 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <p className="text-gray-500">No department statistics available</p>
+              <p className="text-gray-500">
+                {departmentStatistics.length === 0 
+                  ? 'No department statistics available' 
+                  : 'No departments selected. Use the filter above to select departments to display.'}
+              </p>
             </div>
           )}
         </div>

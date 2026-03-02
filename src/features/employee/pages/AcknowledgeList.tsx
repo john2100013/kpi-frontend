@@ -11,7 +11,7 @@ interface AcknowledgeListProps {
 
 const AcknowledgeList: React.FC<AcknowledgeListProps> = ({ sharedKpis }) => {
   const navigate = useNavigate();
-  const { sharedKpis: contextKpis, isLoading: contextLoading } = useEmployeeData();
+  const { sharedKpis: contextKpis, loading: contextLoading } = useEmployeeData();
   const [kpis, setKpis] = useState<KPI[]>([]);
   
   // Use shared KPIs from context (via props or directly from context)
@@ -39,39 +39,39 @@ const AcknowledgeList: React.FC<AcknowledgeListProps> = ({ sharedKpis }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">KPIs Awaiting Acknowledgement</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">KPIs Awaiting Acknowledgement</h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
           Review and acknowledge your assigned KPIs
         </p>
       </div>
 
       {/* KPI Cards */}
       {kpis.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <FiCheckCircle className="mx-auto text-5xl text-green-500 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-          <p className="text-gray-600">You have no KPIs pending acknowledgement at this time.</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <FiCheckCircle className="mx-auto text-4xl sm:text-5xl text-green-500 mb-4" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
+          <p className="text-sm sm:text-base text-gray-600">You have no KPIs pending acknowledgement at this time.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
           {kpis.map((kpi) => (
-            <div key={kpi.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
+            <div key={kpi.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
+              <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{kpi.title}</h3>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 flex items-center space-x-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">{kpi.title}</h3>
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 flex items-center space-x-1 w-fit">
                       <FiClock className="inline" />
                       <span>Pending Acknowledgement</span>
                     </span>
                   </div>
                   
-                  <p className="text-sm text-gray-600 mb-3">{kpi.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3">{kpi.description}</p>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
                     <div>
                       <p className="text-gray-500">Period</p>
                       <p className="font-medium text-gray-900">{kpi.quarter || kpi.year}</p>
@@ -95,12 +95,13 @@ const AcknowledgeList: React.FC<AcknowledgeListProps> = ({ sharedKpis }) => {
                   </div>
                 </div>
 
-                <div className="ml-4 flex flex-col space-y-2">
+                <div className="flex sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2 sm:ml-4">
                   <Button
                     onClick={() => navigate(`/employee/kpi-details/${kpi.id}`)}
                     variant="link"
                     icon={FiEye}
                     size="sm"
+                    className="flex-1 sm:flex-none"
                   >
                     View
                   </Button>
@@ -108,6 +109,7 @@ const AcknowledgeList: React.FC<AcknowledgeListProps> = ({ sharedKpis }) => {
                     onClick={() => navigate(`/employee/kpi-acknowledgement/${kpi.id}`)}
                     variant="primary"
                     size="sm"
+                    className="flex-1 sm:flex-none"
                   >
                     Acknowledge Now
                   </Button>

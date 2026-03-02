@@ -9,7 +9,11 @@ export interface DashboardStageInfo {
 }
 
 export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardStageInfo => {
+  // Find ANY review (including drafts) for status checking
   const review = reviews.find(r => r.kpi_id === kpi.id);
+  
+  // Find SUBMITTED review (excluding drafts) for "Review Pending" check
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
   // Backend may send either 'status' or 'review_status' field
   const reviewStatus = (review as any)?.status || review?.review_status;
@@ -23,7 +27,8 @@ export const getDashboardKPIStage = (kpi: KPI, reviews: KPIReview[]): DashboardS
     };
   }
 
-  if (kpi.status === 'acknowledged' && !review) {
+  // Check for SUBMITTED review, not drafts
+  if (kpi.status === 'acknowledged' && !submittedReview) {
     return {
       stage: 'KPI Acknowledged - Review Pending',
       color: 'bg-blue-100 text-blue-700',
@@ -100,8 +105,10 @@ export const calculateDashboardStats = (kpis: KPI[], reviews: KPIReview[]): Dash
 
   const awaitingAcknowledgement = kpis.filter(k => k.status === 'pending');
   const reviewPending = kpis.filter(k => {
-    const review = reviews.find(r => r.kpi_id === k.id);
-    return k.status === 'acknowledged' && !review;
+    // Count KPIs that are acknowledged but have NO SUBMITTED review
+    // (drafts with is_draft = true should NOT count as submitted)
+    const submittedReview = reviews.find(r => r.kpi_id === k.id && r.is_draft !== true);
+    return k.status === 'acknowledged' && !submittedReview;
   });
   const selfRatingRequired = kpis.filter(k => {
     const review = reviews.find(r => r.kpi_id === k.id);

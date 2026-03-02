@@ -30,11 +30,11 @@ const Reviews: React.FC = () => {
   const selfRatingKPIs = kpis.filter(kpi => isSelfRatingEnabledForKPI(kpi));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">KPIs Awaiting Review</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">KPIs Awaiting Review</h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
           {managerLedKPIs.length > 0 && selfRatingKPIs.length > 0
             ? 'Complete self-assessments or view manager-led KPIs'
             : managerLedKPIs.length > 0
@@ -45,12 +45,12 @@ const Reviews: React.FC = () => {
 
       {/* Self-Rating Enabled Notice - for employees with self-rating KPIs */}
       {selfRatingKPIs.length > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-start space-x-3">
-            <FiInfo className="text-green-600 text-lg flex-shrink-0 mt-0.5" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiInfo className="text-green-600 text-base sm:text-lg flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-green-900 mb-1">Self-Rating Enabled</h3>
-              <p className="text-sm text-green-800">
+              <h3 className="text-sm sm:text-base font-semibold text-green-900 mb-1">Self-Rating Enabled</h3>
+              <p className="text-xs sm:text-sm text-green-800">
                 You will initiate the review process for {selfRatingKPIs.length} KPI{selfRatingKPIs.length > 1 ? 's' : ''}. 
                 Complete your self-assessment and submit for manager review.
               </p>
@@ -61,20 +61,20 @@ const Reviews: React.FC = () => {
 
       {/* Manager-Led Review Notice */}
       {managerLedKPIs.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-start space-x-3">
-            <FiInfo className="text-blue-600 text-lg flex-shrink-0 mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiInfo className="text-blue-600 text-base sm:text-lg flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-blue-900 mb-1">Self-Rating Disabled - Manager Will Initiate</h3>
-              <p className="text-sm text-blue-800 mb-2">
+              <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-1">Self-Rating Disabled - Manager Will Initiate</h3>
+              <p className="text-xs sm:text-sm text-blue-800 mb-2">
                 Your manager will initiate and conduct reviews for the following KPIs:
               </p>
-              <ul className="text-sm text-blue-800 space-y-1">
+              <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
                 {managerLedKPIs.map(kpi => {
                   const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
                   return (
                     <li key={kpi.id} className="flex items-center">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
+                      <span className="w-2 h-2 bg-blue-600 rounded-full mr-2 flex-shrink-0"></span>
                       <span className="font-medium">{kpi.title}</span>
                       <span className="mx-2">•</span>
                       <span className="text-blue-700">{kpiPeriod}</span>
@@ -92,15 +92,15 @@ const Reviews: React.FC = () => {
 
       {/* KPI Table */}
       {kpis.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <FiCheckCircle className="mx-auto text-5xl text-green-500 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-          <p className="text-gray-600">You have no KPIs pending review at this time.</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <FiCheckCircle className="mx-auto text-4xl sm:text-5xl text-green-500 mb-4" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
+          <p className="text-sm sm:text-base text-gray-600">You have no KPIs pending review at this time.</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">My KPIs</h2>
+          <div className="p-4 sm:p-6 border-b border-gray-200">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">My KPIs</h2>
           </div>
 
           <div className="overflow-x-auto">
@@ -116,8 +116,9 @@ const Reviews: React.FC = () => {
               <tbody className="divide-y divide-gray-200">
                 {kpis.map((kpi: KPI) => {
                   const statusInfo = getReviewStatus(kpi);
-                  const review = reviews.find(r => r.kpi_id === kpi.id);
-                  const reviewStatus = (review as any)?.status || review?.review_status;
+                  // Check for SUBMITTED review only (exclude drafts) for button logic
+                  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
+                  const reviewStatus = (submittedReview as any)?.status || submittedReview?.review_status;
                   const isManagerLed = !isSelfRatingEnabledForKPI(kpi);
                   const kpiPeriod = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
                   
@@ -172,21 +173,21 @@ const Reviews: React.FC = () => {
                                 View
                               </Button>
                               
-                              {/* Review Pending or Self-Rating Required */}
-                              {(!review || reviewStatus === 'pending') && (
+                              {/* Review Pending or Self-Rating Required - only check SUBMITTED reviews */}
+                              {(!submittedReview || reviewStatus === 'pending') && (
                                 <Button
                                   onClick={() => handleStartReview(kpi.id)}
                                   variant="primary"
                                   size="sm"
                                 >
-                                  {reviewStatus === 'pending' ? 'Continue Review' : 'Start Review'}
+                                  {reviewStatus === 'pending' ? 'Continue Review' : 'Review'}
                                 </Button>
                               )}
                               
                               {/* Awaiting Your Confirmation */}
-                              {review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation') && (
+                              {submittedReview && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation') && (
                                 <Button
-                                  onClick={() => handleConfirmReview(review.id)}
+                                  onClick={() => handleConfirmReview(submittedReview.id)}
                                   variant="primary"
                                   size="sm"
                                 >

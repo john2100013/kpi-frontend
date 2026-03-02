@@ -185,12 +185,13 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">My KPIs</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My KPIs</h1>
         <Button
           variant="primary"
           icon={FiEye}
           onClick={() => navigate('/employee/kpi-list')}
+          className="w-full sm:w-auto"
         >
           View All KPIs
         </Button>
@@ -224,9 +225,9 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
       </div>
 
       {/* KPI Status Overview */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">KPI Status Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">KPI Status Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* Awaiting Acknowledgement */}
           <StatusCard
             title="Awaiting Acknowledgement"
@@ -322,13 +323,13 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
 
       {/* KPI Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">My KPIs</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">My KPIs</h2>
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Search */}
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

@@ -52,7 +52,7 @@ const KPIConfirmation: React.FC = () => {
 
   // Department features for conditional display
   // Pass review.kpi_id to fetch features for the KPI's employee department
-  const { getCalculationMethodName, isEmployeeSelfRatingEnabled, features } = useCompanyFeatures(review?.kpi_id);
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(review?.kpi_id);
   
   // State for Actual vs Target data
   const [actualValues, setActualValues] = useState<Record<number, string>>({});
@@ -180,22 +180,26 @@ const KPIConfirmation: React.FC = () => {
   
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Confirm KPI Review</h1>
-        <Button onClick={() => navigate('/employee/dashboard')} variant="secondary">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Confirm KPI Review</h1>
+        <Button 
+          onClick={() => navigate('/employee/dashboard')} 
+          variant="secondary"
+          className="w-full sm:w-auto"
+        >
           Back to Dashboard
         </Button>
       </div>
 
       {/* Action Required Notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <FiAlertCircle className="text-blue-600 text-xl mt-0.5" />
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+        <div className="flex items-start space-x-2 sm:space-x-3">
+          <FiAlertCircle className="text-blue-600 text-lg sm:text-xl mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-blue-900">Action Required</h3>
-            <p className="text-sm text-blue-800 mt-1">
+            <h3 className="text-sm sm:text-base font-semibold text-blue-900">Action Required</h3>
+            <p className="text-xs sm:text-sm text-blue-800 mt-1">
               Your manager <span className="font-semibold">{review.manager_name}</span> has
               completed your KPI review. Please review the rating and comments below and confirm
               whether you agree with the assessment.
@@ -205,9 +209,9 @@ const KPIConfirmation: React.FC = () => {
       </div>
 
       {/* Review Details Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">KPI Review Details</h2>
-        <div className="space-y-2 text-sm text-gray-600 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">KPI Review Details</h2>
+        <div className="space-y-2 text-xs sm:text-sm text-gray-600 mb-6">
           <p>
             <span className="font-medium text-gray-900">KPI Title:</span> {review.kpi_title}
           </p>
@@ -231,16 +235,16 @@ const KPIConfirmation: React.FC = () => {
         </div>
 
         {/* Calculation Method Display */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-start space-x-3">
-            <FiAlertCircle className="text-blue-600 text-xl mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+          <div className="flex items-start space-x-2 sm:space-x-3">
+            <FiAlertCircle className="text-blue-600 text-lg sm:text-xl mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-1">Review Configuration</h3>
-              <p className="text-sm text-blue-800 mb-1">
+              <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-1">Review Configuration</h3>
+              <p className="text-xs sm:text-sm text-blue-800 mb-1">
                 <span className="font-medium">Calculation Method:</span>{' '}
                 <span className="font-semibold">{calculationMethodName || 'Normal Calculation'}</span>
               </p>
-              <p className="text-sm text-blue-700">
+              <p className="text-xs sm:text-sm text-blue-700">
                 <span className="font-medium">Employee Self-Rating:</span> {isSelfRatingDisabled ? '❌ Disabled' : '✅ Enabled'}
               </p>
             </div>
@@ -249,7 +253,7 @@ const KPIConfirmation: React.FC = () => {
 
         {/* KPI Items Table */}
         <div className="overflow-x-auto">
-          <table className="w-full" style={{ minWidth: isActualValueMethod ? '2200px' : '1800px' }}>
+          <table className="w-full" style={{ minWidth: isActualValueMethod ? '2350px' : '1800px' }}>
             <thead className="bg-gray-50">
               <tr className="border-b-2 border-gray-400">
                 <th
@@ -334,15 +338,13 @@ const KPIConfirmation: React.FC = () => {
                     </th>
                   </>
                 )}
-                {/* Manager Rating - shown for all methods except Actual vs Target */}
-                {!isActualValueMethod && (
-                  <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
-                    style={{ minWidth: '150px' }}
-                  >
-                    MANAGER RATING
-                  </th>
-                )}
+                {/* Manager Rating - Always shown for all calculation methods */}
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
+                  style={{ minWidth: '150px' }}
+                >
+                  MANAGER RATING
+                </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
                   style={{ minWidth: '200px' }}
@@ -502,24 +504,22 @@ const KPIConfirmation: React.FC = () => {
                           </td>
                         </>
                       )}
-                      {/* Manager Rating - for Normal/Goal Weight methods */}
-                      {!isActualValueMethod && (
-                        <td className="px-4 py-4 border-r border-gray-200">
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-semibold text-yellow-600">
-                                {mgrRating.toFixed(2)}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({getRatingPercentage(mgrRating)}%)
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              {getItemRatingDescription(mgrRating)}
-                            </p>
+                      {/* Manager Rating - Always shown for all calculation methods */}
+                      <td className="px-4 py-4 border-r border-gray-200">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-semibold text-yellow-600">
+                              {mgrRating.toFixed(2)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ({getRatingPercentage(mgrRating)}%)
+                            </span>
                           </div>
-                        </td>
-                      )}
+                          <p className="text-xs text-gray-500">
+                            {getItemRatingDescription(mgrRating)}
+                          </p>
+                        </div>
+                      </td>
                       <td className="px-4 py-4">
                         {mgrComment ? (
                           <Button
@@ -1048,6 +1048,7 @@ const KPIConfirmation: React.FC = () => {
                       </label>
                       <input
                         type="time"
+                        step="60"
                         value={employeeConfirmationMeetingTime}
                         onChange={(e) => setEmployeeConfirmationMeetingTime(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"

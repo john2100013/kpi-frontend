@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiSave, FiUser } from 'react-icons/fi';
-import { useToast } from '../../../context/ToastContext';
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -24,6 +23,12 @@ interface User {
   national_id?: string;
   phone_number?: string;
   employment_date?: string;
+  has_sales_component?: number;
+  sales_contribution_percentage?: number;
+  kpi_contribution_percentage?: number;
+  quarterly_variable_amount?: number;
+  yearly_variable_amount?: number;
+  permission_level?: number;
 }
 
 interface UserUpdateData {
@@ -34,10 +39,15 @@ interface UserUpdateData {
   national_id?: string;
   position?: string;
   employment_date?: string;
+  has_sales_component?: boolean;
+  sales_contribution_percentage?: number;
+  kpi_contribution_percentage?: number;
+  quarterly_variable_amount?: number;
+  yearly_variable_amount?: number;
+  permission_level?: number;
 }
 
 export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, onSave }) => {
-  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<UserUpdateData>({
     name: '',
@@ -47,6 +57,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, u
     national_id: '',
     position: '',
     employment_date: '',
+    has_sales_component: false,
+    sales_contribution_percentage: 0,
+    kpi_contribution_percentage: 100,
+    quarterly_variable_amount: 0,
+    yearly_variable_amount: 0,
+    permission_level: undefined,
   });
 
   useEffect(() => {
@@ -59,13 +75,35 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, u
         national_id: user.national_id || '',
         position: user.position || '',
         employment_date: user.employment_date || '',
+        has_sales_component: user.has_sales_component === 1,
+        sales_contribution_percentage: user.sales_contribution_percentage || 0,
+        kpi_contribution_percentage: user.kpi_contribution_percentage || 100,
+        quarterly_variable_amount: user.quarterly_variable_amount || 0,
+        yearly_variable_amount: user.yearly_variable_amount || 0,
+        permission_level: user.permission_level,
       });
     }
   }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+      // Reset percentages when toggling has_sales_component
+      if (name === 'has_sales_component') {
+        if (checked) {
+          setFormData(prev => ({ ...prev, sales_contribution_percentage: 70, kpi_contribution_percentage: 30 }));
+        } else {
+          setFormData(prev => ({ ...prev, sales_contribution_percentage: 0, kpi_contribution_percentage: 100 }));
+        }
+      }
+    } else if (type === 'number') {
+      setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,6 +273,155 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, u
                   </div>
                 </div>
               </div>
+
+              {/* Bonus Configuration Section */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-semibold text-green-900 mb-3">Bonus Configuration</h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="has_sales_component"
+                        checked={formData.has_sales_component}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        disabled={saving}
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        This employee has a sales component
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Check this if the employee's bonus includes sales performance
+                    </p>
+                  </div>
+
+                  {formData.has_sales_component && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sales Contribution (%)
+                        </label>
+                        <input
+                          type="number"
+                          name="sales_contribution_percentage"
+                          value={formData.sales_contribution_percentage}
+                          onChange={handleChange}
+                          min="0"
+                          max="100"
+                          step="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          disabled={saving}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Percentage from sales performance (common: 70% or 80%)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          KPI Contribution (%)
+                        </label>
+                        <input
+                          type="number"
+                          name="kpi_contribution_percentage"
+                          value={formData.kpi_contribution_percentage}
+                          onChange={handleChange}
+                          min="0"
+                          max="100"
+                          step="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          disabled={saving}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Percentage from KPI performance (common: 30% or 20%)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quarterly Variable Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="quarterly_variable_amount"
+                        value={formData.quarterly_variable_amount}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0.00"
+                        disabled={saving}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Base amount for quarterly bonus calculation
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Yearly Variable Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="yearly_variable_amount"
+                        value={formData.yearly_variable_amount}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0.00"
+                        disabled={saving}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Base amount for yearly bonus calculation
+                      </p>
+                    </div>
+                  </div>
+
+                  {formData.has_sales_component && (
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <p className="text-xs text-blue-700">
+                        <strong>Note:</strong> Sales and KPI percentages must add up to 100%. 
+                        Common splits: 80/20, 70/30. For employees without sales component, use 0/100.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* HR Permission Level Section */}
+              {(user.role === 'hr' || user.role_id === 3) && (
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <h4 className="font-semibold text-purple-900 mb-3">HR Access Control</h4>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      HR Access Level <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="permission_level"
+                      value={formData.permission_level || ''}
+                      onChange={(e) => setFormData({ ...formData, permission_level: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      disabled={saving}
+                      required
+                    >
+                      <option value="">-- Select Access Level --</option>
+                      <option value="5">Senior HR (Full Access)</option>
+                      <option value="6">HR Assistant (Limited Access)</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Determines bonus management access rights. Senior HR can manage bonuses, while HR Assistant has limited access.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-sm text-blue-800">

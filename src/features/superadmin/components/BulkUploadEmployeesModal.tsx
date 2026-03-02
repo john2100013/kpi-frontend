@@ -69,6 +69,11 @@ const BulkUploadEmployeesModal: React.FC<BulkUploadEmployeesModalProps> = ({
         'National ID': '12345678',
         'Position': 'Software Engineer',
         'Password': 'TempPass123',
+        'Has Sales Component': '0',
+        'Sales Contribution %': '0',
+        'KPI Contribution %': '100',
+        'Quarterly Variable Amount': '0',
+        'Yearly Variable Amount': '0',
       },
       {
         'Name': 'Jane Smith',
@@ -81,6 +86,11 @@ const BulkUploadEmployeesModal: React.FC<BulkUploadEmployeesModalProps> = ({
         'National ID': '87654321',
         'Position': 'Sales Manager',
         'Password': 'TempPass456',
+        'Has Sales Component': '1',
+        'Sales Contribution %': '70',
+        'KPI Contribution %': '30',
+        'Quarterly Variable Amount': '50000',
+        'Yearly Variable Amount': '200000',
       },
       {
         'Name': 'Bob Wilson',
@@ -93,6 +103,11 @@ const BulkUploadEmployeesModal: React.FC<BulkUploadEmployeesModalProps> = ({
         'National ID': '',
         'Position': '',
         'Password': 'TempPass789',
+        'Has Sales Component': '0',
+        'Sales Contribution %': '0',
+        'KPI Contribution %': '100',
+        'Quarterly Variable Amount': '0',
+        'Yearly Variable Amount': '0',
       },
     ];
 
@@ -221,11 +236,14 @@ const BulkUploadEmployeesModal: React.FC<BulkUploadEmployeesModalProps> = ({
               <ul className="text-sm text-blue-800 space-y-1 ml-6 list-disc">
                 <li><strong>Required columns:</strong> Name, Payroll Number, Phone Number, Role ID</li>
                 <li><strong>Optional columns:</strong> Email (can be N/A or blank), Department ID, Manager ID, Password, National ID, Position</li>
-                <li><strong>Column order:</strong> Name, Email, Payroll Number, Phone Number, Department ID, Manager ID, Role ID, National ID, Position, Password</li>
+                <li><strong>Bonus columns:</strong> Has Sales Component (0 or 1), Sales Contribution %, KPI Contribution %, Quarterly Variable Amount, Yearly Variable Amount</li>
+                <li><strong>Column order:</strong> Name, Email, Payroll Number, Phone Number, Department ID, Manager ID, Role ID, National ID, Position, Password, Has Sales Component, Sales Contribution %, KPI Contribution %, Quarterly Variable Amount, Yearly Variable Amount</li>
                 <li><strong>Email:</strong> Can be left blank or marked as "N/A" for users without email</li>
                 <li><strong>Role ID:</strong> Use 4 for Employee, 2 for Manager, 3 for HR</li>
                 <li><strong>Department ID & Manager ID:</strong> Use numeric IDs from the system</li>
                 <li><strong>Password:</strong> If not provided, default password "Africa.1" will be used</li>
+                <li><strong>Has Sales Component:</strong> Use 1 for yes, 0 for no (default: 0)</li>
+                <li><strong>Contribution %:</strong> Must add up to 100% (e.g., 70/30, 80/20, or 0/100)</li>
                 <li><strong>File format:</strong> .xlsx or .xls</li>
               </ul>
             </div>

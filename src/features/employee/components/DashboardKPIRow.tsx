@@ -36,7 +36,10 @@ export const DashboardKPIRow: React.FC<DashboardKPIRowProps> = ({
   const kpiPeriodLabel = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
   
   const isPending = kpi.status === 'pending';
-  const needsReview = kpi.status === 'acknowledged' && (!review || reviewStatus === 'pending') && isSelfRatingEnabled;
+  
+  // Check if there's a SUBMITTED review (not a draft)
+  const isSubmittedReview = review && review.is_draft !== true;
+  const needsReview = kpi.status === 'acknowledged' && (!isSubmittedReview || reviewStatus === 'pending') && isSelfRatingEnabled;
   const needsConfirmation = review && (reviewStatus === 'manager_submitted' || reviewStatus === 'awaiting_employee_confirmation');
   const canEdit = review && reviewStatus === 'employee_submitted' && isSelfRatingEnabled;
 

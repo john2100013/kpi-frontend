@@ -166,7 +166,10 @@ export const useKPIDetails = () => {
       };
     }
 
-    if (kpi.status === 'acknowledged' && !review) {
+    // Check if review is a SUBMITTED review (not a draft)
+    const isSubmittedReview = review && review.is_draft !== true;
+    
+    if (kpi.status === 'acknowledged' && !isSubmittedReview) {
       return {
         stage: 'KPI Acknowledged - Review Pending',
         color: 'bg-blue-100 text-blue-700 border-blue-200',

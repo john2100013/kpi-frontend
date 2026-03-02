@@ -169,6 +169,7 @@ const MeetingScheduler: React.FC = () => {
             </label>
             <input
               type="time"
+              step="60"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"

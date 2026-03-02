@@ -15,6 +15,8 @@ export interface User {
   company_id?: number;
   signature?: string;
   requires_password_change?: boolean;
+  is_primary?: number;  // 1 = primary manager, 0 = oversight manager
+  assigned_manager_name?: string;  // Name of the primary manager
 }
 
 export interface KPIItem {
@@ -87,10 +89,15 @@ export interface KPI {
   updated_at: string;
   employee_name?: string;
   employee_department?: string;
+  employee_department_id?: number;  // NEW: Department ID for checking is_primary
   employee_payroll_number?: string;
   manager_name?: string;
   items?: KPIItem[]; // Array of KPI items for this form
   item_count?: number; // Number of items in this KPI form
+  // NEW: Hierarchical manager fields
+  is_primary?: number;  // 1 = primary manager (can review), 0 = oversight manager (view only)
+  assigned_manager_id?: number;  // ID of the primary manager for this department
+  assigned_manager_name?: string;  // Name of the primary manager for this department
 }
 
 export interface KPIReview {
@@ -162,10 +169,16 @@ export interface KPIReview {
   employee_position?: string;
   employee_payroll?: string;
   employee_department?: string;
+  employee_department_id?: number;  // NEW: Department ID for checking is_primary
   kpi_title?: string;
   kpi_description?: string;
   target_value?: string;
   measure_unit?: string;
+  
+  // NEW: Hierarchical manager fields
+  is_primary?: number;  // 1 = primary manager (can review), 0 = oversight manager (view only)
+  assigned_manager_id?: number;  // ID of the primary manager for this department
+  assigned_manager_name?: string;  // Name of the primary manager for this department
   
   // NEW: Structured ratings from kpi_item_ratings table
   item_ratings?: {
@@ -206,6 +219,9 @@ export interface KPIReview {
     qualitative_rating?: string;
     qualitative_comment?: string;
   }>;
+  
+  // Draft flag - true for drafts, false/undefined for submitted reviews
+  is_draft?: boolean;
   
   created_at?: string;
   updated_at?: string;
@@ -255,3 +271,159 @@ export interface Department {
   company_id: number;
 }
 
+export interface ManagerDepartmentAssignment {
+  id: number;
+  name: string;
+  is_primary: number;  // 1 = primary, 0 = oversight
+  employee_count: number;
+  department_id: number;
+  manager_id: number;
+  company_id: number;
+}
+
+// ============================================================================
+// Manager Rating Types
+// ============================================================================
+
+export interface ManagerRatingOption {
+  id: number;
+  company_id: number;
+  rating_scale_name: string; // e.g., "Agreement Scale", "Frequency Scale"
+  rating_value: number; // 1-5
+  label: string; // e.g., "Strongly Agree", "Every Day"
+  description?: string;
+  display_order: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ManagerRatingQuestion {
+  id?: number;
+  section_id?: number;
+  question_text: string;
+  description?: string;
+  rating_scale_name: string; // References rating scale name
+  question_order: number;
+  is_required: boolean;
+  is_active?: number;
+  created_at?: string;
+  updated_at?: string;
+  response?: ManagerRatingResponse | null; // For employee view
+}
+
+export interface ManagerRatingSection {
+  id?: number;
+  template_id?: number;
+  section_name: string;
+  description?: string;
+  section_order: number;
+  is_active?: number;
+  created_at?: string;
+  updated_at?: string;
+  questions: ManagerRatingQuestion[];
+}
+
+export interface ManagerRatingTemplate {
+  id: number;
+  company_id: number;
+  template_name: string;
+  description?: string;
+  period?: 'quarterly' | 'yearly' | 'annual';
+  quarter?: string;
+  year?: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  section_count?: number;
+  assignment_count?: number;
+}
+
+export interface ManagerRatingAssignment {
+  id: number;
+  company_id: number;
+  template_id: number;
+  department_id: number;
+  assigned_by: number;
+  due_date?: string;
+  status: 'active' | 'completed' | 'cancelled';
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  template_name?: string;
+  department_name?: string;
+  assigned_by_name?: string;
+  total_submissions?: number;
+  submitted_count?: number;
+}
+
+export interface ManagerRatingResponse {
+  id?: number;
+  submission_id?: number;
+  question_id: number;
+  section_id: number;
+  rating_value: number;
+  response_text?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ManagerRatingSubmission {
+  id: number;
+  company_id: number;
+  assignment_id: number;
+  template_id: number;
+  employee_id: number;
+  manager_id?: number;
+  department_id: number;
+  status: 'pending' | 'submitted' | 'reviewed';
+  overall_rating?: number;
+  overall_percentage?: number;
+  employee_comments?: string;
+  submitted_at?: string;
+  created_at: string;
+  updated_at: string;
+  employee_name?: string;
+  manager_name?: string;
+  template_name?: string;
+  template_description?: string;
+  due_date?: string;
+  assignment_status?: string;
+  department_name?: string;
+  employee_email?: string;
+  employee_payroll_number?: string;
+}
+
+export interface ManagerRatingSectionResult {
+  id: number;
+  submission_id: number;
+  section_id: number;
+  total_questions: number;
+  total_rating: number;
+  average_rating: number;
+  percentage: number;
+  section_name?: string;
+}
+
+export interface ManagerRatingResults {
+  submission: ManagerRatingSubmission;
+  sectionResults: ManagerRatingSectionResult[];
+  responses: Array<ManagerRatingResponse & {
+    question_text?: string;
+    rating_scale_name?: string;
+    section_name?: string;
+  }>;
+}
+
+export interface ManagerRatingAssignmentResults {
+  totalSubmissions: number;
+  averageOverallRating: number;
+  averageOverallPercentage: number;
+  sectionAverages: Array<{
+    id: number;
+    section_name: string;
+    avg_rating: number;
+    avg_percentage: number;
+  }>;
+  submissions: ManagerRatingSubmission[];
+}
