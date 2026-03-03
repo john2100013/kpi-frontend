@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { KPI, KPIReview } from '../../../types';
+import api from '../../../services/api';
 import {
   calculateDashboardStats,
   getDashboardKPIStage,
   getUniquePeriods,
-  filterKpis,
   scrollToTable,
 } from './dashboardUtils';
 
@@ -26,23 +26,84 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-   const initialDataSetRef = useRef(false);
+  
+  // Server-side pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage] = useState(10);
+  const [filteredKpis, setFilteredKpis] = useState<KPI[]>([]);
+  
+  const initialDataSetRef = useRef(false);
 
+  // Fetch KPIs with server-side pagination
   useEffect(() => {
-    if (initialDataSetRef.current) {
-      return;
-    }
-    if (props?.initialKpis || props?.initialReviews) {
-      if (props.initialKpis && props.initialKpis.length > 0) {
-        setKpis(props.initialKpis);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Build query parameters for server-side filtering and pagination
+        const params: Record<string, any> = {
+          page: currentPage,
+          limit: itemsPerPage,
+        };
+        
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+        
+        if (selectedStatus) {
+          params.status = selectedStatus;
+        }
+        
+        if (selectedPeriod) {
+          params.period = selectedPeriod;
+        }
+        
+        // Fetch KPIs with pagination
+        const [kpisResponse, reviewsResponse] = await Promise.all([
+          api.get('/kpis', { params }),
+          api.get('/kpi-review')
+        ]);
+        
+        const kpisData = kpisResponse.data.data?.kpis || kpisResponse.data.kpis || [];
+        const paginationData = kpisResponse.data.data?.pagination || kpisResponse.data.pagination;
+        const reviewsData = reviewsResponse.data.reviews || [];
+        
+        setKpis(kpisData);
+        setFilteredKpis(kpisData);
+        setReviews(reviewsData);
+        
+        if (paginationData) {
+          setTotalPages(paginationData.totalPages || paginationData.total_pages || 1);
+          setTotalCount(paginationData.total || paginationData.total_count || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch KPIs:', error);
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.error('Failed to load KPIs');
+        }
+      } finally {
+        setLoading(false);
       }
-      if (props.initialReviews && props.initialReviews.length > 0) {
+    };
+    
+    // Only fetch if not using initial props
+    if (!props?.initialKpis && !initialDataSetRef.current) {
+      fetchData();
+    } else if (props?.initialKpis && !initialDataSetRef.current) {
+      // Use initial props data if provided
+      if (props.initialKpis) {
+        setKpis(props.initialKpis);
+        setFilteredKpis(props.initialKpis);
+      }
+      if (props.initialReviews) {
         setReviews(props.initialReviews);
       }
       setLoading(false);
       initialDataSetRef.current = true;
     }
-  }, [props?.initialKpis, props?.initialReviews]);
+  }, [currentPage, searchTerm, selectedStatus, selectedPeriod, itemsPerPage, props?.initialKpis, props?.initialReviews]);
 
   useEffect(() => {
     checkPasswordChange();
@@ -102,10 +163,30 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
     navigate(`/employee/self-rating/${kpiId}`);
   };
 
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      scrollToTable();
+    }
+  };
+  
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page on search
+  };
+  
+  const handleFilterChange = (filterType: 'period' | 'status', value: string) => {
+    if (filterType === 'period') {
+      setSelectedPeriod(value);
+    } else {
+      setSelectedStatus(value);
+    }
+    setCurrentPage(1); // Reset to first page on filter change
+  };
+
   const stats = calculateDashboardStats(kpis, reviews);
   
   const uniquePeriods = getUniquePeriods(kpis);
-  const filteredKpis = filterKpis(kpis, reviews, searchTerm, selectedPeriod, selectedStatus);
 
   return {
     // Data
@@ -116,6 +197,13 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
     uniquePeriods,
     loading,
 
+    // Pagination
+    currentPage,
+    totalPages,
+    totalCount,
+    itemsPerPage,
+    handlePageChange,
+
     // Password Modal
     showPasswordModal,
     passwordChangeRequired,
@@ -123,11 +211,12 @@ export const useEmployeeDashboard = (props?: UseEmployeeDashboardProps) => {
 
     // Filters
     searchTerm,
-    setSearchTerm,
+    setSearchTerm: handleSearchChange,
     selectedPeriod,
     setSelectedPeriod,
     selectedStatus,
     setSelectedStatus,
+    handleFilterChange,
 
     // Actions
     handleStatusFilterClick,

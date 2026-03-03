@@ -302,8 +302,11 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
 
   const fetchReview = async () => {
     try {
+      
       const response = await api.get(`/kpi-review/${reviewId}`);
       const reviewData = response.data.review;
+      
+     
       
       
       
@@ -363,6 +366,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         setEmployeeRatings(empNumericRatings);
         setEmployeeQualitativeRatings(empQualitativeRatings);
         setEmployeeComments(empComments);
+       
         
         // Load existing manager ratings from database (item_ratings.manager)
         const mgrRatings: ItemRatingsMap = {};
@@ -370,8 +374,10 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         const mgrQualitativeRatings: ItemRatingsMap = {};
         const mgrQualitativeComments: ItemCommentsMap = {};
         const mgrActualValues: Record<number, string> = {};
+       
         
         if (reviewData.item_ratings && reviewData.item_ratings.manager) {
+          
           Object.entries(reviewData.item_ratings.manager).forEach(([itemIdStr, ratingData]: [string, any]) => {
             const itemId = parseInt(itemIdStr);
             const item = kpiData.items?.find((i: any) => i.id === itemId);
@@ -399,6 +405,7 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           });
           
         
+        
         } else {
           // Fallback: Try parsing from JSON (legacy)
           const { ratings: mgrRatingsLegacy, comments: mgrCommentsLegacy } = parseManagerData(
@@ -408,23 +415,9 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           Object.assign(mgrComments, mgrCommentsLegacy);
         }
         
-        // Set manager ratings state
-        if (Object.keys(mgrRatings).length > 0) {
-          setManagerRatings(mgrRatings);
-        } else {
-        }
-        if (Object.keys(mgrComments).length > 0) {
-          setManagerComments(mgrComments);
-        }
-        if (Object.keys(mgrQualitativeRatings).length > 0) {
-          setQualitativeRatings(mgrQualitativeRatings);
-        }
-        if (Object.keys(mgrQualitativeComments).length > 0) {
-          setQualitativeComments(mgrQualitativeComments);
-        }
-        if (Object.keys(mgrActualValues).length > 0) {
-          setActualValues(mgrActualValues);
-        }
+       
+        
+       
 
         // Load accomplishments from review
        
@@ -562,7 +555,15 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   };
 
   const handleRatingChange = (itemId: number, value: number) => {
+    
+    // Validate value is a number and not NaN
+    if (typeof value !== 'number' || isNaN(value)) {
+      console.error(`[useManagerKPIReview] Invalid rating value for item ${itemId}:`, value);
+      return;
+    }
+    
     const ratingValue = parseFloat(String(value));
+    
     const newRatings = { ...managerRatings, [itemId]: ratingValue };
     setManagerRatings(newRatings);
   };
@@ -572,18 +573,23 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
   };
 
   const handleSubmit = async () => {
-   
     
     if (!kpi?.items || kpi.items.length === 0) {
       toast.error('No KPI items found');
       return;
     }
 
+    // Log each item and its rating for debugging
+    kpi.items.forEach(() => {
+    
+    });
+
     // Validate all KPI items are rated (returns details on missing items)
     const validation = validateAllItemsRated(kpi.items, managerRatings, qualitativeRatings);
     const allRated = validation.valid;
     if (!allRated) {
       // Show a user-friendly toast and also include item ids for debugging
+      console.error('[useManagerKPIReview] Validation failed. Missing items:', validation.missingItems);
       toast.error('Please provide a rating for all KPI items. Missing: ' + validation.missingItems.map(i => `${i.item_id}(${i.title})`).join(', '));
       return;
     }
@@ -771,6 +777,15 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
           if (response.data.review) {
            
           }
+
+          // Check for warnings (e.g., email failures)
+          if (response.data.warnings && response.data.warnings.length > 0) {
+            console.warn('Review submitted with warnings:', response.data.warnings);
+            // Display each warning to the user
+            response.data.warnings.forEach((warning: string) => {
+              toast.warning(warning); // Toast will auto-clear after default duration
+            });
+          }
         } else {
         }
 
@@ -779,7 +794,12 @@ export const useManagerKPIReview = (): UseManagerKPIReviewReturn => {
         clearReviewDraft(reviewId);
       }
 
-      toast.success('Review submitted successfully!');
+      // Success message after warnings (if any)
+      const successMessage = response.data.warnings && response.data.warnings.length > 0
+        ? 'Review submitted successfully! However, some email notifications could not be sent - please check above warnings.'
+        : 'Review submitted successfully!';
+      toast.success(successMessage);
+      
       navigate('/manager/reviews');
     } catch (error: any) {
     

@@ -17,7 +17,7 @@ export const useKPIDetails = () => {
   const { kpiId } = useParams<{ kpiId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const confirm = useConfirm();
+  const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
 
   // State
   const [kpi, setKpi] = useState<KPI | null>(null);
@@ -40,17 +40,13 @@ export const useKPIDetails = () => {
   const [finalRatingPercentage, setFinalRatingPercentage] = useState<number>(0);
 
   useEffect(() => {
-
     if (kpiId) {
-
       fetchKPIData();
-    } else {
     }
   }, [kpiId]);
 
   const fetchKPIData = async () => {
     try {
-
       setLoading(true);
       
       // Fetch KPI and review data
@@ -62,11 +58,9 @@ export const useKPIDetails = () => {
 
       if (fetchedReview) {
         // Fetch the full review details by ID to get accomplishments
-
         try {
           const fullReviewResponse = await api.get(`/kpi-review/${fetchedReview.id}`);
-          const fullReview = fullReviewResponse.data.review;
-          
+          const fullReview = fullReviewResponse.data.data;
 
           setReview(fullReview);
           
@@ -77,7 +71,6 @@ export const useKPIDetails = () => {
           // Fallback to the review from the list
           setReview(fetchedReview);
         }
-      } else {
       }
     } catch (error) {
       toast.error('Failed to load KPI details');
@@ -94,8 +87,6 @@ export const useKPIDetails = () => {
       // Backend returns { review, ratings } from kpi_item_ratings table
       const ratings = response.data.ratings;
       
-
-      
       if (!ratings || !Array.isArray(ratings)) {
         return;
       }
@@ -110,8 +101,6 @@ export const useKPIDetails = () => {
       let totalPercentage = 0;
       
       ratings.forEach((rating: any) => {
-
-        
         // Only extract data from manager ratings
         if (rating.kpi_item_id && rating.rater_role === 'manager') {
           if (rating.actual_value) {
@@ -228,22 +217,29 @@ export const useKPIDetails = () => {
 
   // HR-specific: Handle rejection resolution
   const handleResolveRejection = async () => {
-    if (!review) return;
+    if (!review) {
+      return;
+    }
 
-    const confirmed = await confirm.confirm({
+    const confirmed = await confirm({
       title: 'Mark as Resolved',
-      message: 'Mark this rejection as resolved? This will move it to the Resolved Issues section.',
+      message: 'Mark this rejection as resolved? This will change the KPI status to "Pending Manager Review" and allow the manager to edit and resubmit.',
       variant: 'info',
     });
 
     if (confirmed) {
       try {
-        await hrService.resolveRejection(review.id, resolveNote);
-        toast.success('Rejection marked as resolved successfully!');
-        setResolveNote('');
-        fetchKPIData(); // Refresh data
-      } catch (error) {
-        toast.error('Failed to mark as resolved');
+        const response = await hrService.resolveRejection(review.id, resolveNote);
+        
+        if (response.success) {
+          toast.success('Rejection marked as resolved successfully! KPI is now pending manager review.');
+          setResolveNote('');
+          await fetchKPIData();
+        } else {
+          throw new Error(response.message || 'Failed to resolve rejection');
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || error.message || 'Failed to mark as resolved');
       }
     }
   };
@@ -278,6 +274,11 @@ export const useKPIDetails = () => {
     percentageValuesObtained,
     managerRatingPercentages,
     finalRatingPercentage,
+    
+    // Confirm dialog
+    confirmState,
+    handleConfirmDialog: handleConfirm,
+    handleCancelDialog: handleCancel,
     
     // Actions
     openTextModal,

@@ -63,9 +63,7 @@ export const fetchDepartmentStatistics = createAsyncThunk(
 
       // Log each department's statistics
       if (response.data?.data?.statistics) {
-        response.data.data.statistics.forEach((dept: any) => {
-
-        });
+        // Statistics processing placeholder
       }
       
       // Backend returns { success: true, data: { statistics: [...] } }

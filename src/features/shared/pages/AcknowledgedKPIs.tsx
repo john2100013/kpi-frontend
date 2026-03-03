@@ -50,7 +50,7 @@ const AcknowledgedKPIs: React.FC = () => {
   const fetchData = async () => {
     try {
       // Use the dedicated endpoint for acknowledged-review-pending KPIs
-      const kpisRes = await api.get('/kpis/acknowledged-review-pending').catch(err => {
+      const kpisRes = await api.get('/kpis/acknowledged-review-pending').catch(_err => {
         toast.error('Failed to fetch acknowledged-review-pending KPIs. Please try again.');
         return { data: { kpis: [] } };
       });

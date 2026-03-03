@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiPlus, FiTrash2, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiCheckCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../context/ToastContext';
 import { userManagementService } from '../services/userManagementService';
@@ -37,7 +37,7 @@ const AssignManagerDepartments: React.FC = () => {
   const [selectedDepartments, setSelectedDepartments] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [currentAssignments, setCurrentAssignments] = useState<ManagerDepartment[]>([]);
+  const [_currentAssignments, setCurrentAssignments] = useState<ManagerDepartment[]>([]);
 
   useEffect(() => {
     fetchInitialData();
@@ -85,7 +85,7 @@ const AssignManagerDepartments: React.FC = () => {
       });
 
       // Cast User array to Manager array - User has all required Manager properties
-      setManagers(managersData as Manager[]);
+      setManagers(managersData.users as Manager[]);
 
       // Fetch departments for the selected company
 

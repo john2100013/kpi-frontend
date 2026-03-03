@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
 import { isSuperAdmin } from '../../../utils/roleUtils';
 import { superAdminDashboardService, DashboardStats, Company } from '../services/superAdminDashboardService';
 
 export const useSuperAdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   
   const [stats, setStats] = useState<DashboardStats>({
     totalCompanies: 0,

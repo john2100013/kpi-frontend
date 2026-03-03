@@ -116,7 +116,7 @@ export const useEmployeeKPIConfirmation = () => {
     try {
      
       
-      const response = await employeeService.submitConfirmation(parseInt(reviewId!), {
+      await employeeService.submitConfirmation(parseInt(reviewId!), {
         confirmation_status: action === 'approve' ? 'approved' : 'rejected',
         rejection_note: action === 'reject' ? rejectionNote : null,
         signature: action === 'approve' ? signature : null,

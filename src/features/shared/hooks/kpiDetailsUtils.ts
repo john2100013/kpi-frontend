@@ -17,6 +17,7 @@ export interface ParsedReviewData {
   employeeItemComments: ItemComments;
   managerItemRatings: ItemRatings;
   managerItemComments: ItemComments;
+  managerQualitativeRatings: ItemComments; // Qualitative ratings like "Excellent", "Good", etc.
 }
 
 /**
@@ -28,10 +29,11 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
   const employeeItemComments: ItemComments = {};
   const managerItemRatings: ItemRatings = {};
   const managerItemComments: ItemComments = {};
+  const managerQualitativeRatings: ItemComments = {};
 
   if (!review) {
 
-    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
+    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments, managerQualitativeRatings };
   }
 
  
@@ -54,12 +56,13 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
         const id = parseInt(itemId);
         managerItemRatings[id] = parseFloat(String(ratingData.rating)) || 0;
         managerItemComments[id] = ratingData.comment || '';
+        managerQualitativeRatings[id] = ratingData.qualitative_rating || '';
       });
     }
 
     
 
-    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
+    return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments, managerQualitativeRatings };
   }
 
   // FALLBACK: Try legacy JSON format in comment fields
@@ -96,7 +99,7 @@ export const parseReviewData = (review: KPIReview | null): ParsedReviewData => {
   }
 
  
-  return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments };
+  return { employeeItemRatings, employeeItemComments, managerItemRatings, managerItemComments, managerQualitativeRatings };
 };
 
 /**

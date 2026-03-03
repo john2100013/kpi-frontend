@@ -147,7 +147,7 @@ const calculateNormalRating = (
  */
 const calculateGoalWeightRating = (
   items: KPIItem[], 
-  ratingOptions: number[],
+  _ratingOptions: number[],
   raterType: 'employee' | 'manager' = 'manager'
 ): CalculationResult => {
   let weightedSum = 0;
@@ -193,7 +193,7 @@ const calculateGoalWeightRating = (
  */
 const calculateActualValueRating = (
   items: KPIItem[], 
-  ratingOptions: number[]
+  _ratingOptions?: number[]
 ): CalculationResult => {
   let totalManagerRatingPercentage = 0;
   let totalWeight = 0;
@@ -278,7 +278,7 @@ export const calculateFinalKPIRating = (
     // Determine which calculation method to use
     if (kpiType === 'yearly') {
       if (features.use_actual_values_yearly) {
-        calculationResult = calculateActualValueRating(items, ratingOptions);
+        calculationResult = calculateActualValueRating(items);
       } else if (features.use_goal_weight_yearly) {
         calculationResult = calculateGoalWeightRating(items, ratingOptions, raterType);
       } else {
@@ -286,7 +286,7 @@ export const calculateFinalKPIRating = (
       }
     } else if (kpiType === 'quarterly') {
       if (features.use_actual_values_quarterly) {
-        calculationResult = calculateActualValueRating(items, ratingOptions);
+        calculationResult = calculateActualValueRating(items);
       } else if (features.use_goal_weight_quarterly) {
         calculationResult = calculateGoalWeightRating(items, ratingOptions, raterType);
       } else {

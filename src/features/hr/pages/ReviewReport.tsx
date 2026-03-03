@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { FiFilter, FiDownload, FiFileText, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import api from '../../../services/api';
@@ -52,6 +52,8 @@ const ReviewReport: React.FC = () => {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 50;
   
   // Available options
@@ -68,13 +70,12 @@ const ReviewReport: React.FC = () => {
   }, [selectedPeriodType]);
 
   useEffect(() => {
-    fetchReportData();
     setCurrentPage(1); // Reset to first page when filters change
-  }, [selectedPeriodType, selectedPeriodId, selectedDepartment]);
+  }, [selectedPeriodType, selectedPeriodId, selectedDepartment, searchTerm]);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when search term changes
-  }, [searchTerm]);
+    fetchReportData();
+  }, [selectedPeriodType, selectedPeriodId, selectedDepartment, searchTerm, currentPage]);
 
   const fetchAvailablePeriods = async () => {
     try {
@@ -109,15 +110,17 @@ const ReviewReport: React.FC = () => {
 
       if (!selectedPeriod) {
         setReportData([]);
+        setTotalPages(1);
+        setTotalCount(0);
         setLoading(false);
         return;
       }
 
-     
-
       const params: any = {
         period: selectedPeriodType,
         year: selectedPeriod.year,
+        page: currentPage,
+        limit: itemsPerPage,
       };
 
       // Add quarter for quarterly reports
@@ -130,35 +133,26 @@ const ReviewReport: React.FC = () => {
         params.department_id = selectedDepartment;
       }
 
+      // Add search term if provided
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
       const response = await api.get('/kpis/review-report', { params });
-      setReportData(response.data.report || []);
+      const data = response.data.report || [];
+      const pagination = response.data.pagination || {};
+
+      setReportData(data);
+      setTotalPages(pagination.totalPages || 1);
+      setTotalCount(pagination.total || 0);
     } catch (error: any) {
       setReportData([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
-
-  // Filter and paginate data
-  const filteredData = useMemo(() => {
-    if (!searchTerm) return reportData;
-    
-    const lowerSearch = searchTerm.toLowerCase();
-    return reportData.filter(record => 
-      record.employee_name.toLowerCase().includes(lowerSearch) ||
-      record.payroll.toLowerCase().includes(lowerSearch) ||
-      record.department.toLowerCase().includes(lowerSearch) ||
-      record.email.toLowerCase().includes(lowerSearch)
-    );
-  }, [reportData, searchTerm]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredData.slice(startIndex, endIndex);
-  }, [filteredData, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const handleExport = () => {
     // TODO: Implement CSV export
@@ -277,7 +271,7 @@ const ReviewReport: React.FC = () => {
           <div className="flex items-center space-x-2">
             <FiFileText className="text-purple-600 text-xl" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Report Results ({filteredData.length} {filteredData.length !== reportData.length ? `of ${reportData.length}` : ''} records)
+              Report Results ({totalCount} records)
             </h2>
           </div>
           {totalPages > 1 && (
@@ -337,7 +331,7 @@ const ReviewReport: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {paginatedData.map((record, index) => {
+                {reportData.map((record, index) => {
                   const periodDisplay = record.period === 'quarterly' 
                     ? `${record.quarter} ${record.year}`
                     : `${record.year} (Yearly)`;
@@ -412,10 +406,10 @@ const ReviewReport: React.FC = () => {
         )}
 
         {/* Pagination Controls */}
-        {!loading && filteredData.length > 0 && totalPages > 1 && (
+        {!loading && totalCount > 0 && totalPages > 1 && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} results
             </div>
             <div className="flex items-center space-x-2">
               <Button

@@ -9,7 +9,6 @@ import {
   FiUsers,
   FiFileText,
   FiCheckCircle,
-  FiArrowRight,
   FiEye,
   FiEdit,
   FiCalendar,
@@ -95,31 +94,31 @@ const ManagerDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const [, reviewsRes, notificationsRes, activityRes, employeesRes] = await Promise.all([
-        api.get('/kpis').catch(err => {
+        api.get('/kpis').catch(() => {
           if (typeof window !== 'undefined' && window.toast) {
             window.toast.error('Could not fetch KPIs.');
           }
           return { data: { kpis: [] } };
         }),
-        api.get('/kpi-review').catch(err => {
+        api.get('/kpi-review').catch(_err => {
           if (typeof window !== 'undefined' && window.toast) {
             window.toast.error('Could not fetch reviews.');
           }
           return { data: { reviews: [] } };
         }),
-        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(err => {
+        api.get('/notifications', { params: { limit: 5, read: 'false' } }).catch(_err => {
           if (typeof window !== 'undefined' && window.toast) {
             window.toast.error('Could not fetch notifications.');
           }
           return { data: { notifications: [] } };
         }),
-        api.get('/notifications/activity').catch(err => {
+        api.get('/notifications/activity').catch(_err => {
           if (typeof window !== 'undefined' && window.toast) {
             window.toast.error('Could not fetch activity.');
           }
           return { data: { activities: [] } };
         }),
-        api.get('/employees').catch(err => {
+        api.get('/employees').catch(_err => {
           if (typeof window !== 'undefined' && window.toast) {
             window.toast.error('Could not fetch employees.');
           }

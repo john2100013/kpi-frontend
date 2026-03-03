@@ -16,6 +16,14 @@ export interface TableColumn<T> {
   className?: string;
 }
 
+export interface PaginationConfig {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
+  rowsPerPage?: number;
+}
+
 interface TableProps<T> {
   data: T[];
   columns: TableColumn<T>[];
@@ -24,8 +32,17 @@ interface TableProps<T> {
   emptyMessage?: string;
   hover?: boolean;
   striped?: boolean;
+  /**
+   * @deprecated Use paginationConfig instead for server-side pagination
+   */
   pagination?: boolean;
   rowsPerPage?: number;
+  /**
+   * Server-side pagination configuration.
+   * When provided, the table will display pagination controls using server data.
+   * The `data` prop should contain only the current page's data.
+   */
+  paginationConfig?: PaginationConfig;
 }
 
 export function Table<T>({
@@ -38,20 +55,43 @@ export function Table<T>({
   striped = false,
   pagination = false,
   rowsPerPage = 20,
+  paginationConfig,
 }: TableProps<T>) {
+  // Local state for deprecated client-side pagination only
   const [currentPage, setCurrentPage] = useState(1);
 
- 
+  // Use server-side pagination config if provided, otherwise fall back to client-side (deprecated)
+  const isServerPagination = !!paginationConfig;
+  const showPagination = isServerPagination || pagination;
 
-  // Calculate pagination
-  const totalPages = Math.ceil(data.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedData = pagination ? data.slice(startIndex, endIndex) : data;
+  // Server-side pagination values
+  const serverCurrentPage = paginationConfig?.currentPage || 1;
+  const serverTotalPages = paginationConfig?.totalPages || 1;
+  const serverTotalCount = paginationConfig?.totalCount || 0;
+  const serverRowsPerPage = paginationConfig?.rowsPerPage || rowsPerPage;
+
+  // Client-side pagination calculations (DEPRECATED - only for backward compatibility)
+  const totalPages = isServerPagination ? serverTotalPages : Math.ceil(data.length / rowsPerPage);
+  const startIndex = isServerPagination 
+    ? (serverCurrentPage - 1) * serverRowsPerPage 
+    : (currentPage - 1) * rowsPerPage;
+  const endIndex = isServerPagination 
+    ? startIndex + data.length  // data already contains only current page
+    : startIndex + rowsPerPage;
+  
+  // CRITICAL: Only slice data for client-side pagination (deprecated)
+  // For server-side pagination, data is already paginated by the backend
+  const paginatedData = isServerPagination ? data : (pagination ? data.slice(startIndex, endIndex) : data);
+
+  const activePage = isServerPagination ? serverCurrentPage : currentPage;
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (isServerPagination) {
+      paginationConfig.onPageChange(page);
+    } else {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const getPageNumbers = () => {
@@ -63,20 +103,20 @@ export function Table<T>({
         pages.push(i);
       }
     } else {
-      if (currentPage <= 3) {
+      if (activePage <= 3) {
         for (let i = 1; i <= 4; i++) pages.push(i);
         pages.push('...');
         pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
+      } else if (activePage >= totalPages - 2) {
         pages.push(1);
         pages.push('...');
         for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
       } else {
         pages.push(1);
         pages.push('...');
-        pages.push(currentPage - 1);
-        pages.push(currentPage);
-        pages.push(currentPage + 1);
+        pages.push(activePage - 1);
+        pages.push(activePage);
+        pages.push(activePage + 1);
         pages.push('...');
         pages.push(totalPages);
       }
@@ -150,16 +190,20 @@ export function Table<T>({
         </table>
       </div>
 
-      {pagination && totalPages > 1 && (
+      {showPagination && totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
           <div className="flex items-center text-sm text-gray-700">
-            Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} results
+            {isServerPagination ? (
+              <>Showing {startIndex + 1} to {endIndex} of {serverTotalCount} results</>
+            ) : (
+              <>Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} results</>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(activePage - 1)}
+              disabled={activePage === 1}
               className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FiChevronLeft />
@@ -173,7 +217,7 @@ export function Table<T>({
                   key={page}
                   onClick={() => handlePageChange(page as number)}
                   className={`px-4 py-1 border rounded-md ${
-                    currentPage === page
+                    activePage === page
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
@@ -184,8 +228,8 @@ export function Table<T>({
             ))}
             
             <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(activePage + 1)}
+              disabled={activePage === totalPages}
               className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FiChevronRight />

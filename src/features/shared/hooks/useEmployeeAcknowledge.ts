@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KPI } from '../../../types';
-import { employeeService } from '../services/employeeService';
+import { employeeService } from '../../employee/services/employeeService';
 
 export const useEmployeeAcknowledge = () => {
   const navigate = useNavigate();

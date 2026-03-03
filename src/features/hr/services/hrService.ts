@@ -112,7 +112,7 @@ export const hrService = {
    * Mark notification as read
    */
   markNotificationRead: async (id: number): Promise<void> => {
-    const response = await api.patch(`/notifications/${id}/read`);
+    await api.put(`/notifications/${id}/read`);
   },
 
   /**
@@ -350,8 +350,17 @@ export const hrService = {
    * Resolve a rejected KPI
    */
   resolveRejection: async (reviewId: number, note: string) => {
-    const response = await api.post(`/kpi-review/${reviewId}/resolve-rejection`, { note });
-    return response.data;
+  
+    
+    try {
+      const response = await api.post(`/kpi-review/${reviewId}/resolve-rejection`, { note });
+     
+      
+      return response.data;
+    } catch (error: any) {
+     
+      throw error;
+    }
   },
 };
 

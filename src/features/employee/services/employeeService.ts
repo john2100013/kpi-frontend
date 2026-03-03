@@ -52,7 +52,8 @@ export const employeeService = {
   // Fetch review by ID for confirmation
   fetchReviewById: async (reviewId: number): Promise<KPIReviewConfirmation> => {
     const response = await api.get(`/kpi-review/${reviewId}`);
-    return response.data.review;
+    // Backend returns { success: true, data: { ...review, items: [] } }
+    return response.data.data;
   },
 
   // Submit confirmation

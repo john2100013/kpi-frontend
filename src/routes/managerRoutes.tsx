@@ -19,7 +19,6 @@ import {
   KPISettingCompleted,
   CompletedReviews,
   Notifications,
-  Employees,
 } from '../features/shared';
 import { DepartmentDashboard } from '../features/hr';
 

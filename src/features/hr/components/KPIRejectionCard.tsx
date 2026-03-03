@@ -25,8 +25,10 @@ export const KPIRejectionCard: React.FC<KPIRejectionCardProps> = ({
   const rejectionNote = review.rejection_note || review.employee_rejection_note;
   const confirmationStatus = review.confirmation_status || review.employee_confirmation_status;
   const signedAt = review.confirmation_signed_at || review.employee_confirmation_signed_at;
-  
-  if (review.review_status !== 'rejected' && review.status !== 'rejected') {
+
+  // Show rejection card if employee rejected the review (confirmation_status = 'rejected')
+  // OR if the KPI status is 'rejected'
+  if (confirmationStatus !== 'rejected' && (review as any).review_status !== 'rejected' && (review as any).status !== 'rejected') {
     return null;
   }
   
@@ -54,7 +56,7 @@ export const KPIRejectionCard: React.FC<KPIRejectionCardProps> = ({
       )}
 
       {/* Mark as Resolved Button for HR */}
-      {review.rejection_resolved_status !== 'resolved' && (
+      {(review as any).rejection_resolved_status !== 'resolved' ? (
         <div className="mt-4 pt-4 border-t border-red-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Resolution Note (Optional)
@@ -66,9 +68,17 @@ export const KPIRejectionCard: React.FC<KPIRejectionCardProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
             rows={3}
           />
-          <Button onClick={onResolve} variant="success">
+          <Button 
+            type="button"
+            onClick={onResolve}
+            variant="success"
+          >
             ✓ Mark as Resolved
           </Button>
+        </div>
+      ) : (
+        <div className="mt-4 pt-4 border-t border-red-200">
+          <p className="text-sm text-green-700 font-medium">✓ Already resolved</p>
         </div>
       )}
 

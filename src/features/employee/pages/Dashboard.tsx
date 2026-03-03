@@ -37,6 +37,12 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
     handleConfirmReview,
     handleEditReview,
     getDashboardKPIStage,
+    // Server-side pagination properties
+    currentPage,
+    totalPages,
+    totalCount,
+    itemsPerPage,
+    handlePageChange,
     navigate,
   } = useEmployeeDashboard({
     initialKpis: sharedKpis,
@@ -46,10 +52,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
   // Store department features (single API call for all KPIs since they belong to same department)
   const [departmentFeatures, setDepartmentFeatures] = useState<DepartmentFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   // Fetch department features once for the employee's department (applies to all their KPIs)
   useEffect(() => {
@@ -87,11 +89,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
     fetchDepartmentFeatures();
   }, [filteredKpis.length]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedPeriod, selectedStatus]);
-
   // Helper: Check if self-rating is enabled for a specific KPI
   const isSelfRatingEnabledForKPI = (kpi: KPI): boolean => {
     if (!departmentFeatures) return true;
@@ -120,28 +117,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
     }
 
     return 'Normal Calculation';
-  };
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredKpis.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedKpis = filteredKpis.slice(startIndex, endIndex);
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handlePageClick = (page: number) => {
-    setCurrentPage(page);
   };
 
 
@@ -394,7 +369,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
                   </td>
                 </tr>
               ) : (
-                paginatedKpis.map((kpi: KPI) => {
+                filteredKpis.map((kpi: KPI) => {
                   const review = reviews.find((r: KPIReview) => r.kpi_id === kpi.id);
                   const stageInfo = getDashboardKPIStage(kpi, reviews);
                   const selfRatingEnabled = isSelfRatingEnabledForKPI(kpi);
@@ -422,39 +397,51 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ sharedKpis, share
         </div>
 
         {/* Pagination */}
-        {filteredKpis.length > itemsPerPage && (
+        {totalCount > itemsPerPage && (
           <div className="px-6 py-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                <span className="font-medium">{Math.min(endIndex, filteredKpis.length)}</span> of{' '}
-                <span className="font-medium">{filteredKpis.length}</span> KPIs
+                Showing <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of{' '}
+                <span className="font-medium">{totalCount}</span> KPIs
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={handlePrevPage}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <div className="flex space-x-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageClick(page)}
-                      className={`px-3 py-1 text-sm rounded-md ${
-                        currentPage === page
-                          ? 'bg-purple-600 text-white'
-                          : 'border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+                    // Show first 3, last 3, and current with neighbors
+                    const page = i + 1;
+                    const shouldShow = page <= 3 || page > totalPages - 3 || Math.abs(currentPage - page) <= 1;
+                    
+                    if (!shouldShow && (page === 4 || page === totalPages - 3)) {
+                      return <span key={page} className="px-2 py-1 text-sm">...</span>;
+                    }
+                    
+                    if (!shouldShow) return null;
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-1 text-sm rounded-md ${
+                          currentPage === page
+                            ? 'bg-purple-600 text-white'
+                            : 'border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
-                  onClick={handleNextPage}
+                  onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

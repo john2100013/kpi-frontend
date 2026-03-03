@@ -1,2 +1,2 @@
 export { FormTextarea } from './FormTextarea';
-export default FormTextarea;
+export { FormTextarea as default } from './FormTextarea';

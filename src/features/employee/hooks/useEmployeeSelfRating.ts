@@ -424,13 +424,14 @@ export const useEmployeeSelfRating = () => {
   const averageRating = (() => {
     const itemsWithRatings = kpi?.items?.filter((item: any) => 
       !item.is_qualitative && 
-      ratings[item.id] && 
+      ratings[item.id] !== null && 
+      ratings[item.id] !== undefined && 
       (!item.exclude_from_calculation || item.exclude_from_calculation === 0)
     ) || [];
     const itemRatingsSum = itemsWithRatings.reduce((acc, item: any) => acc + (ratings[item.id] || 0), 0);
     
     const accomplishmentRatings = accomplishments
-      .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0)
+      .filter(acc => acc.employee_rating !== null && acc.employee_rating !== undefined)
       .map(acc => Number(acc.employee_rating) || 0);
     const accomplishmentsSum = accomplishmentRatings.reduce((acc: number, rating: number) => acc + rating, 0);
     
@@ -452,7 +453,7 @@ export const useEmployeeSelfRating = () => {
     
     // Include accomplishments with employee_rating
     const accomplishmentsWithRatings = accomplishments.filter(acc => 
-      acc.employee_rating !== null && acc.employee_rating !== undefined && acc.employee_rating > 0
+      acc.employee_rating !== null && acc.employee_rating !== undefined
     );
     
     // Get the maximum rating value from rating options based on KPI period
@@ -472,11 +473,11 @@ export const useEmployeeSelfRating = () => {
       
       // Calculate for items
       includedItems.forEach(item => {
-        const empRating = ratings[item.id] || 0;
+        const empRating = ratings[item.id];
         const goalWeight = goalWeights[item.id] || item.goal_weight || item.measure_criteria;
         const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
         
-        if (empRating > 0 && goalWeightNum > 0) {
+        if (empRating !== null && empRating !== undefined && goalWeightNum > 0) {
           const ratingPercentage = (empRating / maxRating) * 100;
           const weightedScore = ratingPercentage * goalWeightNum;
           totalWeightedScore += weightedScore;
@@ -497,7 +498,7 @@ export const useEmployeeSelfRating = () => {
         
         accomplishmentsWithRatings.forEach(acc => {
           const rating = acc.employee_rating;
-          if (rating !== null && rating !== undefined && rating > 0) {
+          if (rating !== null && rating !== undefined) {
             const ratingPercentage = (Number(rating) / maxRating) * 100;
             const weightedScore = ratingPercentage * accomplishmentWeight;
             totalWeightedScore += weightedScore;

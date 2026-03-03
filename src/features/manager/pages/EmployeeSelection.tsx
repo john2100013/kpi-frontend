@@ -15,6 +15,7 @@ const EmployeeSelection: React.FC = () => {
     employeesPerPage,
     currentPage,
     totalPages,
+    totalCount,
     startIndex,
     endIndex,
     pendingReviewsCount,
@@ -220,8 +221,8 @@ const EmployeeSelection: React.FC = () => {
                 </tr>
               ) : (
                 currentEmployees.map((employee) => {
-                  // Check if this is an oversight-only employee (manager is not primary)
-                  const isOversightOnly = employee.is_primary === 0;
+                  // Check if this is an oversight-only employee (manager is not primary for this department)
+                  const isOversightOnly = employee.is_primary === 0 || employee.is_primary === null;
                   
                   return (
                   <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
@@ -242,11 +243,11 @@ const EmployeeSelection: React.FC = () => {
                       <p className="text-sm text-gray-900">{employee.payroll_number || '-'}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <p className="text-sm text-gray-900">{employee.department || '-'}</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium text-gray-900">{employee.department || '-'}</p>
                         {isOversightOnly && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mt-1 w-fit">
-                            Oversight Only
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 w-fit">
+                            Oversight
                           </span>
                         )}
                       </div>
@@ -268,9 +269,12 @@ const EmployeeSelection: React.FC = () => {
                           View KPIs
                         </button>
                         {isOversightOnly ? (
-                          <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-100 border border-gray-200 text-xs text-gray-700 text-center" style={{minWidth: '180px', width: '180px', height: '36px'}}>
-                            <p className="line-clamp-2 w-full">
-                              {employee.assigned_manager_name || 'Primary manager'} will set KPI for this employee
+                          <div className="inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-md bg-gray-100 border border-gray-200 text-xs text-gray-700" style={{minWidth: '180px', width: '180px', minHeight: '36px'}}>
+                            <p className="font-semibold text-gray-900 mb-0.5">
+                              {employee.assigned_manager_name || 'Primary Manager'}
+                            </p>
+                            <p className="text-gray-600">
+                              will set KPI
                             </p>
                           </div>
                         ) : (
@@ -294,7 +298,7 @@ const EmployeeSelection: React.FC = () => {
         </div>
 
         {/* Pagination Controls */}
-        {filteredEmployees.length > employeesPerPage && (
+        {totalCount > employeesPerPage && (
           <div className="p-6 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <Button

@@ -193,7 +193,7 @@ export const useManagerApplyKPITemplate = (): UseApplyKPITemplateReturn => {
       };
       
       
-      const response = await api.post(`/kpi-templates/${templateId}/apply`, payload);
+      await api.post(`/kpi-templates/${templateId}/apply`, payload);
 
       toast.success(`KPIs assigned successfully to ${selectedEmployees.length} employee(s)!`);
       navigate('/manager/kpi-templates');

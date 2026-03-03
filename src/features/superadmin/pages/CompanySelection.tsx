@@ -7,7 +7,7 @@ import { FiHome, FiLogOut, FiCheckCircle } from 'react-icons/fi';
 
 const CompanySelection: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { companies, isLoading: reduxLoading } = useAppSelector((state) => state.auth);
+  const { companies } = useAppSelector((state) => state.auth);
   const { logout: authContextLogout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

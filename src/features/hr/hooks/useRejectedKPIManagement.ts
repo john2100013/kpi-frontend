@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
-import { KPI, KPIReview } from '../../../types';
+import { KPIReview } from '../../../types';
 import { hrService } from '../services';
 
 export const useRejectedKPIManagement = () => {
@@ -27,7 +27,7 @@ export const useRejectedKPIManagement = () => {
       setLoading(true);
 
       
-      const [kpisRes, reviewsRes] = await Promise.all([
+      const [_kpisRes, reviewsRes] = await Promise.all([
         hrService.fetchKPIs({}),
         hrService.fetchReviews(),
       ]);

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FiUsers, FiFilter, FiCheckSquare, FiSquare } from 'react-icons/fi';
+import { FiUsers, FiCheckSquare, FiSquare } from 'react-icons/fi';
 import { Modal, Button } from '../../../components/common';
 
 export interface Employee {

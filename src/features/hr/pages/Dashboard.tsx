@@ -2,7 +2,7 @@ import React from 'react';
 import NotificationItem from '../../../components/NotificationItem';
 import { StatsCard, Button } from '../../../components/common';
 import { useToast } from '../../../context/ToastContext';
-import { FiFilter, FiEye, FiCheckCircle, FiFileText, FiBell, FiUsers, FiSave, FiSearch, FiChevronDown, FiCheck } from 'react-icons/fi';
+import { FiFilter, FiEye, FiCheckCircle, FiFileText, FiBell, FiUsers, FiSave, FiSearch, FiChevronDown, FiCheck, FiEdit } from 'react-icons/fi';
 import { useHRDashboard, getKPIStage, getCategoryLabel, getCategoryColor, getCategoryIcon, getPeriodLabel, getPeriodValue } from '../hooks';
 
 const HRDashboard: React.FC = () => {
@@ -212,7 +212,7 @@ const HRDashboard: React.FC = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
         <StatsCard
           title="Total Employees"
           value={filteredDepartmentStatistics.reduce((sum, stat) => sum + stat.total_employees, 0)}
@@ -246,6 +246,19 @@ const HRDashboard: React.FC = () => {
           iconColor="text-green-600"
           titleColor="text-green-600 font-medium"
           valueColor="text-green-600"
+        />
+        
+        <StatsCard
+          title="Review Rejected by Employee"
+          value={filteredDepartmentStatistics.reduce((sum, stat) => {
+            if (!stat.categories) return sum;
+            return sum + stat.categories.review_rejected;
+          }, 0)}
+          icon={<FiEdit />}
+          iconBgColor="bg-red-100"
+          iconColor="text-red-600"
+          titleColor="text-red-600 font-medium"
+          valueColor="text-red-600"
         />
         
         <StatsCard

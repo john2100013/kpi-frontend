@@ -4,13 +4,13 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KPI, KPIReview } from '../../../types';
+import { KPIReview } from '../../../types';
 import { Button } from '../../../components/common';
 import { FiEye, FiClock } from 'react-icons/fi';
 import { getKPIStatusBadge } from '../hooks/rejectedKPIUtils';
 
 interface RejectedKPITableProps {
-  kpis: KPI[];
+  kpis: KPIReview[];
   getReviewForKPI: (kpiId: number) => KPIReview | undefined;
 }
 
@@ -56,27 +56,27 @@ export const RejectedKPITable: React.FC<RejectedKPITableProps> = ({ kpis, getRev
                 <td className="px-6 py-4">
                   <div>
                     <p className="font-semibold text-gray-900">{kpi.employee_name}</p>
-                    <p className="text-sm text-gray-500">{kpi.employee_payroll_number || 'N/A'}</p>
+                    <p className="text-sm text-gray-500">{kpi.employee_payroll || 'N/A'}</p>
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <p className="text-sm text-gray-900">{kpi.employee_department}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="font-medium text-gray-900">{kpi.title}</p>
-                  <p className="text-xs text-gray-500">{kpi.description?.substring(0, 50)}...</p>
+                  <p className="font-medium text-gray-900">{kpi.kpi_title}</p>
+                  <p className="text-xs text-gray-500">{kpi.kpi_description?.substring(0, 50)}...</p>
                 </td>
                 <td className="px-6 py-4">
                   <p className="text-sm text-gray-900">
-                    {kpi.quarter} {kpi.year}
+                    {kpi.review_quarter} {kpi.review_year}
                   </p>
-                  <p className="text-xs text-gray-500">{kpi.period === 'quarterly' ? 'Quarterly' : 'Annual'}</p>
+                  <p className="text-xs text-gray-500">{kpi.review_period === 'quarterly' ? 'Quarterly' : 'Annual'}</p>
                 </td>
                 <td className="px-6 py-4">
                   <p className="text-sm text-gray-900">{kpi.manager_name}</p>
                 </td>
                 <td className="px-6 py-4">
-                  {getKPIStatusBadge(kpi, review)}
+                  {review && getKPIStatusBadge({} as any, review)}
                 </td>
                 <td className="px-6 py-4">
                   {review?.employee_confirmation_signed_at ? (

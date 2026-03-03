@@ -7,6 +7,7 @@ import { useDepartmentFeatures } from '../../../hooks/useDepartmentFeatures';
 import {
   getRatingPercentage,
   getRatingDescription,
+  getItemRatingDescription,
 } from '../../employee/hooks/kpiConfirmationUtils';
 
 const ManagerKPIDetails: React.FC = () => {
@@ -41,6 +42,8 @@ const ManagerKPIDetails: React.FC = () => {
   
   // Fetch department features for this KPI's employee department
   const { features: deptFeatures, getCalculationMethodName, isEmployeeSelfRatingEnabled } = useDepartmentFeatures(kpi?.id);
+
+  
 
   // Get review period
   const reviewPeriod = (review as any)?.period || kpi?.period || 'quarterly';
@@ -246,15 +249,13 @@ const ManagerKPIDetails: React.FC = () => {
                     </th>
                   </>
                 )}
-                {/* Manager Rating - shown for all methods except Actual vs Target */}
-                {!isActualValueMethod && (
-                  <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
-                    style={{ minWidth: '150px' }}
-                  >
-                    MANAGER RATING
-                  </th>
-                )}
+                {/* Manager Rating - always shown */}
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border-r border-gray-300"
+                  style={{ minWidth: '150px' }}
+                >
+                  MANAGER RATING
+                </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
                   style={{ minWidth: '200px' }}
@@ -271,6 +272,9 @@ const ManagerKPIDetails: React.FC = () => {
                   let empComment = parsedReviewData.employeeItemComments[item.id] || '';
                   const mgrRating = parsedReviewData.managerItemRatings[item.id] || 0;
                   const mgrComment = parsedReviewData.managerItemComments[item.id] || '';
+                  const mgrQualitativeRating = parsedReviewData.managerQualitativeRatings[item.id] || '';
+                  
+                 
                   
                   // Fallback: If review has items with ratings attached, use those
                   if ((empRating === 0 || !empComment) && (review as any)?.items) {
@@ -413,16 +417,17 @@ const ManagerKPIDetails: React.FC = () => {
                           </td>
                         </>
                       )}
-                      {/* Manager Rating - for Normal/Goal Weight methods */}
-                      {!isActualValueMethod && (
-                        <td className="px-4 py-4 border-r border-gray-200">
-                          <div className="space-y-1">
-                            <span className="text-sm font-semibold text-yellow-600">
-                              {mgrRating.toFixed(2)}
-                            </span>
-                          </div>
-                        </td>
-                      )}
+                      {/* Manager Rating - always shown */}
+                      <td className="px-4 py-4 border-r border-gray-200">
+                        <div className="space-y-1">
+                          <span className="text-sm font-semibold text-yellow-600">
+                            {mgrQualitativeRating || getItemRatingDescription(mgrRating) || mgrRating.toFixed(2)}
+                          </span>
+                          {mgrRating > 0 && (
+                            <span className="text-xs text-gray-500 block">({mgrRating.toFixed(2)} - {getRatingPercentage(mgrRating)}%)</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-4">
                         {mgrComment ? (
                           <Button
@@ -490,14 +495,14 @@ const ManagerKPIDetails: React.FC = () => {
                   {!isActualValueMethod && (
                     <td className="px-4 py-4">
                       <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col">
                           <span className="text-sm font-semibold text-yellow-600">
-                            {typeof review?.manager_rating === 'number'
-                              ? review.manager_rating.toFixed(2)
-                              : '0.00'}
+                            {getRatingDescription(review?.manager_rating || 0)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            ({getRatingPercentage(review?.manager_rating || 0)}%)
+                            ({typeof review?.manager_rating === 'number'
+                              ? review.manager_rating.toFixed(2)
+                              : '0.00'} - {getRatingPercentage(review?.manager_rating || 0)}%)
                           </span>
                         </div>
                       </div>
@@ -1129,20 +1134,20 @@ const ManagerKPIDetails: React.FC = () => {
         </div>
       )}
 
-      {/* Employee Rejection Note */}
-      {review && review.review_status === 'rejected' && review.employee_rejection_note && (
+      {/* Employee Rejection Note - Show if employee rejected OR if rejection was resolved */}
+      {review && ((review as any).rejection_note || review.employee_rejection_note) && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="p-4 bg-red-50 rounded-lg border-2 border-red-300">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold text-red-900">⚠️ Employee Rejection Reason:</p>
-              {review.employee_confirmation_status === 'rejected' && (
+              {review.review_status === 'rejected' && review.employee_confirmation_status === 'rejected' && (
                 <span className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-full font-semibold">
                   REJECTED
                 </span>
               )}
             </div>
             <p className="text-sm text-red-700 font-medium bg-white p-3 rounded border border-red-200">
-              {review.employee_rejection_note}
+              {(review as any).rejection_note || review.employee_rejection_note}
             </p>
             {review.employee_confirmation_signed_at && (
               <p className="text-xs text-red-600 mt-2">

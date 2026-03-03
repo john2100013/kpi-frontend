@@ -15,6 +15,8 @@ export const useUserManagement = () => {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(25);
   
   // Filters - default to 'employee' role (ID: 4)
@@ -32,20 +34,17 @@ export const useUserManagement = () => {
 
   useEffect(() => {
     setCurrentPage(1); // Reset to page 1 when filters change
-    fetchUsers();
   }, [roleFilter, companyFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [roleFilter, companyFilter, searchQuery, currentPage]);
 
   useEffect(() => {
     if (companyFilter) {
       fetchDepartments();
     }
   }, [companyFilter]);
-
-  // Calculate pagination
-  const totalPages = Math.ceil(users.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedUsers = users.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -78,23 +77,30 @@ export const useUserManagement = () => {
       // Backend requires both role and company
       if (!roleFilter || !companyFilter) {
         setUsers([]);
+        setTotalPages(1);
+        setTotalCount(0);
         return;
       }
       
       const filters: UserFilters = {
         role: roleFilter,
-        company: companyFilter
+        company: companyFilter,
+        page: currentPage,
+        limit: itemsPerPage
       };
       
       if (searchQuery) filters.search = searchQuery;
 
+      const response = await userManagementService.fetchAllUsers(filters);
 
-      const data = await userManagementService.fetchAllUsers(filters);
-
-      setUsers(data);
+      setUsers(response.users);
+      setTotalPages(response.pagination.totalPages);
+      setTotalCount(response.pagination.total);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to fetch users');
       setUsers([]);
+      setTotalPages(1);
+      setTotalCount(0);
     }
   };
 
@@ -210,13 +216,13 @@ export const useUserManagement = () => {
 
   return {
     users,
-    paginatedUsers,
     companies,
     departments,
     loading,
     actionLoading,
     currentPage,
     totalPages,
+    totalCount,
     itemsPerPage,
     handlePageChange,
     roleFilter,

@@ -59,7 +59,7 @@ const KPISettingCompleted: React.FC = () => {
         params: {
           status: 'acknowledged', // Filter for acknowledged status
         }
-      }).catch(err => {
+      }).catch(_err => {
         if (typeof window !== 'undefined' && window.toast) {
           window.toast.error('Could not fetch acknowledged KPIs.');
         }

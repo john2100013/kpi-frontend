@@ -4,7 +4,7 @@
  * Manages employee selection modal and template application logic
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import type { Employee, Department } from '../components/EmployeeSelectionModal';

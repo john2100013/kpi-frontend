@@ -49,6 +49,7 @@ const ManagerKPIReview: React.FC = () => {
     managerReviewMeetingDate,
     managerReviewMeetingTime,
     overallManagerRating,
+    setManagerRatings,
     setQualitativeRatings,
     setQualitativeComments,
     setOverallComment,
@@ -206,6 +207,39 @@ const ManagerKPIReview: React.FC = () => {
         </div>
       </div>
 
+      {/* Resolved Rejection Notice */}
+      {(review as any)?.rejection_resolved_status === 'resolved' && (review as any)?.confirmation_status === 'rejected' && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-6">
+          <div className="flex items-start space-x-3">
+            <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <FiFileText className="text-white" size={18} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-yellow-900 mb-2">Resolved Rejection - Edit and Resubmit</h3>
+              <p className="text-sm text-yellow-800 mb-3">
+                This review was previously rejected by the employee. HR has resolved the rejection, and you can now edit your ratings and resubmit.
+              </p>
+              {(review as any)?.rejection_note && (
+                <div className="bg-white rounded-lg p-3 mb-3">
+                  <p className="text-xs text-gray-600 font-medium mb-1">Original Rejection Reason:</p>
+                  <p className="text-sm text-gray-800">{(review as any).rejection_note}</p>
+                </div>
+              )}
+              {(review as any)?.rejection_resolved_note && (
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs text-gray-600 font-medium mb-1">HR Resolution Note:</p>
+                  <p className="text-sm text-gray-800">{(review as any).rejection_resolved_note}</p>
+                </div>
+              )}
+              <p className="text-xs text-yellow-700 mt-3 flex items-center">
+                <FiFileText className="mr-1" size={12} />
+                Your previous ratings have been preserved below. Make any necessary adjustments and resubmit.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Review Instructions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Review Instructions Card */}
@@ -325,6 +359,7 @@ const ManagerKPIReview: React.FC = () => {
                   
                   // Parse goal weight
                   const goalWeightNum = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) / 100 : 0;
+                  const goalWeightValue = goalWeight ? parseFloat(String(goalWeight).replace('%', '')) : 0; // For validation (e.g., 15 for 15%)
                   
                   // Calculate manager rating percentage based on method
                   let managerRatingPercentage = 'N/A';
@@ -546,7 +581,7 @@ const ManagerKPIReview: React.FC = () => {
                         {item.is_qualitative ? (
                           <div>
                             <select
-                              value={qualitativeRatings[item.id] || ''}
+                              value={qualitativeRatings[item.id] !== undefined && qualitativeRatings[item.id] !== null && qualitativeRatings[item.id] !== '' ? qualitativeRatings[item.id] : ''}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 const parsed = val === '' ? '' : parseInt(val, 10);
@@ -554,7 +589,7 @@ const ManagerKPIReview: React.FC = () => {
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                             >
-                              <option value="">Select qualitative rating</option>
+                              <option value="">Not Rated</option>
                               {qualitativeRatingOptions.map((opt) => (
                                 <option key={opt.id || opt.rating_value} value={opt.id || opt.rating_value}>
                                   {opt.label}
@@ -567,13 +602,30 @@ const ManagerKPIReview: React.FC = () => {
                             <select
                               value={mgrRating !== undefined && mgrRating !== null ? mgrRating : ''}
                               onChange={(e) => {
-                                const selectedValue = parseFloat(e.target.value);
-
+                                const strValue = e.target.value;
+                                
+                                // Handle empty value - don't store NaN
+                                if (strValue === '' || strValue === null || strValue === undefined) {
+                                  // Set to undefined to indicate "not rated"
+                                  const newRatings = { ...managerRatings };
+                                  delete newRatings[item.id];
+                                  setManagerRatings(newRatings);
+                                  return;
+                                }
+                                
+                                const selectedValue = parseFloat(strValue);
+                                
+                                // Validate parsed value
+                                if (isNaN(selectedValue)) {
+                                  console.error(`[KPIReview] Invalid rating value (NaN) for item ${item.id}:`, strValue);
+                                  return;
+                                }
+                                
                                 handleRatingChange(item.id, selectedValue);
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                             >
-                              <option value="">Select rating</option>
+                              <option value="">Not Rated</option>
                               {ratingOptions.map((opt) => {
                                 const optValue = parseFloat(String(opt.rating_value));
                                 return (
@@ -583,16 +635,23 @@ const ManagerKPIReview: React.FC = () => {
                                 );
                               })}
                             </select>
-                            {mgrRating !== null && mgrRating !== undefined && (
+                            {mgrRating !== null && mgrRating !== undefined ? (
                               <div className="mt-1">
                                 <span className="text-xs text-gray-500">
                                   {(() => {
                                     const ratingValue = parseFloat(String(mgrRating));
+                                    if (ratingValue === 0) return '0.000 - Not Rated';
                                     if (Math.abs(ratingValue - 1.00) < 0.01) return 'Below Expectation';
                                     if (Math.abs(ratingValue - 1.25) < 0.01) return 'Meets Expectation';
                                     if (Math.abs(ratingValue - 1.50) < 0.01) return 'Exceeds Expectation';
-                                    return '';
+                                    return `${ratingValue.toFixed(3)}`;
                                   })()}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="mt-1">
+                                <span className="text-xs text-gray-400 italic">
+                                  Please select a rating
                                 </span>
                               </div>
                             )}
@@ -602,29 +661,69 @@ const ManagerKPIReview: React.FC = () => {
                       {/* Manager Rating % - Only for Actual vs Target and Goal Weight */}
                       {(isActualValueMethod || isGoalWeightMethod) && (
                         <td className="px-6 py-4">
-                          <input
-                            type="text"
-                            value={managerRatingPercentages[item.id] || managerRatingPercentage.replace('%', '')}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setManagerRatingPercentages({ 
-                                ...managerRatingPercentages, 
-                                [item.id]: value 
-                              });
-                            }}
-                            placeholder="0.00"
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-semibold ${
-                              isActualValueMethod ? (
-                                percentageValueObtainedNum >= 100 ? 'text-green-600' :
-                                percentageValueObtainedNum >= 70 ? 'text-orange-600' :
-                                percentageValueObtainedNum > 0 ? 'text-red-600' : 'text-gray-400'
-                              ) : (
-                                mgrRating >= 1.5 ? 'text-green-600' : 
-                                mgrRating >= 1.25 ? 'text-orange-600' : 
-                                mgrRating > 0 ? 'text-red-600' : 'text-gray-400'
-                              )
-                            }`}
-                          />
+                          <div>
+                            <input
+                              type="text"
+                              value={
+                                managerRatingPercentages[item.id] !== undefined && managerRatingPercentages[item.id] !== null && managerRatingPercentages[item.id] !== '' 
+                                  ? managerRatingPercentages[item.id] 
+                                  : (managerRatingPercentage !== 'N/A' ? managerRatingPercentage.replace('%', '') : '')
+                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                
+                                // Allow empty value or valid number input
+                                if (value === '') {
+                                  setManagerRatingPercentages({ 
+                                    ...managerRatingPercentages, 
+                                    [item.id]: '' 
+                                  });
+                                  return;
+                                }
+                                
+                                // Parse the entered value
+                                const enteredValue = parseFloat(value);
+                                
+                                // Validate it's a number
+                                if (isNaN(enteredValue)) {
+                                  // Invalid input, ignore
+                                  return;
+                                }
+                                
+                                // Validation: Check if entered value exceeds goal weight
+                                if (goalWeightValue > 0 && enteredValue > goalWeightValue) {
+                                  // Show error toast
+                                  if (typeof window !== 'undefined' && window.toast) {
+                                    window.toast.error(`Manager Rating % (${enteredValue.toFixed(2)}) cannot exceed Goal Weight (${goalWeightValue}%)`);
+                                  }
+                                  return;
+                                }
+                                
+                                // Valid value, update state
+                                setManagerRatingPercentages({ 
+                                  ...managerRatingPercentages, 
+                                  [item.id]: value 
+                                });
+                              }}
+                              placeholder={managerRatingPercentage !== 'N/A' ? managerRatingPercentage.replace('%', '') : '0.00'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-semibold ${
+                                isActualValueMethod ? (
+                                  percentageValueObtainedNum >= 100 ? 'text-green-600' :
+                                  percentageValueObtainedNum >= 70 ? 'text-orange-600' :
+                                  percentageValueObtainedNum > 0 ? 'text-red-600' : 'text-gray-400'
+                                ) : (
+                                  mgrRating >= 1.5 ? 'text-green-600' : 
+                                  mgrRating >= 1.25 ? 'text-orange-600' : 
+                                  mgrRating > 0 ? 'text-red-600' : 'text-gray-400'
+                                )
+                              }`}
+                            />
+                            {goalWeightValue > 0 && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Max: {goalWeightValue}%
+                              </div>
+                            )}
+                          </div>
                         </td>
                       )}
                       {/* Manager Comment */}
@@ -1083,12 +1182,29 @@ const ManagerKPIReview: React.FC = () => {
                 Overall Manager Rating <span className="text-red-500">*</span>
               </label>
               <select
-                value={overallManagerRating || ''}
-                onChange={(e) => setOverallManagerRating(Number(e.target.value))}
+                value={overallManagerRating !== undefined && overallManagerRating !== null ? overallManagerRating : ''}
+                onChange={(e) => {
+                  const strValue = e.target.value;
+                  
+                  // Handle empty value
+                  if (strValue === '' || strValue === null || strValue === undefined) {
+                    return; // Don't update state, let placeholder show
+                  }
+                  
+                  const selectedValue = parseFloat(strValue);
+                  
+                  // Validate parsed value
+                  if (isNaN(selectedValue)) {
+                    console.error('[KPIReview] Invalid Overall Manager Rating value (NaN):', strValue);
+                    return;
+                  }
+                  
+                  setOverallManagerRating(selectedValue);
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 required
               >
-                <option value="">Select overall rating</option>
+                <option value="">Not Rated</option>
                 {ratingOptions.length > 0 ? (
                   ratingOptions.map((opt) => {
                     const optValue = parseFloat(String(opt.rating_value));
@@ -1106,12 +1222,21 @@ const ManagerKPIReview: React.FC = () => {
                   </>
                 )}
               </select>
-              <p className="text-xs text-gray-500 mt-2">
+              {overallManagerRating !== null && overallManagerRating !== undefined ? (
+                <p className="text-xs text-gray-600 mt-2">
+                  Selected: <span className="font-semibold">{overallManagerRating} - {getRatingLabel(overallManagerRating)}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 italic mt-2">
+                  Please select an overall rating
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
                 This is your overall assessment of the employee's performance, independent of individual KPI item ratings
               </p>
             </div>
 
-            {/* Physical Meeting Confirmation - Manager Review */}
+            {/* Meeting Confirmation - Manager Review (Physical or Online) */}
             <div className="pt-4 border-t border-gray-200">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <label className="flex items-start space-x-3 cursor-pointer">
@@ -1123,10 +1248,10 @@ const ManagerKPIReview: React.FC = () => {
                   />
                   <div className="flex-1">
                     <span className="text-sm font-semibold text-gray-900">
-                      I confirm that a physical meeting was held for this performance review
+                      I confirm that a meeting was held for this performance review (physical or online)
                     </span>
                     <p className="text-xs text-gray-600 mt-1">
-                      Please confirm that you had a physical meeting with the employee to discuss this performance review
+                      Please confirm that you had a meeting with the employee to discuss this performance review, either in-person or via online platform
                     </p>
                   </div>
                 </label>
@@ -1136,16 +1261,19 @@ const ManagerKPIReview: React.FC = () => {
                   <div className="mt-4 pl-8 space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Meeting Location *
+                        Meeting Location / Platform *
                       </label>
                       <input
                         type="text"
                         value={managerReviewMeetingLocation}
                         onChange={(e) => setManagerReviewMeetingLocation(e.target.value)}
-                        placeholder="e.g., Conference Room A, Manager's Office"
+                        placeholder="e.g., Conference Room A, Microsoft Teams, Zoom, Google Meet"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         required
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter physical location (e.g., Conference Room A) or online platform (e.g., Teams, Zoom)
+                      </p>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3">
@@ -1171,9 +1299,13 @@ const ManagerKPIReview: React.FC = () => {
                           step="60"
                           value={managerReviewMeetingTime}
                           onChange={(e) => setManagerReviewMeetingTime(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+                          style={{ colorScheme: 'light' }}
                           required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Click to select time
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -17,10 +17,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   const location = useLocation();
   
   useEffect(() => {
-    });
+    // TODO: Implement protected route logic
   }, [location.pathname, allowedRoles]);
-  
-  // TODO: Implement protected route logic
 
   return <>{children}</>;
 };

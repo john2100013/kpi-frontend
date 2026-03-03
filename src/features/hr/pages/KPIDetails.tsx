@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiUser, FiAlertCircle } from 'react-icons/fi';
 import TextModal from '../../../components/TextModal';
-import { Button } from '../../../components/common';
+import { Button, ConfirmDialog } from '../../../components/common';
 import { useKPIDetails } from '../hooks/useKPIDetails';
 import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 import {
@@ -26,6 +26,9 @@ const HRKPIDetails: React.FC = () => {
     percentageValuesObtained,
     managerRatingPercentages,
     finalRatingPercentage,
+    confirmState,
+    handleConfirmDialog,
+    handleCancelDialog,
     openTextModal,
     closeTextModal,
     handleResolveRejection,
@@ -41,7 +44,7 @@ const HRKPIDetails: React.FC = () => {
   };
   
   // Department features for conditional display
-  const { getCalculationMethodName, isEmployeeSelfRatingEnabled, features } = useCompanyFeatures(review?.kpi_id);
+  const { getCalculationMethodName, isEmployeeSelfRatingEnabled } = useCompanyFeatures(review?.kpi_id);
   
   // Get review period
   const reviewPeriod = (review as any)?.period || kpi?.period || 'quarterly';
@@ -226,15 +229,13 @@ const HRKPIDetails: React.FC = () => {
                     </th>
                   </>
                 )}
-                {/* Manager Rating - shown for all methods except Actual vs Target */}
-                {!isActualValueMethod && (
-                  <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
-                    style={{ minWidth: '150px' }}
-                  >
-                    MANAGER RATING
-                  </th>
-                )}
+                {/* Manager Rating - always shown */}
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  style={{ minWidth: '150px' }}
+                >
+                  MANAGER RATING
+                </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
                   style={{ minWidth: '200px' }}
@@ -250,6 +251,9 @@ const HRKPIDetails: React.FC = () => {
                   const empComment = parsedReviewData.employeeItemComments[item.id] || '';
                   const mgrRating = parsedReviewData.managerItemRatings[item.id] || 0;
                   const mgrComment = parsedReviewData.managerItemComments[item.id] || '';
+                  const mgrQualitativeRating = parsedReviewData.managerQualitativeRatings[item.id] || '';
+
+                 
 
                  
 
@@ -376,24 +380,21 @@ const HRKPIDetails: React.FC = () => {
                           </td>
                         </>
                       )}
-                      {/* Manager Rating - for Normal/Goal Weight methods */}
-                      {!isActualValueMethod && (
-                        <td className="px-4 py-4">
-                          <div className="space-y-1">
+                      {/* Manager Rating - always shown */}
+                      <td className="px-4 py-4">
+                        <div className="space-y-1">
+                          <span className="text-sm font-semibold text-yellow-600">
+                            {mgrQualitativeRating || getItemRatingDescription(mgrRating)}
+                          </span>
+                          {(mgrQualitativeRating || mgrRating > 0) && (
                             <div className="flex items-center space-x-2">
-                              <span className="text-sm font-semibold text-yellow-600">
-                                {mgrRating.toFixed(2)}
-                              </span>
                               <span className="text-xs text-gray-500">
-                                ({getRatingPercentage(mgrRating)}%)
+                                ({mgrRating.toFixed(2)} - {getRatingPercentage(mgrRating)}%)
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500">
-                              {getItemRatingDescription(mgrRating)}
-                            </p>
-                          </div>
-                        </td>
-                      )}
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-4">
                         {mgrComment ? (
                           <Button
@@ -461,14 +462,14 @@ const HRKPIDetails: React.FC = () => {
                   {!isActualValueMethod && (
                     <td className="px-4 py-4">
                       <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col">
                           <span className="text-sm font-semibold text-yellow-600">
-                            {typeof review?.manager_rating === 'number'
-                              ? review.manager_rating.toFixed(2)
-                              : '0.00'}
+                            {getRatingDescription(review?.manager_rating || 0)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            ({getRatingPercentage(review?.manager_rating || 0)}%)
+                            ({typeof review?.manager_rating === 'number'
+                              ? review.manager_rating.toFixed(2)
+                              : '0.00'} - {getRatingPercentage(review?.manager_rating || 0)}%)
                           </span>
                         </div>
                       </div>
@@ -1022,17 +1023,23 @@ const HRKPIDetails: React.FC = () => {
         </div>
       )}
 
-      {/* Employee Rejection Note - HR can resolve rejections */}
-      {review && review.review_status === 'rejected' && review.employee_rejection_note && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <KPIRejectionCard
-            review={review}
-            resolveNote={resolveNote}
-            onResolveNoteChange={setResolveNote}
-            onResolve={handleResolveRejection}
-          />
-        </div>
-      )}
+      {/* Employee Rejection Note - HR can resolve rejections or view resolved rejections */}
+      {(() => {
+       
+       
+        
+        
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <KPIRejectionCard
+              review={review!}
+              resolveNote={resolveNote}
+              onResolveNoteChange={setResolveNote}
+              onResolve={handleResolveRejection}
+            />
+          </div>
+        );
+      })()}
 
       {/* Action Buttons */}
       <div className="flex items-center justify-between">
@@ -1061,6 +1068,18 @@ const HRKPIDetails: React.FC = () => {
         title={textModal.title}
         value={textModal.value}
         readOnly={true}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={handleCancelDialog}
+        onConfirm={handleConfirmDialog}
+        title={confirmState.title}
+        message={confirmState.message}
+        variant={confirmState.variant}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
       />
     </div>
   );

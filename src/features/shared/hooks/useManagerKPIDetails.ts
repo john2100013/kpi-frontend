@@ -64,12 +64,13 @@ export const useManagerKPIDetails = () => {
 
         try {
           const fullReviewResponse = await api.get(`/kpi-review/${kpiReview.id}`);
-          const fullReview = fullReviewResponse.data.review;
+          const fullReview = fullReviewResponse.data.data;
+        
         
           setReview(fullReview);
-        } catch (reviewError) {
-          toast.error('Failed to fetch full review details. Please try again.');
-          // Fallback to the review from the list
+        } catch (_reviewError) {
+          console.error('[Manager-useManagerKPIDetails] Error fetching full review:', _reviewError);
+          // Failed to fetch full review details, fallback to the review from the list
           setReview(kpiReview);
         }
         

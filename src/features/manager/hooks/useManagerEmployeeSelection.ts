@@ -24,6 +24,7 @@ interface UseManagerEmployeeSelectionReturn {
   filteredEmployees: User[];
   currentEmployees: User[];
   totalPages: number;
+  totalCount: number;
   startIndex: number;
   endIndex: number;
   pendingReviewsCount: number;
@@ -47,15 +48,23 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
   const [reviews, setReviews] = useState<any[]>([]);
   const [managerDepartments, setManagerDepartments] = useState<ManagerDepartmentAssignment[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const employeesPerPage = 15;
 
+  const toast = useToast();
+
+  // Fetch employees with pagination whenever filters or page changes
   useEffect(() => {
     fetchEmployees();
+  }, [currentPage, searchQuery, departmentFilter]);
+
+  // Fetch reviews and departments on mount
+  useEffect(() => {
     fetchReviews();
     fetchManagerDepartments();
   }, []);
 
-  const toast = useToast();
   // Reset to page 1 when search query or filter changes
   useEffect(() => {
     setCurrentPage(1);
@@ -63,32 +72,37 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
 
   const fetchEmployees = async () => {
     try {
-      // Fetch from the manager service which uses correct endpoint
-      const response = await api.get('/users/list');
+      setLoading(true);
       
-      // Parse response - backend returns: { success: true, data: { users: [...], pagination: {...} } }
-      let allUsers = [];
-      if (response.data.data && response.data.data.users && Array.isArray(response.data.data.users)) {
-        allUsers = response.data.data.users;
-      } else if (response.data.users && Array.isArray(response.data.users)) {
-        allUsers = response.data.users;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        allUsers = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        allUsers = response.data;
-      } else {
-        allUsers = [];
+      // Build query parameters for server-side pagination
+      const params: any = {
+        page: currentPage,
+        limit: employeesPerPage,
+        role: 'employee', // Only fetch employees (backend will filter by role_id = 4)
+        department_filter: departmentFilter, // Send filter to backend: 'all' or 'primary'
+      };
+      
+      // Add search query if present
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
       }
       
+      // Fetch from the users list endpoint with pagination
+      const response = await api.get('/users/list', { params });
       
-      // Filter to get only employees (exclude managers, hr, superadmin)
-      const employees = allUsers.filter((user: any) => 
-        user.role_id !== 1 && user.role_id !== 2 && user.role_id !== 3
-      );
+      // Parse response - backend returns: { success: true, data: { users: [...], pagination: {...} } }
+      const data = response.data.data || response.data;
+      const users = data.users || [];
+      const pagination = data.pagination || {};
       
-      setEmployees(employees);
+      setEmployees(users);
+      setTotalPages(pagination.totalPages || 1);
+      setTotalCount(pagination.total || users.length);
     } catch (error) {
+      toast.error('Unable to load employees. Please try again.');
       setEmployees([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -115,23 +129,16 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     }
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    // Apply search filter
-    const matchesSearch = emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.payroll_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.department?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Apply department filter
-    const matchesDepartmentFilter = departmentFilter === 'all' || emp.is_primary === 1;
-    
-    return matchesSearch && matchesDepartmentFilter;
-  });
+  // Backend now handles department filtering (primary vs all)
+  // No need for client-side filtering anymore
+  const filteredEmployees = employees;
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredEmployees.length / employeesPerPage);
+  // Server already provides paginated data
+  const currentEmployees = filteredEmployees;
+  
+  // Pagination metadata from server (used for UI display)
   const startIndex = (currentPage - 1) * employeesPerPage;
-  const endIndex = startIndex + employeesPerPage;
-  const currentEmployees = filteredEmployees.slice(startIndex, endIndex);
+  const endIndex = startIndex + filteredEmployees.length;
 
   // Calculate pending reviews count
   const pendingReviewsCount = reviews.filter(r => r.review_status === 'employee_submitted').length;
@@ -189,6 +196,7 @@ export const useManagerEmployeeSelection = (): UseManagerEmployeeSelectionReturn
     filteredEmployees,
     currentEmployees,
     totalPages,
+    totalCount,
     startIndex,
     endIndex,
     pendingReviewsCount,

@@ -225,7 +225,7 @@ export const useManagerKPITemplateForm = (): UseManagerKPITemplateFormReturn => 
       // END NEW
       
       if (items && items.length > 0) {
-        const mappedItems = items.map((item: any, index: number) => {
+        const mappedItems = items.map((item: any) => {
         
           return {
             title: item.title || '',

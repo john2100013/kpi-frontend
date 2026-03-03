@@ -183,6 +183,7 @@ export const roundToAllowedRating = (averageRating: number): number => {
 /**
  * Validate all KPI items are rated
  * Note: Items excluded from calculation (exclude_from_calculation === 1) still need to be rated
+ * Note: 0 is accepted as a valid rating (different from "not rated")
  */
 export const validateAllItemsRated = (
   items: KPIItem[],
@@ -204,19 +205,32 @@ export const validateAllItemsRated = (
       return true;
     }
 
-    // Validate quantitative items - accept any numeric rating >= 0 (still required even if excluded from calculation)
+    // Validate quantitative items - accept any numeric rating >= 0 (including 0) (still required even if excluded from calculation)
     const rating = managerRatings[item.id];
-    const ratingNum = !isNaN(parseFloat(String(rating))) ? parseFloat(String(rating)) : NaN;
-    const isValid = rating !== undefined && rating !== null && !isNaN(ratingNum) && ratingNum >= 0;
-    if (!isValid) {
-      missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating ?? null, parsed: isNaN(ratingNum) ? null : ratingNum });
+    
+    // First check if rating exists (not undefined or null)
+    if (rating === undefined || rating === null) {
+      missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating ?? null, parsed: null });
       return false;
     }
+    
+    // Then validate it's a valid number (including 0)
+    const ratingNum = parseFloat(String(rating));
+    
+    if (isNaN(ratingNum)) {
+      missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating, parsed: null });
+      return false;
+    }
+    
+    // Finally check if rating is >= 0 (0 is valid!)
+    if (ratingNum < 0) {
+      missingItems.push({ item_id: item.id, title: item.title || '', type: 'quantitative', value: rating, parsed: ratingNum });
+      return false;
+    }
+    
     return true;
   });
 
-  if (!allValid) {
-  }
 
   return { valid: allValid, missingItems };
 };
@@ -259,9 +273,12 @@ export const buildItemDataJSON = (
         }
       }
       
+      // Use explicit undefined check to preserve 0 ratings
+      const itemRating = managerRatings[item.id] !== undefined && managerRatings[item.id] !== null ? managerRatings[item.id] : 0;
+      
       return {
         item_id: item.id,
-        rating: managerRatings[item.id] || 0,
+        rating: itemRating,
         comment: managerComments[item.id] || '',
         actual_value: actualValue || '',
         target_value: targetValue || '',

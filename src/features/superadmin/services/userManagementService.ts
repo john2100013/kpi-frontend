@@ -38,17 +38,30 @@ export interface UserFilters {
   role?: string;
   company?: string;
   search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedUsersResponse {
+  users: User[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export const userManagementService = {
-  fetchAllUsers: async (filters?: UserFilters): Promise<User[]> => {
+  fetchAllUsers: async (filters?: UserFilters): Promise<PaginatedUsersResponse> => {
     try {
-
       // Backend currently uses authenticated user's company; role filter is not applied server-side yet.
       const response = await api.get('/users/list', { params: filters });
-      const users = response.data?.data?.users || response.data?.users || [];
+      const data = response.data?.data || response.data;
+      const users = data.users || [];
+      const pagination = data.pagination || { page: 1, limit: 25, total: users.length, totalPages: 1 };
 
-      return users;
+      return { users, pagination };
     } catch (error: any) {
       if (typeof window !== 'undefined' && window.toast) {
         window.toast.error('Failed to fetch users. Please try again.');

@@ -55,9 +55,7 @@ const BonusManagement: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeTab, selectedPeriodId, periodType]);
 
-  useEffect(() => {
-    
-  }, [employeeBonuses]);
+ 
 
   // Fetch available periods
   const fetchAvailablePeriods = async () => {

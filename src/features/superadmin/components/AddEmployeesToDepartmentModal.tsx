@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiSave } from 'react-icons/fi';
 import { Modal } from '../../../components/common';
-import { userManagementService, User } from '../services/userManagementService';
+import { userManagementService, User, PaginatedUsersResponse } from '../services/userManagementService';
+import { useToast } from '../../../context/ToastContext';
 
 interface AddEmployeesToDepartmentModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const AddEmployeesToDepartmentModal: React.FC<AddEmployeesToDepartmentMod
   companyId,
   onSave,
 }) => {
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [employees, setEmployees] = useState<User[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
@@ -32,11 +34,11 @@ export const AddEmployeesToDepartmentModal: React.FC<AddEmployeesToDepartmentMod
   const fetchEmployees = async () => {
     setLoading(true);
     try {
-      const data = await userManagementService.fetchAllUsers({
+      const data: PaginatedUsersResponse = await userManagementService.fetchAllUsers({
         role: 'employee',
         company: companyId,
       });
-      setEmployees(data);
+      setEmployees(data.users);
     } catch (error) {
       toast.error('Failed to fetch employees. Please try again.');
     } finally {

@@ -34,10 +34,10 @@ const ForgotPassword: React.FC = () => {
 
   // Timer effect for OTP expiry
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
     
     if (step === 'verify' && otpTimer > 0) {
-      interval = setInterval(() => {
+      interval = window.setInterval(() => {
         setOtpTimer((prev) => {
           if (prev <= 1) {
             setCanResend(true);

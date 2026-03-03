@@ -55,7 +55,7 @@ export const getValidKPIItems = (items: KPIItem[]): KPIItem[] => {
 export const validateTemplateForm = (
   templateName: string,
   validItems: KPIItem[],
-  totalGoalWeight: number
+  _totalGoalWeight: number
 ): { valid: boolean; error?: string; needsConfirmation?: boolean } => {
   if (!templateName || templateName.trim() === '') {
     return { valid: false, error: 'Template name is required' };

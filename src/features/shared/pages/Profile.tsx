@@ -10,6 +10,7 @@ import { Button } from '../../../components/common';
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signature, setSignature] = useState<string>('');

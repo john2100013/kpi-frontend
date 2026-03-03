@@ -12,7 +12,6 @@ const CompanyManagement: React.FC = () => {
     successMessage,
     errorMessage,
     formData,
-    selectedLogo,
     logoPreview,
     handleEdit,
     handleCancel,
