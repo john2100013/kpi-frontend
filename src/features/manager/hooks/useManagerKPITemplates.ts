@@ -24,7 +24,7 @@ interface UseManagerKPITemplatesReturn {
   loading: boolean;
   confirmState: any;
   handleDelete: (id: number, name: string) => Promise<void>;
-  handleUseTemplate: (id: number) => void;
+  handleCopy: (id: number, name: string) => Promise<void>;
   handleCreateTemplate: () => void;
   handleEditTemplate: (id: number) => void;
   handleBack: () => void;
@@ -45,10 +45,10 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await api.get('/kpi-templates');
+      const response = await api.get('/templates');
       setTemplates(response.data.templates || []);
     } catch (error) {
-      console.error('Error fetching templates:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }
@@ -66,25 +66,34 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
     }
 
     try {
-      await api.delete(`/kpi-templates/${id}`);
+      await api.delete(`/templates/${id}`);
       toast.success('Template deleted successfully!');
       fetchTemplates();
     } catch (error: any) {
-      console.error('Error deleting template:', error);
       toast.error(error.response?.data?.error || 'Failed to delete template');
     }
   };
 
-  const handleUseTemplate = (templateId: number) => {
-    console.log('🚀 handleUseTemplate called with template ID:', templateId);
-    console.log('📍 Current location:', window.location.pathname);
+  const handleCopy = async (id: number, name: string) => {
+    const confirmed = await confirm({
+      title: 'Copy Template',
+      message: `Create a copy of template "${name}"?`,
+      variant: 'info',
+      confirmText: 'Copy',
+      cancelText: 'Cancel'
+    });
     
-    const targetUrl = `/manager/kpi-templates/${templateId}/apply`;
-    console.log('🔗 Target URL:', targetUrl);
-    
-    navigate(targetUrl);
-    
-    console.log('✅ Navigation called');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await api.post(`/templates/${id}/copy`);
+      toast.success(`Template copied successfully as "${response.data.template.template_name}"!`);
+      fetchTemplates();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to copy template');
+    }
   };
 
   const handleCreateTemplate = () => {
@@ -104,7 +113,7 @@ export const useManagerKPITemplates = (): UseManagerKPITemplatesReturn => {
     loading,
     confirmState,
     handleDelete,
-    handleUseTemplate,
+    handleCopy,
     handleCreateTemplate,
     handleEditTemplate,
     handleBack,

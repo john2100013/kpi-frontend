@@ -43,7 +43,7 @@ export interface EmployeeDashboardStats {
 
 export interface RatingOption {
   rating_type: string;
-  rating_value: number;
+  rating_value: number | string; // Database returns string, needs conversion
   label: string;
   description?: string;
 }
@@ -91,14 +91,39 @@ export interface KPIReviewConfirmation {
   employee_id: number;
   manager_id: number;
   employee_rating: number;
+  employee_final_rating?: number;
+  employee_rating_percentage?: number;
+  employee_final_rating_percentage?: number;
   employee_comment: string;
   manager_rating: number;
+  manager_final_rating?: number;
+  manager_final_rating_percentage?: number;
   manager_comment: string;
-  overall_manager_comment: string;
+  overall_comment: string;
+  overall_manager_comment?: string;
   review_status: string;
   kpi_title: string;
   kpi_description: string;
   manager_name: string;
+  
+  // KPI items array
+  items?: Array<{
+    id: number;
+    kpi_id: number;
+    title: string;
+    description?: string;
+    target_value?: string;
+    actual_value?: string;
+    measure_unit?: string;
+    measure_criteria?: string;
+    current_performance_status?: string;
+    expected_completion_date?: string;
+    goal_weight?: string;
+    item_order: number;
+    percentage_value_obtained?: number;
+    manager_rating_percentage?: number;
+    exclude_from_calculation?: number;
+  }>;
   
   // NEW: Structured ratings from kpi_item_ratings table
   item_ratings?: {
@@ -125,4 +150,9 @@ export interface ConfirmationSubmission {
   confirmation_status: 'approved' | 'rejected';
   rejection_note: string | null;
   signature: string | null;
+  // Physical Meeting Confirmation - Employee
+  employee_confirmation_meeting_confirmed?: boolean;
+  employee_confirmation_meeting_location?: string | null;
+  employee_confirmation_meeting_date?: string | null;
+  employee_confirmation_meeting_time?: string | null;
 }

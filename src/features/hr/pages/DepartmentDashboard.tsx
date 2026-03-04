@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import { FiUsers, FiClock, FiCheckCircle, FiFileText, FiEye } from 'react-icons/fi';
+import { FiUsers, FiClock, FiCheckCircle, FiFileText, FiEye, FiBarChart2 } from 'react-icons/fi';
 
 interface DepartmentStatistic {
+  department_id: number;
   department: string;
   total_employees: number;
   categories: {
@@ -27,6 +29,7 @@ interface Employee {
 }
 
 const DepartmentDashboard: React.FC = () => {
+  const toast = useToast();
   const navigate = useNavigate();
   const [statistics, setStatistics] = useState<DepartmentStatistic[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
@@ -49,9 +52,9 @@ const DepartmentDashboard: React.FC = () => {
   const fetchStatistics = async () => {
     try {
       const response = await api.get('/departments/statistics');
-      setStatistics(response.data.statistics || []);
+      setStatistics(response.data.data?.statistics || []);
     } catch (error) {
-      console.error('Error fetching statistics:', error);
+      toast.error('Failed to fetch department statistics. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -60,9 +63,9 @@ const DepartmentDashboard: React.FC = () => {
   const fetchEmployees = async (department: string, category: string) => {
     try {
       const response = await api.get(`/departments/statistics/${department}/${category}`);
-      setEmployees(response.data.employees || []);
+      setEmployees(response.data.data?.employees || []);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      toast.error('Failed to fetch employees. Please try again.');
       setEmployees([]);
     }
   };
@@ -140,9 +143,18 @@ const DepartmentDashboard: React.FC = () => {
             <div key={stat.department} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">{stat.department}</h2>
-                <span className="text-sm text-gray-500">
-                  Total Employees: <span className="font-semibold">{stat.total_employees}</span>
-                </span>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-500">
+                    Total Employees: <span className="font-semibold">{stat.total_employees}</span>
+                  </span>
+                  <button
+                    onClick={() => navigate(`/hr/departments/${stat.department_id}/analytics`)}
+                    className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <FiBarChart2 className="mr-2" />
+                    View Analytics
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

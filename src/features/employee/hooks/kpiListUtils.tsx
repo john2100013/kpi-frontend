@@ -8,9 +8,12 @@ export interface KPIStageInfo {
   icon: React.ReactNode;
 }
 
-export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
-  // Find review for this KPI
+export const getKPIStage = (kpi: KPI, reviews: KPIReview[], isSelfRatingEnabled: boolean = true): KPIStageInfo => {
+  // Find ANY review (including drafts) for status checking
   const review = reviews.find(r => r.kpi_id === kpi.id);
+  
+  // Find SUBMITTED review (excluding drafts) for "Review Pending" check
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
   if (kpi.status === 'pending') {
     return {
@@ -20,7 +23,16 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
     };
   }
 
-  if (kpi.status === 'acknowledged' && !review) {
+  // Check for SUBMITTED review, not drafts
+  if (kpi.status === 'acknowledged' && !submittedReview) {
+    // If self-rating is disabled, show Manager Will Initiate Review
+    if (!isSelfRatingEnabled) {
+      return {
+        stage: 'Manager Will Initiate Review',
+        color: 'bg-blue-100 text-blue-700',
+        icon: <FiClock className="inline" />
+      };
+    }
     return {
       stage: 'KPI Acknowledged - Review Pending',
       color: 'bg-blue-100 text-blue-700',
@@ -29,7 +41,7 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): KPIStageInfo => {
   }
 
   if (review) {
-    if (review.review_status === 'manager_submitted') {
+      if (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation') {
       return {
         stage: 'Awaiting Your Confirmation',
         color: 'bg-indigo-100 text-indigo-700',
@@ -85,6 +97,7 @@ export interface KPIActionInfo {
 export const getPrimaryAction = (
   kpi: KPI,
   review: KPIReview | undefined,
+  reviews: KPIReview[],
   navigate: (path: string) => void
 ): KPIActionInfo => {
   if (kpi.status === 'pending') {
@@ -94,14 +107,16 @@ export const getPrimaryAction = (
     };
   }
 
-  if (review && review.review_status === 'manager_submitted') {
-    return {
+  if (review && (review.review_status === 'manager_submitted' || review.review_status === 'awaiting_employee_confirmation')) {
+      return {
       label: 'Confirm',
       onClick: () => navigate(`/employee/kpi-confirmation/${review.id}`)
     };
   }
 
-  if (kpi.status === 'acknowledged' && (!review || review.review_status === 'pending')) {
+  // Check for SUBMITTED review, not drafts (allow Review KPI button if only draft exists)
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
+  if (kpi.status === 'acknowledged' && (!submittedReview || submittedReview.review_status === 'pending')) {
     return {
       label: 'Review KPI',
       onClick: () => navigate(`/employee/self-rating/${kpi.id}`)
@@ -116,9 +131,5 @@ export const getPrimaryAction = (
 
 export const canEditReview = (review: KPIReview | undefined): boolean => {
   if (!review) return false;
-  return (
-    review.review_status === 'employee_submitted' ||
-    review.review_status === 'manager_submitted' ||
-    review.review_status === 'completed'
-  );
+  return review.review_status === 'employee_submitted';
 };

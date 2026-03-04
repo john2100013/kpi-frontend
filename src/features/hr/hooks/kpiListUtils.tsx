@@ -14,7 +14,11 @@ export interface StageInfo {
 }
 
 export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): StageInfo => {
+  // Find ANY review (including drafts) for status checking
   const review = reviews.find(r => r.kpi_id === kpi.id);
+  
+  // Find SUBMITTED review (excluding drafts) for "Review Pending" check
+  const submittedReview = reviews.find(r => r.kpi_id === kpi.id && r.is_draft !== true);
 
   if (kpi.status === 'pending') {
     return {
@@ -24,7 +28,8 @@ export const getKPIStage = (kpi: KPI, reviews: KPIReview[]): StageInfo => {
     };
   }
 
-  if (kpi.status === 'acknowledged' && !review) {
+  // Check for SUBMITTED review, not drafts
+  if (kpi.status === 'acknowledged' && !submittedReview) {
     return {
       stage: 'KPI Acknowledged - Review Pending',
       color: 'bg-blue-100 text-blue-700',

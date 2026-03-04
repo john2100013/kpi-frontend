@@ -15,6 +15,7 @@ export interface Employee {
   department: string;
   position: string;
   role?: string;
+  role_id?: number;
   manager_name?: string;
 }
 

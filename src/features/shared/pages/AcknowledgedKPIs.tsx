@@ -43,22 +43,22 @@ const AcknowledgedKPIs: React.FC = () => {
         setSelectedPeriodId(periods[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      toast.error('Failed to fetch available periods. Please try again.');
     }
   };
 
   const fetchData = async () => {
     try {
       // Use the dedicated endpoint for acknowledged-review-pending KPIs
-      const kpisRes = await api.get('/kpis/acknowledged-review-pending').catch(err => {
-        console.error('Error fetching acknowledged-review-pending KPIs:', err);
+      const kpisRes = await api.get('/kpis/acknowledged-review-pending').catch(_err => {
+        toast.error('Failed to fetch acknowledged-review-pending KPIs. Please try again.');
         return { data: { kpis: [] } };
       });
 
       setKpis(kpisRes.data.kpis || []);
       // Reviews not needed since we're only showing KPIs without reviews
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch KPI data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,6 @@ const AcknowledgedKPIs: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Error downloading PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to download PDF');
     } finally {
       setDownloading(null);

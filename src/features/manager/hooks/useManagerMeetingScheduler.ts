@@ -82,31 +82,43 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
   const fetchData = async () => {
     try {
       const [employeesRes, kpisRes, reviewsRes] = await Promise.all([
-        api.get('/employees').catch(() => ({ data: { employees: [] } })),
+        api.get('/users/list').catch(() => ({ data: { data: [] } })),
         api.get('/kpis').catch(() => ({ data: { kpis: [] } })),
         api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
       ]);
 
-      setEmployees(employeesRes.data.employees || []);
-      setKpis(kpisRes.data.kpis || []);
-      setReviews(reviewsRes.data.reviews || []);
+      const users = employeesRes.data.data?.users || employeesRes.data.data || employeesRes.data.users || [];
+      const employees = Array.isArray(users) ? users.filter((u: any) => u.role_id !== 1 && u.role_id !== 2 && u.role_id !== 3) : [];
+      
+      // Parse KPIs - handle multiple response structures
+      const kpisData = kpisRes.data.kpis || kpisRes.data.data?.kpis || kpisRes.data.data || [];
+      const kpisArray = Array.isArray(kpisData) ? kpisData : [];
+      
+      // Parse Reviews - handle multiple response structures  
+      const reviewsData = reviewsRes.data.reviews || reviewsRes.data.data?.reviews || reviewsRes.data.data || [];
+      const reviewsArray = Array.isArray(reviewsData) ? reviewsData : [];
+      
+      setEmployees(employees);
+      setKpis(kpisArray);
+      setReviews(reviewsArray);
 
       // Pre-select if kpiId or reviewId is provided
       if (kpiId) {
-        const kpi = (kpisRes.data.kpis || []).find((k: KPI) => k.id === parseInt(kpiId));
+        const kpi = kpisArray.find((k: KPI) => k.id === parseInt(kpiId));
         if (kpi) {
           setMeetingType('kpi_setting');
           setSelectedKpiId(parseInt(kpiId));
         }
       } else if (reviewId) {
-        const review = (reviewsRes.data.reviews || []).find((r: KPIReview) => r.id === parseInt(reviewId));
+        const review = reviewsArray.find((r: KPIReview) => r.id === parseInt(reviewId));
         if (review) {
           setMeetingType('kpi_review');
           setSelectedReviewId(parseInt(reviewId));
         }
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Server error. Please try reloading or try later.';
+      toast.error(`Failed to load data: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -146,12 +158,12 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
         meetingData.review_id = selectedReviewId;
       }
 
-      await api.post('/meetings', meetingData);
-      toast.success('Meeting scheduled successfully! Email notifications have been sent.');
+      await api.post('/meetings/schedule', meetingData);
+      toast.success('Meeting scheduled successfully! Email notifications are being sent.');
       navigate('/manager/dashboard');
     } catch (error: any) {
-      console.error('Error scheduling meeting:', error);
-      toast.error(error.response?.data?.error || 'Failed to schedule meeting');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to schedule meeting. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -165,14 +177,24 @@ export const useManagerMeetingScheduler = (): UseManagerMeetingSchedulerReturn =
     navigate(-1);
   };
 
-  // Filter KPIs and reviews by selected employee
-  const filteredKPIs = selectedEmployeeId 
-    ? kpis.filter(k => k.employee_id === selectedEmployeeId)
-    : kpis;
+  // Filter KPIs and reviews by selected employee and deduplicate by ID
+  const filteredKPIs = (() => {
+    const filtered = selectedEmployeeId 
+      ? (Array.isArray(kpis) ? kpis.filter(k => k.employee_id === selectedEmployeeId) : [])
+      : (Array.isArray(kpis) ? kpis : []);
+    // Deduplicate by ID
+    const uniqueMap = new Map(filtered.map(k => [k.id, k]));
+    return Array.from(uniqueMap.values());
+  })();
 
-  const filteredReviews = selectedEmployeeId
-    ? reviews.filter(r => r.employee_id === selectedEmployeeId)
-    : reviews;
+  const filteredReviews = (() => {
+    const filtered = selectedEmployeeId
+      ? (Array.isArray(reviews) ? reviews.filter(r => r.employee_id === selectedEmployeeId) : [])
+      : (Array.isArray(reviews) ? reviews : []);
+    // Deduplicate by ID
+    const uniqueMap = new Map(filtered.map(r => [r.id, r]));
+    return Array.from(uniqueMap.values());
+  })();
 
   return {
     loading,

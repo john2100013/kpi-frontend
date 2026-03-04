@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import api from '../../../services/api';
 import { KPI, KPIReview } from '../../../types';
 import { FiArrowLeft, FiEye, FiUser, FiSearch, FiFilter, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { useToast } from '../../../context/ToastContext';
 
 interface PeriodSetting {
   id: number;
@@ -23,6 +24,7 @@ const RejectedKPIManagement: React.FC = () => {
   const [kpiType, setKpiType] = useState<'quarterly' | 'yearly'>('quarterly');
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [availablePeriods, setAvailablePeriods] = useState<PeriodSetting[]>([]);
+  const toast = useToast();
 
   useEffect(() => {
     fetchData();
@@ -40,7 +42,7 @@ const RejectedKPIManagement: React.FC = () => {
         setSelectedPeriodId(periods[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      toast.error('Failed to fetch available periods. Please try again.');
     }
   };
 
@@ -59,7 +61,7 @@ const RejectedKPIManagement: React.FC = () => {
       // KPIs are already filtered by status=rejected in the backend
       setKpis(allKpis);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch KPI data. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -42,23 +42,52 @@ const KPISettingCompleted: React.FC = () => {
         setSelectedPeriodId(periods[0].id);
       }
     } catch (error) {
-      console.error('Error fetching available periods:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch available periods.');
+      }
     }
   };
 
   const fetchData = async () => {
     try {
-      // Use the dedicated endpoint for setting-completed KPIs
-      const kpisRes = await api.get('/kpis/setting-completed').catch(err => {
-        console.error('Error fetching setting-completed KPIs:', err);
+
+
+      
+      // Fetch acknowledged KPIs (status = 'acknowledged')
+
+      const kpisRes = await api.get('/kpis/setting-completed', {
+        params: {
+          status: 'acknowledged', // Filter for acknowledged status
+        }
+      }).catch(_err => {
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.error('Could not fetch acknowledged KPIs.');
+        }
         return { data: { kpis: [] } };
       });
 
-      setKpis(kpisRes.data.kpis || []);
+
+
+      // Filter for acknowledged status on frontend as well (double-check)
+      const allKpis = kpisRes.data.data?.kpis || kpisRes.data.kpis || [];
+      
+      // if (allKpis.length > 0) {
+      // } else {
+      //   // No KPIs returned from API
+      // }
+
+      const acknowledgedKPIs = allKpis.filter((kpi: KPI) => kpi.status === 'acknowledged');
+
+      
+      setKpis(acknowledgedKPIs);
+
     } catch (error) {
-      console.error('Error fetching data:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Could not fetch acknowledged KPIs.');
+      }
     } finally {
       setLoading(false);
+
     }
   };
 
@@ -75,6 +104,12 @@ const KPISettingCompleted: React.FC = () => {
     
     return matchesType && matchesPeriod && matchesSearch;
   });
+
+  // Add logging for filtered results
+
+  // if (kpis.length > 0 && settingCompletedKPIs.length === 0) {
+  //   // Sample KPI for comparison and current filters (developer log removed)
+  // }
 
   // UPDATED: Check if KPI was ever rejected
   const getStatus = (): { status: string; color: string } => {
@@ -108,7 +143,6 @@ const KPISettingCompleted: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Error downloading PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to download PDF');
     } finally {
       setDownloading(null);
@@ -179,7 +213,7 @@ const KPISettingCompleted: React.FC = () => {
     const periodLabel = kpiType === 'quarterly' && selectedPeriodId
       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''}_${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
       : kpiType;
-    const fileName = `KPI_Setting_Completed_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`;
+    const fileName = `KPI_Acknowledged_${periodLabel}_${new Date().toISOString().split('T')[0]}.csv`;
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
@@ -192,25 +226,25 @@ const KPISettingCompleted: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-gray-100 rounded-lg self-start"
         >
           <FiArrowLeft className="text-xl" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">KPI Setting Completed</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            View all KPIs where the setting phase has been fully completed and signed
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Acknowledged KPIs</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            View all KPIs that have been acknowledged and signed by employees
           </p>
         </div>
         {(user?.role === 'hr' || user?.role === 'manager') && (
           <button
             onClick={handleExportToCSV}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors w-full sm:w-auto"
             title="Export to CSV/Excel"
           >
             <FiFileText className="text-lg" />
@@ -220,14 +254,14 @@ const KPISettingCompleted: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center space-x-2 mb-4">
           <FiFilter className="text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Filters</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">KPI Period</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">KPI Period</label>
             <select
               value={kpiType === 'quarterly' && selectedPeriodId ? selectedPeriodId.toString() : kpiType}
               onChange={(e) => {
@@ -240,7 +274,7 @@ const KPISettingCompleted: React.FC = () => {
                   setSelectedPeriodId(parseInt(value));
                 }
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
               {availablePeriods.map((period) => (
                 <option key={period.id} value={period.id.toString()}>
@@ -251,15 +285,15 @@ const KPISettingCompleted: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Search</label>
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by employee name, payroll, or KPI title..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="Search by employee name..."
+                className="w-full pl-10 pr-3 sm:pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
@@ -268,14 +302,14 @@ const KPISettingCompleted: React.FC = () => {
 
       {/* KPI List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            KPI Setting Completed ({settingCompletedKPIs.length})
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+            Acknowledged KPIs ({settingCompletedKPIs.length})
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
             {kpiType === 'quarterly' && selectedPeriodId
               ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
-              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that were acknowledged and fully signed off
+              : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} KPIs that have been acknowledged by employees
           </p>
         </div>
 
@@ -296,7 +330,7 @@ const KPISettingCompleted: React.FC = () => {
               {settingCompletedKPIs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No KPI setting records found for {kpiType === 'quarterly' && selectedPeriodId
+                    No acknowledged KPIs found for {kpiType === 'quarterly' && selectedPeriodId
                       ? `${availablePeriods.find(p => p.id === selectedPeriodId)?.quarter || ''} ${availablePeriods.find(p => p.id === selectedPeriodId)?.year || ''}`
                       : kpiType === 'quarterly' ? 'Quarterly' : 'Yearly'} period
                   </td>
@@ -348,15 +382,8 @@ const KPISettingCompleted: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => {
-                              let path: string;
-                              if (user?.role === 'hr') {
-                                path = `/hr/kpi-details/${kpi.id}`;
-                              } else if (user?.role === 'manager') {
-                                path = `/manager/kpi-details/${kpi.id}`;
-                              } else {
-                                path = `/employee/kpi-details/${kpi.id}`;
-                              }
-                              navigate(path);
+                              // Navigate to KPI acknowledgement sign page
+                              navigate(`/kpi-acknowledgement/${kpi.id}`);
                             }}
                             className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
                           >

@@ -25,6 +25,8 @@ export interface Employee {
   payroll_number: string;
   department: string;
   position: string;
+  role?: string;
+  role_id?: number;
   manager_name?: string;
 }
 
@@ -65,7 +67,7 @@ export interface KPIPagination {
 
 export interface RatingOption {
   id?: number;
-  rating_value: number | null;
+  rating_value: number | string | null; // Database returns DECIMAL as string
   label: string;
   description?: string;
   is_active: boolean;

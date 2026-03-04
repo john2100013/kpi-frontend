@@ -13,8 +13,22 @@ export * from './components';
 // Hooks
 export * from './hooks';
 
-// Types
-export * from './types';
-
 // Services
 export * from './services';
+
+// Export specific types to avoid ambiguity
+export type { 
+  DepartmentStatistic, 
+  Employee, 
+  PeriodSetting, 
+  Manager,
+  DashboardFilters,
+  RatingOption,
+  ReminderSetting,
+  DailyReminderSetting,
+  RejectedKPIFilter,
+  RejectedKPIStats,
+  TextModalState,
+  StageInfo,
+  ItemCalculation
+} from './types/hr.types';

@@ -4,12 +4,14 @@ export interface HRUser {
   name: string;
   email: string;
   password: string;
+  payrollNumber: string;
 }
 
 export interface Manager {
   name: string;
   email: string;
   password: string;
+  payrollNumber: string;
   departments: string[];
 }
 
@@ -53,17 +55,23 @@ export interface ExcelUploadResponse {
 
 export const companyOnboardingService = {
   onboardCompany: async (data: OnboardingFormData): Promise<OnboardingResponse> => {
-    const response = await api.post('/companies/onboard', data);
+    // Log the payload being sent
+
+
+
+
+    
+    const response = await api.post('/companies/create', data);
     return response.data;
   },
 
   uploadEmployeesExcel: async (companyId: number, file: File): Promise<ExcelUploadResponse> => {
+    
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await api.post(`/companies/${companyId}/employees/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
+    const response = await api.post(`/companies/${companyId}/bulk-upload-users`, formData);
+    
+    return response.data.data || response.data;
   },
 };

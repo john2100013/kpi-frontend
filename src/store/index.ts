@@ -13,6 +13,10 @@ import employeeReducer from './slices/employeeSlice';
 import departmentReducer from './slices/departmentSlice';
 import settingsReducer from './slices/settingsSlice';
 import statisticsReducer from './slices/statisticsSlice';
+import departmentAnalyticsReducer from './slices/departmentAnalyticsSlice';
+import bonusReducer from './slices/bonusSlice';
+import managerRatingReducer from './slices/managerRatingSlice';
+import reviewDraftReducer from './slices/reviewDraftSlice';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +28,10 @@ export const store = configureStore({
     departments: departmentReducer,
     settings: settingsReducer,
     statistics: statisticsReducer,
+    departmentAnalytics: departmentAnalyticsReducer,
+    bonus: bonusReducer,
+    managerRating: managerRatingReducer,
+    reviewDraft: reviewDraftReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

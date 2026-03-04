@@ -18,6 +18,8 @@ interface InputProps {
   disabled?: boolean;
   className?: string;
   autoComplete?: string;
+  maxLength?: number;
+  minLength?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -32,6 +34,8 @@ export const Input: React.FC<InputProps> = ({
   disabled = false,
   className = '',
   autoComplete,
+  maxLength,
+  minLength,
 }) => {
   const inputClasses = `
     w-full px-3 py-2 border rounded-lg 
@@ -58,6 +62,8 @@ export const Input: React.FC<InputProps> = ({
         required={required}
         disabled={disabled}
         autoComplete={autoComplete}
+        maxLength={maxLength}
+        minLength={minLength}
         className={inputClasses}
       />
       {error && (

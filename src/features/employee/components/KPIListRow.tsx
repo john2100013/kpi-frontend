@@ -11,6 +11,8 @@ interface KPIListRowProps {
   showEditButton: boolean;
   onView: (kpiId: number) => void;
   onEdit: (kpiId: number) => void;
+  isSelfRatingEnabled?: boolean;
+  calculationMethod?: string;
 }
 
 export const KPIListRow: React.FC<KPIListRowProps> = ({
@@ -20,7 +22,10 @@ export const KPIListRow: React.FC<KPIListRowProps> = ({
   showEditButton,
   onView,
   onEdit,
+  isSelfRatingEnabled = true,
+  calculationMethod = 'Normal Calculation',
 }) => {
+  const kpiPeriodLabel = kpi.period?.toLowerCase() === 'yearly' ? 'Yearly' : 'Quarterly';
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-6 py-4">
@@ -36,11 +41,18 @@ export const KPIListRow: React.FC<KPIListRowProps> = ({
       <td className="px-6 py-4">
         <div className="text-sm text-gray-600">
           <p>{kpi.quarter} {kpi.year}</p>
-          {kpi.meeting_date && (
-            <p className="text-xs text-gray-500 mt-1">
-              Meeting: {new Date(kpi.meeting_date).toLocaleDateString()}
-            </p>
+          {/* Show period-specific self-rating status badge */}
+          {isSelfRatingEnabled ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 mt-1">
+              {kpiPeriodLabel} - Self-rating enabled
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
+              {kpiPeriodLabel} - Self-rating disabled
+            </span>
           )}
+          {/* Show calculation method */}
+          <p className="text-xs text-gray-500 mt-1">{calculationMethod}</p>
         </div>
       </td>
       <td className="px-6 py-4">
@@ -59,7 +71,7 @@ export const KPIListRow: React.FC<KPIListRowProps> = ({
           >
             View
           </Button>
-          {primaryAction.label && primaryAction.onClick && (
+          {primaryAction.label && primaryAction.onClick && isSelfRatingEnabled && (
             <>
               <span className="text-gray-300">|</span>
               <Button
@@ -71,7 +83,7 @@ export const KPIListRow: React.FC<KPIListRowProps> = ({
               </Button>
             </>
           )}
-          {showEditButton && (
+          {showEditButton && isSelfRatingEnabled && (
             <>
               <span className="text-gray-300">|</span>
               <Button

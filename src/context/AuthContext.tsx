@@ -1,17 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Company } from '../types/index';
-import api from '../services/api';
+import api, { clearAuthCookies } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   companies: Company[];
   hasMultipleCompanies: boolean;
   selectedCompany: Company | null;
   login: (payrollNumber: string, password: string) => Promise<{ hasMultipleCompanies: boolean; passwordChangeRequired: boolean }>;
   loginWithEmail: (email: string, password: string) => Promise<{ hasMultipleCompanies: boolean; passwordChangeRequired: boolean }>;
   selectCompany: (companyId: number) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
   setUser: (user: User | null) => void;
 }
@@ -20,39 +19,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [hasMultipleCompanies, setHasMultipleCompanies] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Auth initialization is now handled by Redux (initializeAuth in App.tsx)
+  // AuthContext just manages local state that syncs from Redux via App.tsx
   useEffect(() => {
-    // Check for stored auth data
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    const storedCompanies = localStorage.getItem('companies');
-    const storedSelectedCompany = localStorage.getItem('selectedCompany');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-      
-      if (storedCompanies) {
-        const parsedCompanies = JSON.parse(storedCompanies);
-        setCompanies(parsedCompanies);
-        setHasMultipleCompanies(parsedCompanies.length > 1);
-      }
-      
-      if (storedSelectedCompany) {
-        setSelectedCompany(JSON.parse(storedSelectedCompany));
-      }
-    }
-
     setIsLoading(false);
   }, []);
 
-  const login = async (payrollNumber: string, password: string) => {
+  const login = useCallback(async (payrollNumber: string, password: string) => {
     try {
       const response = await api.post('/auth/login', {
         payrollNumber,
@@ -60,9 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginMethod: 'payroll'
       });
 
-      const { token: newToken, user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
+      const { user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
 
-      setToken(newToken);
       setUser(newUser);
       setCompanies(userCompanies || []);
       setHasMultipleCompanies(multiple || false);
@@ -71,22 +48,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userCompanies && userCompanies.length > 0) {
         const primary = userCompanies.find((c: Company) => c.is_primary) || userCompanies[0];
         setSelectedCompany(primary);
-        localStorage.setItem('selectedCompany', JSON.stringify(primary));
       }
-      
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      localStorage.setItem('companies', JSON.stringify(userCompanies || []));
-      localStorage.setItem('passwordChangeRequired', passwordChangeRequired ? 'true' : 'false');
-      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
       return { hasMultipleCompanies: multiple || false, passwordChangeRequired: passwordChangeRequired || false };
     } catch (error: any) {
+      
       throw new Error(error.response?.data?.error || 'Login failed');
     }
-  };
+  }, [companies]);
 
-  const loginWithEmail = async (email: string, password: string) => {
+  const loginWithEmail = useCallback(async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', {
         email,
@@ -94,9 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginMethod: 'email'
       });
 
-      const { token: newToken, user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
+      const { user: newUser, companies: userCompanies, hasMultipleCompanies: multiple, passwordChangeRequired } = response.data;
 
-      setToken(newToken);
       setUser(newUser);
       setCompanies(userCompanies || []);
       setHasMultipleCompanies(multiple || false);
@@ -105,74 +75,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userCompanies && userCompanies.length > 0) {
         const primary = userCompanies.find((c: Company) => c.is_primary) || userCompanies[0];
         setSelectedCompany(primary);
-        localStorage.setItem('selectedCompany', JSON.stringify(primary));
       }
-      
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      localStorage.setItem('companies', JSON.stringify(userCompanies || []));
-      localStorage.setItem('passwordChangeRequired', passwordChangeRequired ? 'true' : 'false');
-      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
       return { hasMultipleCompanies: multiple || false, passwordChangeRequired: passwordChangeRequired || false };
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed');
     }
-  };
+  }, [companies]);
 
-  const selectCompany = async (companyId: number) => {
+  const selectCompany = useCallback(async (companyId: number) => {
     try {
-      const response = await api.post('/auth/select-company', { companyId });
-      const { token: newToken } = response.data;
+      await api.post('/auth/select-company', { companyId });
       
-      setToken(newToken);
       const company = companies.find(c => c.id === companyId);
       if (company) {
         setSelectedCompany(company);
-        localStorage.setItem('selectedCompany', JSON.stringify(company));
       }
-      
-      localStorage.setItem('token', newToken);
-      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Failed to select company');
     }
-  };
+  }, [companies]);
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    setCompanies([]);
-    setHasMultipleCompanies(false);
-    setSelectedCompany(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('companies');
-    localStorage.removeItem('selectedCompany');
-    delete api.defaults.headers.common['Authorization'];
-  };
-
-  const updateUser = (updatedUser: User | null) => {
-    setUser(updatedUser);
-    if (updatedUser) {
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+  const logout = useCallback(async () => {
+  try {
+    // Try with axios first
+    await api.post('/auth/logout');
+  } catch (error: any) {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const response = await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        // Silently handle logout response - user will be logged out anyway
+      }
+    } catch (fetchError) {
+      // Silently handle logout errors - user will be logged out anyway
     }
-  };
+  } finally {
+    clearLocalState();
+  }
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
+  const clearLocalState = useCallback(() => {
+  setUser(null);
+  setCompanies([]);
+  setHasMultipleCompanies(false);
+  setSelectedCompany(null);
+  clearAuthCookies();
+  
+  try {
+    window.dispatchEvent(new Event('auth:logout'));
+  } catch (e) {
+    // Silently handle event dispatch error
+  }
+  }, []);
+
+  const updateUser = useCallback((updatedUser: User | null) => {
+    setUser(updatedUser);
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      user,
       companies,
       hasMultipleCompanies,
       selectedCompany,
-      login, 
-      loginWithEmail, 
+      login,
+      loginWithEmail,
       selectCompany,
-      logout, 
+      logout,
       isLoading,
-      setUser: updateUser
-    }}>
+      setUser: updateUser,
+    }),
+    [user, companies, hasMultipleCompanies, selectedCompany, login, loginWithEmail, selectCompany, logout, isLoading, updateUser]
+  );
+
+  return (
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

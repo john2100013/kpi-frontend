@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { managerService } from '../services/managerService';
 import { getKPIStage } from './managerDashboardUtils';
@@ -27,6 +28,7 @@ interface UseManagerEmployeeKPIsReturn {
 export const useManagerEmployeeKPIs = (): UseManagerEmployeeKPIsReturn => {
   const { employeeId } = useParams<{ employeeId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [reviews, setReviews] = useState<KPIReview[]>([]);
@@ -34,41 +36,52 @@ export const useManagerEmployeeKPIs = (): UseManagerEmployeeKPIsReturn => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (employeeId) {
-      fetchData();
-    }
-  }, [employeeId]);
-
   const fetchData = async () => {
+    if (!employeeId) {
+      return;
+    }
+
     try {
       setLoading(true);
-      const [employeeKPIs, allReviews, employeeData] = await Promise.all([
-        managerService.fetchEmployeeKPIs(employeeId!),
+            const [employeeKPIs, allReviews, employeeData] = await Promise.all([
+        managerService.fetchEmployeeKPIs(employeeId),
         managerService.fetchReviews(),
-        managerService.fetchEmployeeById(employeeId!),
+        managerService.fetchEmployeeById(employeeId),
       ]);
 
-      setKpis(employeeKPIs);
-      setReviews(allReviews);
-      setEmployee(employeeData);
+      setKpis(employeeKPIs || []);
+      setReviews(allReviews || []);
+      setEmployee(employeeData || null);
     } catch (error) {
-      console.error('Error fetching employee KPIs data:', error);
+      toast.error('Server error. Please try reloading or try later.');
+      setKpis([]);
+      setReviews([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter KPIs by search query
+  useEffect(() => {
+    fetchData();
+  }, [employeeId]);
+
   const filteredKPIs = useMemo(() => {
-    if (!searchQuery.trim()) return kpis;
+    if (!kpis || kpis.length === 0) {
+      return [];
+    }
+
+    if (!searchQuery.trim()) {
+      return kpis;
+    }
 
     const query = searchQuery.toLowerCase();
-    return kpis.filter((kpi) =>
+    const filtered = kpis.filter((kpi) =>
       kpi.title?.toLowerCase().includes(query) ||
       kpi.quarter?.toLowerCase().includes(query) ||
       kpi.description?.toLowerCase().includes(query)
     );
+    
+    return filtered;
   }, [kpis, searchQuery]);
 
   // Get KPI stage information

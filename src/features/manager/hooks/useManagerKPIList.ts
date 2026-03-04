@@ -11,6 +11,7 @@ import { fetchKPIs } from '../../../store/slices/kpiSlice';
 import { managerService } from '../services';
 import { KPIReview } from '../../../types';
 import { getKPIStage } from './managerDashboardUtils';
+import { useToast } from '../../../context/ToastContext';
 
 export const useManagerKPIList = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const useManagerKPIList = () => {
   const [reviews, setReviews] = useState<KPIReview[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   // Initial data fetch
   useEffect(() => {
@@ -40,7 +42,7 @@ export const useManagerKPIList = () => {
       const reviewsData = await managerService.fetchReviews();
       setReviews(reviewsData);
     } catch (error) {
-      console.error('Error fetching KPI list data:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }

@@ -12,7 +12,7 @@ export const saveToStorage = (key: string, value: any): void => {
     const serialized = JSON.stringify(value);
     localStorage.setItem(key, serialized);
   } catch (error) {
-    console.error('Error saving to localStorage:', error);
+    // Error saving to localStorage (log removed)
   }
 };
 
@@ -27,7 +27,6 @@ export const getFromStorage = <T>(key: string, defaultValue?: T): T | null => {
     }
     return JSON.parse(item) as T;
   } catch (error) {
-    console.error('Error getting from localStorage:', error);
     return defaultValue || null;
   }
 };
@@ -39,7 +38,7 @@ export const removeFromStorage = (key: string): void => {
   try {
     localStorage.removeItem(key);
   } catch (error) {
-    console.error('Error removing from localStorage:', error);
+    // Error removing from localStorage (log removed)
   }
 };
 
@@ -50,7 +49,7 @@ export const clearStorage = (): void => {
   try {
     localStorage.clear();
   } catch (error) {
-    console.error('Error clearing localStorage:', error);
+    // Error clearing localStorage (log removed)
   }
 };
 
@@ -62,7 +61,7 @@ export const saveToSession = (key: string, value: any): void => {
     const serialized = JSON.stringify(value);
     sessionStorage.setItem(key, serialized);
   } catch (error) {
-    console.error('Error saving to sessionStorage:', error);
+    // Error saving to sessionStorage (log removed)
   }
 };
 
@@ -77,7 +76,6 @@ export const getFromSession = <T>(key: string, defaultValue?: T): T | null => {
     }
     return JSON.parse(item) as T;
   } catch (error) {
-    console.error('Error getting from sessionStorage:', error);
     return defaultValue || null;
   }
 };

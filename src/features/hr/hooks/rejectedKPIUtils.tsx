@@ -6,7 +6,7 @@ import React from 'react';
 import { KPI, KPIReview } from '../../../types';
 import { FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 
-export const getKPIStatusBadge = (kpi: KPI, review?: KPIReview): React.ReactNode => {
+export const getKPIStatusBadge = (_kpi: KPI, review?: KPIReview): React.ReactNode => {
   if (!review) return null;
 
   if (review.rejection_resolved_status === 'resolved') {

@@ -1,7 +1,8 @@
 import React from 'react';
-import { FiArrowLeft, FiEye } from 'react-icons/fi';
+import { FiArrowLeft, FiEye, FiInfo } from 'react-icons/fi';
 import { useManagerKPIList, getKPIStage } from '../hooks';
 import { KPIListItem } from '../components';
+import { useCompanyFeatures } from '../../../hooks/useCompanyFeatures';
 
 const ManagerKPIList: React.FC = () => {
   const {
@@ -14,12 +15,31 @@ const ManagerKPIList: React.FC = () => {
     handleBack,
   } = useManagerKPIList();
 
-  if (loading) {
+  const { features, loading: featuresLoading } = useCompanyFeatures();
+
+  if (loading || featuresLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
+  const isSelfRatingEnabled = features?.enable_employee_self_rating_quarterly !== false;
+
   return (
     <div className="space-y-6">
+      {/* Self-Rating Disabled Notice for Managers */}
+      {!isSelfRatingEnabled && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <FiInfo className="text-purple-600 text-lg flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-purple-800">
+                <strong>You will be the one to start this review:</strong> Your organization uses a manager-led review process. 
+                Initiate reviews for your team members' KPIs.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button

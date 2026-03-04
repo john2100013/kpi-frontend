@@ -20,10 +20,15 @@ export const useAssignHrToCompany = () => {
 
   const fetchHrUsers = async () => {
     try {
+
       setLoading(true);
       const data = await hrCompanyService.fetchHrUsers();
+
       setHrUsers(data);
     } catch (err: any) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Failed to load HR users. Please try again.');
+      }
       setError(err.response?.data?.error || 'Failed to load HR users');
     } finally {
       setLoading(false);

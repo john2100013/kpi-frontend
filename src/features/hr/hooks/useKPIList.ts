@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { KPI, KPIReview } from '../../../types';
 import { PeriodSetting, Manager, KPIFilters, KPIPagination } from '../types';
 import { hrService } from '../services';
+import { useToast } from '../../../context/ToastContext';
 
 export const useKPIList = () => {
   const location = useLocation();
@@ -31,6 +32,7 @@ export const useKPIList = () => {
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
+  const toast = useToast();
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [employeeIdFilter, setEmployeeIdFilter] = useState<string>('');
@@ -104,15 +106,20 @@ export const useKPIList = () => {
         hrService.fetchReviews(),
       ]);
 
-      setKpis(kpisRes.kpis || []);
+
+      const kpisArray = kpisRes.data?.kpis || kpisRes.kpis || [];
+      const paginationData = kpisRes.data?.pagination || kpisRes.pagination;
+
+
+      setKpis(kpisArray);
       setReviews(reviewsRes || []);
       setPagination(prev => ({
         ...prev,
-        totalPages: kpisRes.pagination?.total_pages || 1,
-        totalCount: kpisRes.pagination?.total_count || 0,
+        totalPages: paginationData?.total_pages || paginationData?.totalPages || 1,
+        totalCount: paginationData?.total_count || paginationData?.total || 0,
       }));
     } catch (error) {
-      console.error('Error fetching data:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }
@@ -123,7 +130,7 @@ export const useKPIList = () => {
       const settings = await hrService.fetchPeriodSettings();
       setPeriodSettings(settings);
     } catch (error) {
-      console.error('Error fetching period settings:', error);
+      toast.error('Server error. Please try reloading or try later.');
     }
   };
 
@@ -132,7 +139,7 @@ export const useKPIList = () => {
       const managersList = await hrService.fetchManagers();
       setManagers(managersList);
     } catch (error) {
-      console.error('Error fetching managers:', error);
+      toast.error('Server error. Please try reloading or try later.');
     }
   };
 
@@ -141,7 +148,7 @@ export const useKPIList = () => {
       const deptList = await hrService.fetchDepartments();
       setDepartments(deptList);
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      toast.error('Server error. Please try reloading or try later.');
     }
   };
 

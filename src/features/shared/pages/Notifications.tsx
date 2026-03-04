@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import api from '../../../services/api';
@@ -13,6 +14,7 @@ const Notifications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
+  const toast = useToast();
   useEffect(() => {
     fetchAllNotifications();
   }, []);
@@ -22,7 +24,7 @@ const Notifications: React.FC = () => {
       const response = await api.get('/notifications', { params: { limit: 100 } });
       setAllNotifications(response.data.notifications || []);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      toast.error('Server error. Please try reloading or try later.');
     } finally {
       setLoading(false);
     }
@@ -45,7 +47,7 @@ const Notifications: React.FC = () => {
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      toast.error('Could not mark notification as read.');
     }
   };
 
@@ -54,7 +56,7 @@ const Notifications: React.FC = () => {
       await api.patch('/notifications/read-all');
       setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      toast.error('Could not mark all notifications as read.');
     }
   };
 

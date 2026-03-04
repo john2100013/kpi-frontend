@@ -1,118 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import api from '../../../services/api';
-import { useToast } from '../../../context/ToastContext';
-import { User, KPI, KPIReview } from '../../../types';
+import React from 'react';
 import DatePicker from '../../../components/DatePicker';
 import { FiArrowLeft, FiCalendar, FiSave, FiClock, FiMapPin, FiFileText } from 'react-icons/fi';
+import { useManagerMeetingScheduler } from '../hooks';
 
 const MeetingScheduler: React.FC = () => {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const { kpiId, reviewId } = useParams<{ kpiId?: string; reviewId?: string }>();
-  const [employees, setEmployees] = useState<User[]>([]);
-  // const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null); // Unused - keeping for potential future use
-  const [kpis, setKpis] = useState<KPI[]>([]);
-  const [reviews, setReviews] = useState<KPIReview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // Form state
-  const [meetingType, setMeetingType] = useState<'kpi_setting' | 'kpi_review'>('kpi_setting');
-  const [selectedKpiId, setSelectedKpiId] = useState<number | null>(kpiId ? parseInt(kpiId) : null);
-  const [selectedReviewId, setSelectedReviewId] = useState<number | null>(reviewId ? parseInt(reviewId) : null);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
-  const [scheduledDate, setScheduledDate] = useState<Date | null>(new Date());
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [location, setLocation] = useState('');
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedKpiId && meetingType === 'kpi_setting') {
-      const kpi = kpis.find(k => k.id === selectedKpiId);
-      if (kpi) {
-        setSelectedEmployeeId(kpi.employee_id);
-      }
-    } else if (selectedReviewId && meetingType === 'kpi_review') {
-      const review = reviews.find(r => r.id === selectedReviewId);
-      if (review) {
-        setSelectedEmployeeId(review.employee_id);
-      }
-    }
-  }, [selectedKpiId, selectedReviewId, meetingType, kpis, reviews]);
-
-  const fetchData = async () => {
-    try {
-      const [employeesRes, kpisRes, reviewsRes] = await Promise.all([
-        api.get('/employees').catch(() => ({ data: { employees: [] } })),
-        api.get('/kpis').catch(() => ({ data: { kpis: [] } })),
-        api.get('/kpi-review').catch(() => ({ data: { reviews: [] } })),
-      ]);
-
-      setEmployees(employeesRes.data.employees || []);
-      setKpis(kpisRes.data.kpis || []);
-      setReviews(reviewsRes.data.reviews || []);
-
-      // Pre-select if kpiId or reviewId is provided
-      if (kpiId) {
-        const kpi = (kpisRes.data.kpis || []).find((k: KPI) => k.id === parseInt(kpiId));
-        if (kpi) {
-          setMeetingType('kpi_setting');
-          setSelectedKpiId(parseInt(kpiId));
-        }
-      } else if (reviewId) {
-        const review = (reviewsRes.data.reviews || []).find((r: KPIReview) => r.id === parseInt(reviewId));
-        if (review) {
-          setMeetingType('kpi_review');
-          setSelectedReviewId(parseInt(reviewId));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedEmployeeId || !scheduledDate) {
-      toast.warning('Please select an employee and meeting date');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const meetingData: any = {
-        employee_id: selectedEmployeeId,
-        meeting_type: meetingType,
-        scheduled_date: scheduledDate.toISOString().split('T')[0],
-        scheduled_time: scheduledTime || null,
-        location: location || null,
-        notes: notes || null,
-      };
-
-      if (meetingType === 'kpi_setting' && selectedKpiId) {
-        meetingData.kpi_id = selectedKpiId;
-      } else if (meetingType === 'kpi_review' && selectedReviewId) {
-        meetingData.review_id = selectedReviewId;
-      }
-
-      await api.post('/meetings', meetingData);
-      toast.success('Meeting scheduled successfully! Email notifications have been sent.');
-      navigate('/manager/dashboard');
-    } catch (error: any) {
-      console.error('Error scheduling meeting:', error);
-      toast.error(error.response?.data?.error || 'Failed to schedule meeting');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    loading,
+    saving,
+    employees,
+    meetingType,
+    selectedKpiId,
+    setSelectedKpiId,
+    selectedReviewId,
+    setSelectedReviewId,
+    selectedEmployeeId,
+    setSelectedEmployeeId,
+    scheduledDate,
+    setScheduledDate,
+    scheduledTime,
+    setScheduledTime,
+    location,
+    setLocation,
+    notes,
+    setNotes,
+    filteredKPIs,
+    filteredReviews,
+    handleSubmit,
+    handleBack,
+    handleMeetingTypeChange,
+  } = useManagerMeetingScheduler();
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -123,7 +39,7 @@ const MeetingScheduler: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
           <FiArrowLeft className="text-xl" />
@@ -144,10 +60,7 @@ const MeetingScheduler: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => {
-                setMeetingType('kpi_setting');
-                setSelectedReviewId(null);
-              }}
+              onClick={() => handleMeetingTypeChange('kpi_setting')}
               className={`p-4 border-2 rounded-lg text-left transition-colors ${
                 meetingType === 'kpi_setting'
                   ? 'border-purple-500 bg-purple-50'
@@ -160,10 +73,7 @@ const MeetingScheduler: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMeetingType('kpi_review');
-                setSelectedKpiId(null);
-              }}
+              onClick={() => handleMeetingTypeChange('kpi_review')}
               className={`p-4 border-2 rounded-lg text-left transition-colors ${
                 meetingType === 'kpi_review'
                   ? 'border-purple-500 bg-purple-50'
@@ -212,13 +122,11 @@ const MeetingScheduler: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
               <option value="">No specific KPI</option>
-              {kpis
-                .filter(k => !selectedEmployeeId || k.employee_id === selectedEmployeeId)
-                .map((kpi) => (
-                  <option key={kpi.id} value={kpi.id}>
-                    {kpi.title} - {kpi.quarter} {kpi.year}
-                  </option>
-                ))}
+              {filteredKPIs.map((kpi) => (
+                <option key={kpi.id} value={kpi.id}>
+                  {kpi.title} - {kpi.quarter} {kpi.year}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -235,13 +143,11 @@ const MeetingScheduler: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
               <option value="">No specific review</option>
-              {reviews
-                .filter(r => !selectedEmployeeId || r.employee_id === selectedEmployeeId)
-                .map((review) => (
-                  <option key={review.id} value={review.id}>
-                    Review #{review.id} - {review.review_quarter} {review.review_year}
-                  </option>
-                ))}
+              {filteredReviews.map((review) => (
+                <option key={review.id} value={review.id}>
+                  Review #{review.id} - {review.review_quarter} {review.review_year}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -263,6 +169,7 @@ const MeetingScheduler: React.FC = () => {
             </label>
             <input
               type="time"
+              step="60"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -304,7 +211,7 @@ const MeetingScheduler: React.FC = () => {
         <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
           >
             Cancel
